@@ -1,0 +1,29 @@
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+*.pem
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Trellis local-only state
+.trellis/.developer
+.trellis/.runtime/
+.trellis/.template-hashes.json
+.trellis/workspace/
+.trellis/tasks/archive/
