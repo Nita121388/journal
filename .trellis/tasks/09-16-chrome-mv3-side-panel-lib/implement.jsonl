@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend 整体规范入口"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "目录结构规范"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件渲染规范"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "状态管理规范（store）"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "lib 模块依赖规则"}

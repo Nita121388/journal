@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Journal",
+  "version": "0.1.0",
+  "description": "每日日志 + 热力图打卡 + TODO + AI 增删改查",
+  "permissions": ["storage"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "打开 Journal"
+  }
+}

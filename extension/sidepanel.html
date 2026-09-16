@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header id="header">
+    <div id="header-left">
+      <span id="app-title">📓 Journal</span>
+      <time id="today-display"></time>
+    </div>
+    <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
+  </header>
+
+  <main>
+    <section id="journal-section">
+      <label for="journal-input" class="section-label">今日日志</label>
+      <textarea
+        id="journal-input"
+        placeholder="今天做了什么..."
+        rows="12"
+        spellcheck="true"
+      ></textarea>
+      <div id="save-status"></div>
+    </section>
+
+    <section id="heatmap-section">
+      <label class="section-label">打卡热力图</label>
+      <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
+    </section>
+  </main>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
