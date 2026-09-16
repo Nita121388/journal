@@ -1,54 +1,58 @@
-# Directory Structure
+# Directory Structure (Backend)
 
-> How backend code is organized in this project.
+> How the Node.js local host code is organized.
 
 ---
 
 ## Overview
 
-<!--
-Document your project's backend directory structure here.
-
-Questions to answer:
-- How are modules/packages organized?
-- Where does business logic live?
-- Where are API endpoints defined?
-- How are utilities and helpers organized?
--->
-
-(To be filled by the team)
+The **backend** of Journal is the `host/` directory: a **local Node.js process** that provides the AI layer to the extension. It reuses the `tabshelf-host` pattern — a local HTTP/MCP server the extension talks to over `localhost`. There is no remote server; everything runs on the user's machine.
 
 ---
 
 ## Directory Layout
 
 ```
-<!-- Replace with your actual structure -->
-src/
-├── ...
-└── ...
+host/
+├── package.json          # Node host deps + scripts
+├── index.js              # Entry point: starts the local server / MCP host
+├── server.js             # HTTP/MCP server — receives extension requests
+├── routes/
+│   ├── journal.js        # AI CRUD on journal entries ("today?" / "add to 7/8")
+│   └── todo.js           # AI CRUD on todos ("mark Monday's todo done")
+├── services/
+│   ├── ai.js             # LLM client (local model or API key)
+│   └── intent.js         # natural-language → structured action parser
+├── lib/
+│   └── storage.js        # Reads/writes the same chrome.storage-shaped data
+└── test/
+    └── ...
 ```
 
 ---
 
 ## Module Organization
 
-<!-- How should new features/modules be organized? -->
-
-(To be filled by the team)
+- **`index.js`** — bootstrap only: read config, start server, wire routes. No business logic.
+- **`routes/`** — request handlers. Thin: parse request → call service → return JSON.
+- **`services/`** — business logic: AI calls, intent parsing, CRUD operations.
+- **`lib/`** — shared helpers (storage access, validation, logging).
+- Keep `routes/` thin and `services/` deep (logic lives in services).
 
 ---
 
 ## Naming Conventions
 
-<!-- File and folder naming rules -->
-
-(To be filled by the team)
+| Item | Rule |
+|------|------|
+| Files | `kebab-case.js` (same as frontend) |
+| Routes | plural nouns: `journal.js`, `todo.js` |
+| Services | singular nouns: `ai.js`, `intent.js` |
+| Exported route handlers | `handle<Action>`: `handleGetToday`, `handleAddEntry` |
+| HTTP methods | `GET` read, `POST` write, `DELETE` remove (REST-ish, JSON in/out) |
 
 ---
 
 ## Examples
 
-<!-- Link to well-organized modules as examples -->
-
-(To be filled by the team)
+- `host/routes/journal.js` — `handleAddEntry(req, res)` → `services/intent.js` parses → `services/ai.js` builds entry → writes via `lib/storage.js`.

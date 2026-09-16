@@ -26,4 +26,8 @@ npm-debug.log*
 .trellis/.runtime/
 .trellis/.template-hashes.json
 .trellis/workspace/
-.trellis/tasks/archive/
+# 注意：tasks/archive/ 不要忽略，归档任务需追踪（方便协作 + 复盘）
+# 只忽略缓存、worktrees、备份等
+.trellis/.backup-*
+.trellis/worktrees/
+.trellis/.cache/

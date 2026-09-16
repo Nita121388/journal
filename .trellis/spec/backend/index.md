@@ -6,7 +6,7 @@
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
+The **backend** is the `host/` directory: a **local Node.js process** that provides AI intent parsing + CRUD to the extension over `localhost`. It mirrors the extension's storage shape; no remote server, no database.
 
 ---
 
@@ -14,25 +14,29 @@ This directory contains guidelines for backend development. Fill in each file wi
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [Directory Structure](./directory-structure.md) | `host/` layout, routes → services → lib | ✅ Filled |
+| [Database Guidelines](./database-guidelines.md) | JSON file storage, atomic writes, schema mirroring frontend | ✅ Filled |
+| [Error Handling](./error-handling.md) | Structured `{ ok, error: { code } }` responses, async handler wrapper | ✅ Filled |
+| [Logging Guidelines](./logging-guidelines.md) | `[host][level] component: msg`, no secrets logged | ✅ Filled |
+| [Quality Guidelines](./quality-guidelines.md) | Vitest, `127.0.0.1` bind only, no eval, input validation | ✅ Filled |
 
 ---
 
-## How to Fill These Guidelines
+## Pre-Development Checklist
 
-For each guideline file:
+Before writing any host code, confirm:
 
-1. Document your project's **actual conventions** (not ideals)
-2. Include **code examples** from your codebase
-3. List **forbidden patterns** and why
-4. Add **common mistakes** your team has made
-
-The goal is to help AI assistants and new team members understand how YOUR project works.
+- [ ] New file goes in the right place per [Directory Structure](./directory-structure.md)
+- [ ] Validation happens before storage access
+- [ ] LLM call errors are caught and returned as `502 AI_ERROR`
+- [ ] No secrets (API key, credentials) logged or returned
+- [ ] Handler is wrapped with `asyncHandler()` (see [Error Handling](./error-handling.md))
 
 ---
 
-**Language**: All documentation should be written in **English**.
+## Quality Check
+
+- [ ] `npm test` passes (Vitest, >80% on `services/` + `lib/`)
+- [ ] `npx eslint host/` — 0 errors
+- [ ] Host binds to `127.0.0.1` only; console shows `[info] listening on 127.0.0.1:8765`
+- [ ] Responses always `{ ok, data/error }`, never raw stack traces

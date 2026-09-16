@@ -1,51 +1,95 @@
 # Type Safety
 
-> Type safety patterns in this project.
+> How types and validation are handled in this **vanilla JS** project (no TypeScript).
 
 ---
 
 ## Overview
 
-<!--
-Document your project's type safety conventions here.
+Journal is built with **plain ES modules** (no TypeScript, no build step). Type safety is maintained via:
 
-Questions to answer:
-- What type system do you use?
-- How are types organized?
-- What validation library do you use?
-- How do you handle type inference?
--->
-
-(To be filled by the team)
+1. **Runtime validation** in `lib/store.js` on all data that enters storage.
+2. **JSDoc annotations** in `lib/` for editor intellisense and lint.
+3. **Strict ESLint** rules (`eslint-plugin-jsdoc`) to enforce JSDoc presence on exported functions.
 
 ---
 
-## Type Organization
+## JSDoc Convention for `lib/` Modules
 
-<!-- Where types are defined, shared types vs local types -->
+Every exported function in `lib/` must have a `@param` / `@returns` JSDoc block:
 
-(To be filled by the team)
+```js
+/**
+ * @param {string} dayKey — "YYYY-MM-DD"
+ * @param {string} markdown
+ * @returns {Promise<void>}
+ */
+export async function saveJournalEntry(dayKey, markdown) {
+  // ...
+}
+```
 
----
-
-## Validation
-
-<!-- Runtime validation patterns (Zod, Yup, io-ts, etc.) -->
-
-(To be filled by the team)
-
----
-
-## Common Patterns
-
-<!-- Type utilities, generics, type guards -->
-
-(To be filled by the team)
+- Store-module files should also have **@typedef** for the shapes of entries, todos, and settings at the top of the file.
+- ESLint `valid-jsdoc` rule is set to **warn** on missing/invalid JSDoc in `lib/`.
 
 ---
 
-## Forbidden Patterns
+## Runtime Validation (store boundary)
 
-<!-- any, type assertions, etc. -->
+`lib/store.js` is the only gateway to `chrome.storage.local`. All mutations go through it.
 
-(To be filled by the team)
+On **read**: validate the shape before returning to the caller.
+
+```js
+function isJournalMap(val) {
+  return val !== null && typeof val === 'object' && Object.values(val).every(v => typeof v === 'string');
+}
+
+/**
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function getAllJournals() {
+  const { journals } = await chrome.storage.local.get(KEY.JOURNALS);
+  if (!isJournalMap(journals)) return {};
+  return journals;
+}
+```
+
+On **write**: accept only the declared types; throw on invalid input before touching storage.
+
+---
+
+## What Goes in a `@typedef`
+
+Create a single `lib/types.js` (or at the top of `store.js`) with the canonical shapes:
+
+```js
+/** @typedef {{ id: string, title: string, done: boolean, due: string|null, priority: 'high'|'medium'|'low' }} TodoItem */
+
+/** @typedef {{ sync: SyncSettings, ai: AISettings, theme: 'auto'|'light'|'dark' }} UserSettings */
+
+/**
+ * @typedef {Record<string, string>} JournalMap
+ *   keys = "YYYY-MM-DD", values = markdown string
+ */
+```
+
+---
+
+## Lint Rules
+
+```json
+{
+  "jsdoc/require-jsdoc": ["warn", { "require": { "ExportedFunctionDeclaration": true } }],
+  "jsdoc/require-param": "warn",
+  "jsdoc/require-returns": "warn"
+}
+```
+
+---
+
+## Common Mistakes
+
+- Passing a number where a string key is expected → crash at `chrome.storage.local` write. Validate at the store boundary.
+- Trusting `chrome.storage.local.get()` return to always be the right shape — it's not. Storage can contain orphaned keys from prior schema versions. Always validate on read.
+- Never silently swallow errors on store read — log and return the safe empty default, don't propagate undefined.
