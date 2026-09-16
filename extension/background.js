@@ -1,17 +1,15 @@
 /**
  * background.js — MV3 Service Worker
- * 职责：处理扩展图标点击 → 打开/切换侧边栏
+ * 职责：配置点击扩展图标时自动打开/关闭侧边栏
  */
 
-chrome.action.onClicked.addListener(async (tab) => {
-  try {
-    // MV3 需要在用户手势中调用 sidePanel.open
-    await chrome.sidePanel.open({ tabId: tab.id });
-  } catch (err) {
-    // 某些页面（如 chrome:// 页）无法打开侧边栏，忽略
-    console.warn('[journal] failed to open side panel:', err);
-  }
+// 官方推荐：点击 action 图标自动切换侧边栏（无需 onClicked 监听）
+// openPanelOnActionClick: true 时，点击图标即开/关侧边栏，且不触发 action.onClicked
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-// 可选：允许用户在指定站点自动显示侧边栏（暂不启用，保持最小权限）
-// chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+// 也确保 SW 激活时行为已设置（onInstalled 可能在已安装后才被信任）
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+  console.warn('[journal] setPanelBehavior failed:', err);
+});
