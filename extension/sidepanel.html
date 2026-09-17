@@ -31,6 +31,42 @@
       <label class="section-label">打卡热力图</label>
       <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
     </section>
+
+    <section id="todo-section">
+      <div class="todo-header">
+        <label class="section-label">待办清单</label>
+        <div id="todo-stats"></div>
+      </div>
+
+      <div id="todo-input-row">
+        <input
+          type="text"
+          id="todo-input"
+          placeholder="添加待办..."
+          aria-label="添加待办"
+          autocomplete="off"
+        />
+        <select id="todo-priority" aria-label="优先级" title="优先级">
+          <option value="low">🟢 低</option>
+          <option value="medium" selected>🟡 中</option>
+          <option value="high">🔴 高</option>
+        </select>
+        <input
+          type="date"
+          id="todo-due"
+          aria-label="截止日期"
+          title="截止日期"
+        />
+      </div>
+
+      <div id="todo-filter-row">
+        <button class="todo-filter active" data-filter="active">未完成</button>
+        <button class="todo-filter" data-filter="all">全部</button>
+        <button class="todo-filter" data-filter="done">已完成</button>
+      </div>
+
+      <ul id="todo-list"></ul>
+    </section>
   </main>
 
   <script type="module" src="sidepanel.js"></script>
