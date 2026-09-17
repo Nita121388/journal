@@ -3,13 +3,25 @@
  * 职责：配置点击扩展图标时自动打开/关闭侧边栏
  */
 
-// 官方推荐：点击 action 图标自动切换侧边栏（无需 onClicked 监听）
-// openPanelOnActionClick: true 时，点击图标即开/关侧边栏，且不触发 action.onClicked
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-});
+/**
+ * 确保 setPanelBehavior 被设置。
+ * onInstalled 只在安装/更新时触发；onStartup 在浏览器启动时触发；
+ * 顶层调用覆盖 Service Worker 每次唤醒。三者叠加保证行为一定生效。
+ *
+ * 注意：chrome.sidePanel 只有在 manifest permissions 声明了 "sidePanel"
+ * 才可用；若不可用需先修 manifest，不要在此处硬抛。
+ */
+function ensurePanelBehavior() {
+  if (typeof chrome.sidePanel === 'undefined') {
+    console.warn('[journal] chrome.sidePanel unavailable — check manifest permissions includes "sidePanel"');
+    return;
+  }
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .then(() => console.debug('[journal] setPanelBehavior OK'))
+    .catch((err) => console.warn('[journal] setPanelBehavior failed:', err));
+}
 
-// 也确保 SW 激活时行为已设置（onInstalled 可能在已安装后才被信任）
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
-  console.warn('[journal] setPanelBehavior failed:', err);
-});
+chrome.runtime.onInstalled.addListener(ensurePanelBehavior);
+chrome.runtime.onStartup.addListener(ensurePanelBehavior);
+ensurePanelBehavior();
