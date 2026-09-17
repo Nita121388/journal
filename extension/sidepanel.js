@@ -11,6 +11,7 @@ import {
   getTodos, saveTodos,
   getSettings,
 } from './lib/store.js';
+import { pullFromHost, startPushListener } from './lib/host-sync.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -157,6 +158,12 @@ async function init() {
       (settings.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.dataset.theme = 'dark';
   }
+
+  // 从 host 拉取远程数据（若 host 在线且远程数据更多）
+  await pullFromHost();
+
+  // 启动推送监听：扩展变更 → debounce 500ms → 同步到 host
+  startPushListener();
 
   await renderAll();
 

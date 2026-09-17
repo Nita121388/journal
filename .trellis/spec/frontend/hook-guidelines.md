@@ -65,6 +65,10 @@ Rules:
 
 ---
 
+## Exceptions (approved)
+
+**`lib/host-sync.js`** may directly call `chrome.storage.local.get/set` for cross-group atomic reads during host synchronization. This exception is documented in the file header. Do not extend this exception to new modules.
+
 ## Common Mistakes
 
 - Putting storage calls inside a "pure" derivation function → makes it untestable.

@@ -16,6 +16,9 @@ build/
 *.log
 npm-debug.log*
 
+# Host data (user privacy)
+host/data/
+
 # Editor
 .idea/
 .vscode/
