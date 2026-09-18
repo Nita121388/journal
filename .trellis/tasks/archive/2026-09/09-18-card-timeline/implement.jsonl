@@ -1,0 +1,8 @@
+{"file": "extension/lib/model.js", "reason": "卡片纯函数：createCard, groupCardsForTimeline, migrateOldJournals, migrateOldTodos, countCardsByDay"}
+{"file": "host/server.js", "reason": "卡片 CRUD API: GET/POST/PUT/DELETE /api/cards"}
+{"file": "extension/lib/store.js", "reason": "卡片存储层：getAllCards, createCard, updateCard, deleteCard, migrateIfNeeded"}
+{"file": "extension/lib/host-sync.js", "reason": "同步层：pullFromHost 改为拉取 cards"}
+{"file": "extension/sidepanel.js", "reason": "时间线渲染：renderTimeline, renderCardPool, renderCalendarView, renderHeatmap"}
+{"file": "extension/sidepanel.html", "reason": "看板 HTML：卡片池面板 + 时间线区域"}
+{"file": "extension/sidepanel.css", "reason": "时间线/卡片池/卡片样式 + 日历/热力图颜色渐变"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件规范：防抖保存、切换竞态、host权威"}
