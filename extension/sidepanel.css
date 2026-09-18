@@ -79,6 +79,9 @@ main {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .section-label {
@@ -123,14 +126,15 @@ main {
 #heatmap-container {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 12px);
   gap: 3px;
   padding: 4px 0;
+  width: fit-content;
 }
 
 .heatmap-cell {
-  width: 100%;
-  aspect-ratio: 1;
+  width: 12px;
+  height: 12px;
   border-radius: 3px;
   background: var(--color-cell-empty);
 }
@@ -375,8 +379,9 @@ main {
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, 36px);
   gap: 3px;
+  width: fit-content;
 }
 
 .cal-day {
