@@ -4,6 +4,24 @@
  */
 
 /**
+ * 显式关闭"点击图标打开侧边栏"行为。
+ * setPanelBehavior({ openPanelOnActionClick: true }) 是持久化设置，
+ * 即使旧代码已删除，Chrome 仍会记住该行为，导致 onClicked 不触发。
+ * 必须在每次 SW 唤醒时显式设 false 覆盖。
+ */
+function disablePanelOnActionClick() {
+  if (typeof chrome.sidePanel === 'undefined') return;
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: false })
+    .then(() => console.debug('[journal] openPanelOnActionClick=false'))
+    .catch((err) => console.warn('[journal] setPanelBehavior reset failed:', err));
+}
+
+chrome.runtime.onInstalled.addListener(disablePanelOnActionClick);
+chrome.runtime.onStartup.addListener(disablePanelOnActionClick);
+disablePanelOnActionClick();
+
+/**
  * 点击扩展图标 → 新标签打开主界面
  * 注意：chrome.action.onClicked 只在没有 default_popup 时触发
  */
