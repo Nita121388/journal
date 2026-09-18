@@ -5,10 +5,14 @@
   --color-muted: #9e9e9e;
   --color-border: #e5e7eb;
   --color-accent: #4caf50;
+  --color-accent-light: #e8f5e9;
   --color-cell-empty: #ebedf0;
   --color-cell-filled: #4caf50;
   --color-cell-mid: #9ccc65;
   --color-surface: #f8f9fa;
+  --color-card-bg: #ffffff;
+  --color-card-border: #e8e8e8;
+  --color-timeline: #d0d5dd;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
 }
@@ -22,15 +26,13 @@
   --color-cell-filled: #4caf50;
   --color-cell-mid: #689f38;
   --color-surface: #252525;
+  --color-card-bg: #2a2a2a;
+  --color-card-border: #3a3a3a;
+  --color-timeline: #444;
 }
 
 * { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
+html, body { margin: 0; padding: 0; height: 100%; }
 
 body {
   background: var(--color-bg);
@@ -55,64 +57,43 @@ header#header {
   z-index: 10;
 }
 
-#header-left {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
+#header-left { display: flex; align-items: baseline; gap: 12px; }
 #app-title { font-weight: 600; font-size: 16px; }
-
 #today-display { color: var(--color-muted); font-size: 13px; }
 
 #btn-settings {
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  color: var(--color-muted);
-  border-radius: 6px;
-  padding: 6px 8px;
+  background: none; border: none; font-size: 16px;
+  cursor: pointer; color: var(--color-muted);
+  border-radius: 6px; padding: 6px 8px;
 }
-
 #btn-settings:hover { background: var(--color-cell-empty); }
 
-/* ─── Main 容器 ─────────────────────────────────────── */
+/* ─── Main 容器 ──────────────────────────────────── */
 
 main {
   flex: 1;
-  padding: 20px 24px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
   max-width: 960px;
   width: 100%;
   margin: 0 auto;
 }
 
-/* ─── 看板双栏布局 ─────────────────────────────── */
-
 #board {
   display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 20px;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
   flex: 1;
   min-height: 0;
 }
 
 @media (max-width: 720px) {
-  #board {
-    grid-template-columns: 1fr;
-  }
+  #board { grid-template-columns: 1fr; }
+  #sidebar { display: none; } /* 窄屏隐藏侧栏，简化 */
 }
 
-/* ─── 左侧：日志编辑 ─────────────────────────────── */
-
-#journal-section {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
+/* ─── 通用组件 ──────────────────────────────────── */
 
 .section-label {
   display: block;
@@ -121,55 +102,135 @@ main {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--color-muted);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 8px;
 }
 
-#journal-input {
-  flex: 1;
-  width: 100%;
-  min-height: 200px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  font-size: 14px;
-  font-family: var(--font);
-  line-height: 1.7;
-  resize: vertical;
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-#journal-input:focus {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -1px;
-}
-
-#save-status {
-  margin-top: 4px;
-  font-size: 12px;
+.section-badge {
+  font-size: 11px;
   color: var(--color-muted);
-  min-height: 16px;
-  opacity: 0;
-  transition: opacity 0.2s;
+  background: var(--color-cell-empty);
+  padding: 1px 6px;
+  border-radius: 9px;
+  font-weight: 500;
 }
 
-#save-status.visible { opacity: 1; }
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-primary:hover { filter: brightness(0.9); }
 
-/* ─── 右侧栏：日历 + TODO ─────────────────────── */
+.btn-secondary {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+}
+.btn-secondary:hover { background: var(--color-cell-empty); }
+
+/* ─── 左侧栏 ─────────────────────────────────────── */
 
 #sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
+}
+
+/* ─── 卡片池 ─────────────────────────────────────── */
+
+#cardpool-section {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+#cardpool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cardpool-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-card-border);
+  cursor: pointer;
+  transition: border-color 0.15s;
+  font-size: 12px;
+}
+.cardpool-item:hover { border-color: var(--color-accent); }
+
+.cardpool-type-icon { font-size: 12px; flex-shrink: 0; }
+
+.cardpool-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardpool-schedule-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 2px 3px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.cardpool-schedule-btn:hover { background: var(--color-cell-empty); }
+
+.cardpool-add-btn {
+  width: 100%;
+  margin-top: 6px;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.cardpool-add-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
 }
 
 /* ─── 日历 ─────────────────────────────────────── */
 
 #calendar-section {
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
@@ -179,7 +240,7 @@ main {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .cal-nav-btn,
@@ -191,33 +252,15 @@ main {
   font-family: var(--font);
   font-size: 13px;
   cursor: pointer;
-  padding: 4px 10px;
+  padding: 3px 8px;
   line-height: 1.4;
 }
-
-.cal-nav-btn {
-  font-size: 18px;
-  padding: 2px 8px;
-  min-width: 32px;
-}
-
+.cal-nav-btn { font-size: 16px; padding: 2px 7px; min-width: 28px; }
 .cal-nav-btn:hover,
-.cal-today-btn:hover {
-  background: var(--color-cell-empty);
-}
+.cal-today-btn:hover { background: var(--color-cell-empty); }
 
-.cal-month-label {
-  flex: 1;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.cal-today-btn {
-  color: var(--color-accent);
-  font-weight: 600;
-}
+.cal-month-label { flex: 1; text-align: center; font-size: 12px; font-weight: 600; }
+.cal-today-btn { color: var(--color-accent); font-weight: 600; font-size: 12px; }
 
 .calendar-weekdays {
   display: grid;
@@ -225,12 +268,11 @@ main {
   gap: 2px;
   margin-bottom: 2px;
 }
-
 .calendar-weekdays span {
   text-align: center;
   font-size: 10px;
   color: var(--color-muted);
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .calendar-grid {
@@ -249,57 +291,100 @@ main {
   font-size: 11px;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 1px;
+  padding: 1px;
   transition: background 0.15s, border-color 0.15s;
 }
+.cal-day:hover { border-color: var(--color-accent); }
 
-.cal-day:hover {
-  border-color: var(--color-accent);
-}
-
-.cal-day.is-out-month {
-  color: var(--color-muted);
-  opacity: 0.4;
-}
-
-.cal-day.is-filled {
-  background: var(--color-cell-mid);
-  font-weight: 600;
-}
-
-.cal-day.is-today {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -1px;
-}
-
+.cal-day.is-out-month { color: var(--color-muted); opacity: 0.4; }
+.cal-day.is-today { outline: 2px solid var(--color-accent); outline-offset: -1px; }
 .cal-day.is-selected {
   background: var(--color-accent);
   color: #fff;
   border-color: var(--color-accent);
   font-weight: 600;
 }
+.cal-day:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
-.cal-day:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
+/* 卡片数量背景色（日历） */
+.cal-day.count-0 { background: var(--color-bg); }
+.cal-day.count-1 { background: #e8f5e9; }
+.cal-day.count-2 { background: #c8e6c9; }
+.cal-day.count-3 { background: #a5d6a7; }
+.cal-day.count-4 { background: #81c784; color: #fff; }
+.cal-day.count-5 { background: var(--color-accent); color: #fff; font-weight: 600; }
+
+/* 日历格子内的卡片数指示器 */
+.cal-count {
+  font-size: 8px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.7;
 }
+.cal-day.is-selected .cal-count { color: #fff; opacity: 0.9; }
 
-/* ─── TODO ─────────────────────────────────────── */
+/* ─── 热力图 ─────────────────────────────────────── */
 
-#todo-section {
-  padding: 12px;
+#heatmap-section {
+  padding: 10px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
 }
 
-.todo-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+#heatmap-container {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 11px);
+  gap: 2px;
+  padding: 4px 0;
+  width: fit-content;
+}
+
+.heatmap-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--color-cell-empty);
+  cursor: pointer;
+  position: relative;
+}
+.heatmap-cell:hover { outline: 1px solid var(--color-accent); outline-offset: 1px; }
+
+/* 热力图 6 档着色 */
+.heatmap-cell.level-0 { background: var(--color-cell-empty); }
+.heatmap-cell.level-1 { background: #c6e48b; }
+.heatmap-cell.level-2 { background: #7bc96f; }
+.heatmap-cell.level-3 { background: #239a3b; }
+.heatmap-cell.level-4 { background: #196127; }
+.heatmap-cell.level-5 { background: #0e4429; }
+
+.heatmap-cell.is-today { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* 热力图 tooltip */
+.heatmap-tooltip {
+  position: fixed;
+  background: var(--color-text);
+  color: var(--color-bg);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ─── TODO ─────────────────────────────────────── */
+
+#todo-section {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
 }
 
 #todo-stats {
@@ -309,61 +394,35 @@ main {
 
 #todo-input-row {
   display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 5px;
+  margin-bottom: 6px;
 }
 
 #todo-input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 7px 10px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-bg);
-  color: var(--color-text);
+  flex: 1; min-width: 0;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 6px 8px; font-size: 12px;
+  font-family: var(--font); background: var(--color-bg); color: var(--color-text);
 }
+#todo-input:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
 
-#todo-input:focus {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -1px;
+#todo-priority, #todo-due {
+  border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 6px 3px; font-size: 11px;
+  font-family: var(--font); background: var(--color-bg); color: var(--color-text); cursor: pointer;
 }
+#todo-due { max-width: 90px; }
 
-#todo-priority,
-#todo-due {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 7px 4px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-#todo-due {
-  max-width: 110px;
-}
-
-#todo-filter-row {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 8px;
-}
+#todo-filter-row { display: flex; gap: 3px; margin-bottom: 6px; }
 
 .todo-filter {
   flex: 1;
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  padding: 4px 0;
-  font-size: 11px;
-  font-family: var(--font);
-  background: var(--color-bg);
-  color: var(--color-muted);
-  cursor: pointer;
+  padding: 3px 0; font-size: 10px;
+  font-family: var(--font); background: var(--color-bg);
+  color: var(--color-muted); cursor: pointer;
 }
-
 .todo-filter.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
@@ -371,127 +430,318 @@ main {
 }
 
 #todo-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  max-height: 240px;
-  overflow-y: auto;
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 180px; overflow-y: auto;
 }
 
 .todo-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
-  font-size: 12px;
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 7px; border: 1px solid var(--color-border);
+  border-radius: 5px; background: var(--color-bg); font-size: 11px;
 }
-
-.todo-item.is-done .todo-title {
-  text-decoration: line-through;
-  color: var(--color-muted);
-}
+.todo-item.is-done .todo-title { text-decoration: line-through; color: var(--color-muted); }
 
 .todo-priority-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
+  width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
 }
-
 .todo-priority-dot.high { background: #e53935; }
 .todo-priority-dot.medium { background: #fdd835; }
 .todo-priority-dot.low { background: #4caf50; }
 
 .todo-check {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  accent-color: var(--color-accent);
-  cursor: pointer;
+  width: 13px; height: 13px; flex-shrink: 0;
+  accent-color: var(--color-accent); cursor: pointer;
 }
-
 .todo-title {
-  flex: 1;
-  font-size: 12px;
-  line-height: 1.4;
-  word-break: break-word;
+  flex: 1; font-size: 11px; line-height: 1.4; word-break: break-word;
 }
-
 .todo-due {
-  font-size: 10px;
-  color: var(--color-muted);
-  white-space: nowrap;
+  font-size: 9px; color: var(--color-muted); white-space: nowrap;
 }
-
-.todo-due.is-overdue {
-  color: #e53935;
-  font-weight: 600;
-}
+.todo-due.is-overdue { color: #e53935; font-weight: 600; }
 
 .todo-delete {
-  background: none;
-  border: none;
-  color: var(--color-muted);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 2px 3px;
-  border-radius: 3px;
-  flex-shrink: 0;
+  background: none; border: none; color: var(--color-muted);
+  font-size: 11px; cursor: pointer; padding: 1px 3px;
+  border-radius: 3px; flex-shrink: 0;
 }
-
-.todo-delete:hover {
-  color: #e53935;
-  background: rgba(229, 57, 53, 0.08);
-}
+.todo-delete:hover { color: #e53935; background: rgba(229,57,53,0.08); }
 
 .todo-empty {
-  color: var(--color-muted);
+  color: var(--color-muted); font-size: 11px;
+  text-align: center; padding: 10px 8px;
+}
+
+/* ─── 右侧时间线 ─────────────────────────────── */
+
+#timeline-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+#timeline-date-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+#timeline-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 14px;
+}
+
+/* 时间线刻度行 */
+.timeline-slot {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  position: relative;
+  padding: 8px 0;
+}
+
+.timeline-time-label {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-right: 10px;
   font-size: 11px;
-  text-align: center;
-  padding: 12px 8px;
+  color: var(--color-muted);
+  padding-top: 4px;
+  user-select: none;
 }
 
-/* ─── 底部：热力图 ─────────────────────────────── */
-
-#heatmap-section {
-  border-top: 1px solid var(--color-border);
-  padding-top: 12px;
-}
-
-#heatmap-section .section-label {
-  margin-bottom: 6px;
-}
-
-#heatmap-container {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(7, 12px);
-  gap: 2px;
-  padding: 4px 0;
-  width: fit-content;
-}
-
-.heatmap-cell {
+.timeline-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  background: var(--color-cell-empty);
+  flex-shrink: 0;
+  position: relative;
 }
 
-.heatmap-cell.is-filled { background: var(--color-cell-mid); }
-.heatmap-cell.is-filled.is-today { background: var(--color-cell-filled); }
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-timeline);
+  flex-shrink: 0;
+  z-index: 2;
+  margin-top: 4px;
+}
+.timeline-dot.has-cards { background: var(--color-accent); }
+.timeline-dot.is-empty {
+  cursor: pointer;
+  border: 2px solid var(--color-timeline);
+  background: var(--color-bg);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.timeline-dot.is-empty:hover {
+  border-color: var(--color-accent);
+  transform: scale(1.3);
+}
+
+.timeline-connector {
+  width: 2px;
+  flex: 1;
+  background: var(--color-timeline);
+  min-height: 12px;
+}
+
+.timeline-cards {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-left: 8px;
+}
+
+/* 单张卡片 */
+.timeline-card {
+  flex: 1 1 0;
+  min-width: 180px;
+  max-width: 100%;
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+  background: var(--color-card-bg);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.timeline-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+.card-type-icon { font-size: 11px; }
+.card-time { font-weight: 500; }
+.card-meta { margin-left: auto; font-size: 9px; }
+
+.card-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.card-body.is-done { text-decoration: line-through; color: var(--color-muted); }
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-card-border);
+}
+
+.card-footer-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.card-footer-btn:hover { background: var(--color-cell-empty); }
+.card-footer-btn.done-btn { color: var(--color-accent); }
+
+/* 时间线底部新建按钮 */
+.timeline-add-btn {
+  width: 100%;
+  padding: 10px;
+  background: var(--color-bg);
+  border: none;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.timeline-add-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+/* 时间线空状态 */
+.timeline-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--color-muted);
+  text-align: center;
+  gap: 8px;
+}
+.timeline-empty-icon { font-size: 28px; }
+.timeline-empty-text { font-size: 13px; }
+
+/* ─── 卡片编辑弹窗 ─────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.overlay.hidden { display: none; }
+
+.card-editor {
+  background: var(--color-bg);
+  border-radius: 12px;
+  padding: 16px;
+  width: 90%;
+  max-width: 440px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+.card-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#card-editor-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+#card-editor-type {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.card-editor-close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.card-editor-close-btn:hover { background: var(--color-cell-empty); }
+
+#card-editor-content {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 14px;
+  font-family: var(--font);
+  line-height: 1.6;
+  resize: vertical;
+  background: var(--color-surface);
+  color: var(--color-text);
+  min-height: 80px;
+}
+#card-editor-content:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+
+.card-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
 
 .empty-state {
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 12px;
   text-align: center;
-  padding: 24px 8px;
+  padding: 16px 8px;
   border: 1px dashed var(--color-border);
   border-radius: 8px;
 }

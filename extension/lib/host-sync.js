@@ -52,24 +52,27 @@ function newerEntry(a, b) {
 /* ─── 拉取（host → extension）：启动时无条件覆盖缓存 ──────── */
 
 /**
- * 从 host 无条件拉取 journals 和 todos，覆盖 chrome.storage.local。
+ * 从 host 无条件拉取 cards、journals、todos，覆盖 chrome.storage.local。
  * host 为权威源，缓存只是镜像。
  * @returns {Promise<{pulled:boolean}>}
  */
 export async function pullFromHost() {
-  const [journalRes, todoRes] = await Promise.all([
+  const [cardRes, journalRes, todoRes] = await Promise.all([
+    api('GET', '/api/cards'),
     api('GET', '/api/journals'),
     api('GET', '/api/todos'),
   ]);
-  if (!journalRes.ok || !todoRes.ok) {
-    console.debug('[host-sync] pull skipped (offline or error):', journalRes.error || todoRes.error);
+  if (!cardRes.ok || !journalRes.ok || !todoRes.ok) {
+    console.debug('[host-sync] pull skipped (offline or error):', cardRes.error || journalRes.error || todoRes.error);
     return { pulled: false };
   }
+  const hostCards = cardRes.data || [];
   const hostJournals = journalRes.data || {};
   const hostTodos = todoRes.data || [];
 
   // 无条件拉取覆盖
   await chrome.storage.local.set({
+    cards: hostCards,
     journals: hostJournals,
     todos: hostTodos,
   });
@@ -89,6 +92,26 @@ export async function saveJournalToHost(dayKey, markdown) {
 export async function saveTodosToHost(todos) {
   const res = await api('PUT', '/api/sync/todos', { todos });
   return res.ok;
+}
+
+/* ─── Cards 写入 ────────────────────────────────────────── */
+
+/** 创建卡片到 host，返回 { ok, card } */
+export async function createCardToHost(cardPatch) {
+  const res = await api('POST', '/api/cards', cardPatch);
+  return res.ok ? { ok: true, card: res.data } : { ok: false, error: res.error };
+}
+
+/** 更新 host 卡片，返回 { ok, card } */
+export async function updateCardToHost(id, patch) {
+  const res = await api('PUT', `/api/cards/${id}`, patch);
+  return res.ok ? { ok: true, card: res.data } : { ok: false, error: res.error };
+}
+
+/** 删除 host 卡片，返回 { ok } */
+export async function deleteCardFromHost(id) {
+  const res = await api('DELETE', `/api/cards/${id}`);
+  return res.ok ? { ok: true } : { ok: false, error: res.error };
 }
 
 /* ─── 监听器（适配新架构） ──────────────────────────────────── */

@@ -16,17 +16,27 @@
   </header>
 
   <main>
-    <!-- 看板主体：左右双栏 -->
     <div id="board">
-      <!-- 左侧：日历 + TODO -->
+      <!-- 左侧栏 -->
       <aside id="sidebar">
+        <!-- 卡片池 -->
+        <section id="cardpool-section">
+          <div class="section-header">
+            <span class="section-label">🃏 卡片池</span>
+            <span id="cardpool-count" class="section-badge">0</span>
+          </div>
+          <ul id="cardpool-list"></ul>
+          <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
+        </section>
+
+        <!-- 日历 -->
         <section id="calendar-section">
-          <label class="section-label">日历</label>
+          <label class="section-label">📅 日历</label>
           <div class="calendar-header">
-            <button id="cal-prev" class="cal-nav-btn" aria-label="上一月" title="上一月">‹</button>
+            <button id="cal-prev" class="cal-nav-btn" aria-label="上一月">‹</button>
             <span id="cal-month-label" class="cal-month-label"></span>
-            <button id="cal-next" class="cal-nav-btn" aria-label="下一月" title="下一月">›</button>
-            <button id="cal-today" class="cal-today-btn" title="回到本月并编辑今天">今天</button>
+            <button id="cal-next" class="cal-nav-btn" aria-label="下一月">›</button>
+            <button id="cal-today" class="cal-today-btn" title="回到今天">今天</button>
           </div>
           <div class="calendar-weekdays" aria-hidden="true">
             <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
@@ -34,9 +44,19 @@
           <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="日历"></div>
         </section>
 
+        <!-- 热力图 -->
+        <section id="heatmap-section">
+          <div class="section-header">
+            <span class="section-label">🔥 打卡</span>
+            <span id="heatmap-streak" class="section-badge"></span>
+          </div>
+          <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
+        </section>
+
+        <!-- 待办（显示未安排的 task 卡片） -->
         <section id="todo-section">
-          <div class="todo-header">
-            <label class="section-label">待办</label>
+          <div class="section-header">
+            <span class="section-label">📝 待办</span>
             <div id="todo-stats"></div>
           </div>
 
@@ -44,7 +64,7 @@
             <input
               type="text"
               id="todo-input"
-              placeholder="添加待办..."
+              placeholder="快速添加待办..."
               aria-label="添加待办"
               autocomplete="off"
             />
@@ -71,24 +91,36 @@
         </section>
       </aside>
 
-      <!-- 右侧：日志编辑 -->
-      <section id="journal-section">
-        <label for="journal-input" class="section-label">今日日志</label>
-        <textarea
-          id="journal-input"
-          placeholder="今天做了什么..."
-          spellcheck="true"
-        ></textarea>
-        <div id="save-status"></div>
+      <!-- 右侧：时间线 -->
+      <section id="timeline-section">
+        <div id="timeline-date-header"></div>
+        <div id="timeline-container">
+          <!-- 时间线动态渲染 -->
+        </div>
+        <button id="btn-add-card" class="timeline-add-btn">＋ 在当前时间新建卡片</button>
       </section>
     </div>
-
-    <!-- 底部：热力图 -->
-    <section id="heatmap-section">
-      <label class="section-label">打卡热力图</label>
-      <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
-    </section>
   </main>
+
+  <!-- 卡片编辑弹窗 -->
+  <div id="card-editor-overlay" class="overlay hidden">
+    <div class="card-editor">
+      <div class="card-editor-header">
+        <span id="card-editor-time">09:31</span>
+        <select id="card-editor-type" aria-label="类型">
+          <option value="text">📝 文本</option>
+          <option value="task">☑️ 任务</option>
+          <option value="idea">💡 灵感</option>
+        </select>
+        <button id="card-editor-close" class="card-editor-close-btn">✕</button>
+      </div>
+      <textarea id="card-editor-content" placeholder="写下你的想法..." rows="4"></textarea>
+      <div class="card-editor-footer">
+        <button id="card-editor-cancel" class="btn-secondary">取消</button>
+        <button id="card-editor-save" class="btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="sidepanel.js"></script>
 </body>

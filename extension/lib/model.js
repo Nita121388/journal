@@ -12,18 +12,202 @@ export function todayKey() {
 }
 
 /**
- * 将 journals 按天聚合，返回热力图数据：dayKey → 当日条目数
- * @param {Record<string, string>} journals — dayKey → markdown
+ * 获取当前时间 HH:MM
+ * @returns {string}
+ */
+export function currentTime() {
+  const now = new Date();
+  return String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+}
+
+/* ─── 卡片操作 ───────────────────────────────────────────── */
+
+/**
+ * 创建一张新卡片
+ * @param {object} patch — { content?, type?, done?, assignedDate?, time? }
+ * @returns {import('./types').Card}
+ */
+export function createCard(patch = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    content: patch.content ?? '',
+    type: patch.type ?? 'text',
+    done: patch.done ?? false,
+    assignedDate: patch.assignedDate ?? null,
+    time: patch.time ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * 迁移旧 journals 格式为卡片数组
+ * @param {Record<string, string|{content:string, createdAt?:string, updatedAt?:string}>} oldJournals
+ * @returns {Card[]}
+ */
+export function migrateOldJournals(oldJournals) {
+  if (!oldJournals || typeof oldJournals !== 'object') return [];
+  const cards = [];
+  const now = new Date().toISOString();
+  for (const [dayKey, entry] of Object.entries(oldJournals)) {
+    if (typeof entry === 'string') {
+      if (!entry) continue; // 空内容跳过
+      cards.push({
+        id: 'c_mj_' + dayKey,
+        content: entry,
+        type: 'text',
+        done: false,
+        assignedDate: dayKey,
+        time: null,
+        createdAt: new Date(dayKey + 'T09:00:00.000Z').toISOString(),
+        updatedAt: now,
+      });
+    } else if (entry && typeof entry === 'object' && typeof entry.content === 'string') {
+      if (!entry.content) continue;
+      cards.push({
+        id: 'c_mj_' + dayKey,
+        content: entry.content,
+        type: 'text',
+        done: false,
+        assignedDate: dayKey,
+        time: null,
+        createdAt: entry.createdAt ?? new Date(dayKey + 'T09:00:00.000Z').toISOString(),
+        updatedAt: entry.updatedAt ?? now,
+      });
+    }
+  }
+  return cards;
+}
+
+/**
+ * 迁移旧 todos 格式为卡片数组
+ * @param {Array<{id:string, title:string, done:boolean, due:string|null, priority:string}>} oldTodos
+ * @returns {Card[]}
+ */
+export function migrateOldTodos(oldTodos) {
+  if (!Array.isArray(oldTodos)) return [];
+  const now = new Date().toISOString();
+  return oldTodos.filter(t => t && t.title).map(t => ({
+    id: 'c_mt_' + t.id,
+    content: t.title,
+    type: 'task',
+    done: t.done,
+    assignedDate: t.due ?? null,
+    time: null,
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
+/**
+ * 获取某天的卡片（按 time 升序，null time 排最后）
+ * @param {Card[]} cards
+ * @param {string} date — YYYY-MM-DD
+ * @returns {Card[]}
+ */
+export function getCardsByDate(cards, date) {
+  if (!Array.isArray(cards)) return [];
+  return cards
+    .filter(c => c.assignedDate === date)
+    .sort((a, b) => {
+      if (a.time && b.time) return a.time.localeCompare(b.time);
+      if (a.time) return -1;
+      if (b.time) return 1;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
+}
+
+/**
+ * 获取卡片池（assignedDate === null）
+ * @param {Card[]} cards
+ * @returns {Card[]}
+ */
+export function getCardPool(cards) {
+  if (!Array.isArray(cards)) return [];
+  return cards.filter(c => c.assignedDate === null);
+}
+
+/**
+ * 按时间段分组（5 分钟窗口内并列）
+ * @param {Card[]} dayCards — 某天已排序的卡片
+ * @returns {Array<{time:string|null, cards:Card[]}>}
+ */
+export function groupCardsForTimeline(dayCards) {
+  if (!dayCards.length) return [];
+  const groups = [];
+  for (const card of dayCards) {
+    if (!card.time) {
+      // 无时间卡片归入 "全天" 组（置于最后）
+      const last = groups[groups.length - 1];
+      if (last && last.time === null) {
+        last.cards.push(card);
+      } else {
+        groups.push({ time: null, cards: [card] });
+      }
+      continue;
+    }
+    const last = groups[groups.length - 1];
+    if (last && last.time !== null) {
+      // 检查是否在 5 分钟窗口内（并列）
+      const diffMin = timeToMinutes(card.time) - timeToMinutes(last.time);
+      if (diffMin <= 5 && diffMin >= 0) {
+        last.cards.push(card);
+        continue;
+      }
+    }
+    groups.push({ time: card.time, cards: [card] });
+  }
+  return groups;
+}
+
+/** @param {string} hhmm — "HH:MM" */
+function timeToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * 按天统计卡片数量：dayKey → 数量
+ * @param {Card[]} cards
  * @returns {Record<string, number>}
  */
-export function aggregateHeatmap(journals) {
-  if (!journals || typeof journals !== 'object') return {};
+export function countCardsByDay(cards) {
+  if (!Array.isArray(cards)) return {};
   const out = {};
-  for (const [day, text] of Object.entries(journals)) {
-    out[day] = text.length > 0 ? 1 : 0;
+  for (const card of cards) {
+    if (!card.assignedDate) continue;
+    out[card.assignedDate] = (out[card.assignedDate] || 0) + 1;
   }
   return out;
 }
+
+/**
+ * 获取某天的卡片类型分布
+ * @param {Card[]} cards
+ * @param {string} date
+ * @returns {{text:number, task:number, idea:number}}
+ */
+export function getCardTypeCounts(cards, date) {
+  const dayCards = getCardsByDate(cards, date);
+  return {
+    text: dayCards.filter(c => c.type === 'text').length,
+    task: dayCards.filter(c => c.type === 'task').length,
+    idea: dayCards.filter(c => c.type === 'idea').length,
+  };
+}
+
+/**
+ * 热力图聚合：dayKey → 卡片数（0-5+ 档位）
+ * @param {Card[]} cards
+ * @returns {Record<string, number>}
+ */
+export function aggregateHeatmap(cards) {
+  if (!Array.isArray(cards)) return {};
+  return countCardsByDay(cards);
+}
+
+/* ─── 兼容旧接口（保持向后兼容） ─────────────────────────────── */
 
 /**
  * 根据 todos 数组生成待办统计摘要
@@ -38,14 +222,13 @@ export function todoSummary(todos) {
 
 /**
  * 生成某月的 6×7 日历矩阵（周日起始，跨月补齐）
- * dayKey 按 UTC 生成（与 todayKey()/dateRange() 的 toISOString 约定一致）
  * @param {number} year — 四位年份
  * @param {number} month — 0-indexed 月份（0=一月，8=九月）
- * @returns {Array<Array<{dayKey:string, day:number, isCurrentMonth:boolean, isToday:boolean}>>} 6 行 × 7 列矩阵
+ * @returns {Array<Array<{dayKey:string, day:number, isCurrentMonth:boolean, isToday:boolean}>>}
  */
 export function getMonthMatrix(year, month) {
   const first = new Date(Date.UTC(year, month, 1));
-  const startOffset = first.getUTCDay(); // 0=周日
+  const startOffset = first.getUTCDay();
   const today = todayKey();
   const cells = [];
   const cursor = new Date(Date.UTC(year, month, 1 - startOffset));
@@ -69,7 +252,7 @@ export function getMonthMatrix(year, month) {
 /**
  * 生成 N 天的日期范围数组（含今日），用于热力图渲染
  * @param {number} days — 向前回溯天数，默认 365
- * @returns {string[]} dayKey 数组，从最早到今日
+ * @returns {string[]}
  */
 export function dateRange(days = 365) {
   const keys = [];

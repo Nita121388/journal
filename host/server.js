@@ -18,7 +18,7 @@ const HOST  = '127.0.0.1';
 
 /* ─── 数据层 ────────────────────────────────────────── */
 
-const DEFAULT_DATA = { journals: {}, todos: [], settings: { theme: 'auto' } };
+const DEFAULT_DATA = { journals: {}, todos: [], settings: { theme: 'auto' }, cards: [] };
 
 mkdirSync(DATA_DIR, { recursive: true });
 
@@ -87,8 +87,50 @@ async function handle(req, res) {
   const data = readData();
   const dayMatch = path.match(/^\/api\/journals\/(\d{4}-\d{2}-\d{2})$/);
   const todoMatch = path.match(/^\/api\/todos\/([\w-]+)$/);
+  const cardMatch = path.match(/^\/api\/cards\/([\w-]+)$/);
 
   try {
+    // ── Cards ────────────────────────────────────────
+    if (path === '/api/cards' && method === 'GET') {
+      return ok(res, data.cards ?? []);
+    }
+    if (path === '/api/cards' && method === 'POST') {
+      if (typeof body?.content !== 'string') return err(res, 400, 'VALIDATION_ERROR', 'body.content 必须是字符串');
+      const now = new Date().toISOString();
+      const card = {
+        id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        content: body.content,
+        type: ['text', 'task', 'idea'].includes(body.type) ? body.type : 'text',
+        done: Boolean(body.done),
+        assignedDate: typeof body.assignedDate === 'string' ? body.assignedDate : null,
+        time: typeof body.time === 'string' ? body.time : null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      (data.cards ??= []).unshift(card);
+      writeData(data);
+      return ok(res, card);
+    }
+    if (cardMatch && method === 'PUT') {
+      const idx = (data.cards ?? []).findIndex(c => c.id === cardMatch[1]);
+      if (idx === -1) return err(res, 404, 'NOT_FOUND', `Card ${cardMatch[1]} not found`);
+      const card = data.cards[idx];
+      if (body?.content !== undefined) card.content = String(body.content);
+      if (body?.type !== undefined && ['text', 'task', 'idea'].includes(body.type)) card.type = body.type;
+      if (body?.done !== undefined) card.done = Boolean(body.done);
+      if (body?.assignedDate !== undefined) card.assignedDate = typeof body.assignedDate === 'string' ? body.assignedDate : null;
+      if (body?.time !== undefined) card.time = typeof body.time === 'string' ? body.time : null;
+      card.updatedAt = new Date().toISOString();
+      writeData(data);
+      return ok(res, card);
+    }
+    if (cardMatch && method === 'DELETE') {
+      const before = (data.cards ?? []).length;
+      data.cards = (data.cards ?? []).filter(c => c.id !== cardMatch[1]);
+      if (data.cards.length === before) return err(res, 404, 'NOT_FOUND', `Card ${cardMatch[1]} not found`);
+      writeData(data);
+      return ok(res, null);
+    }
     // ── Journals ──────────────────────────────────────
     if (path === '/api/journals' && method === 'GET') {
       return ok(res, data.journals);
