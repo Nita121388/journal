@@ -37,6 +37,36 @@ export function todoSummary(todos) {
 }
 
 /**
+ * 生成某月的 6×7 日历矩阵（周日起始，跨月补齐）
+ * dayKey 按 UTC 生成（与 todayKey()/dateRange() 的 toISOString 约定一致）
+ * @param {number} year — 四位年份
+ * @param {number} month — 0-indexed 月份（0=一月，8=九月）
+ * @returns {Array<Array<{dayKey:string, day:number, isCurrentMonth:boolean, isToday:boolean}>>} 6 行 × 7 列矩阵
+ */
+export function getMonthMatrix(year, month) {
+  const first = new Date(Date.UTC(year, month, 1));
+  const startOffset = first.getUTCDay(); // 0=周日
+  const today = todayKey();
+  const cells = [];
+  const cursor = new Date(Date.UTC(year, month, 1 - startOffset));
+  for (let row = 0; row < 6; row++) {
+    const week = [];
+    for (let col = 0; col < 7; col++) {
+      const dayKey = cursor.toISOString().slice(0, 10);
+      week.push({
+        dayKey,
+        day: cursor.getUTCDate(),
+        isCurrentMonth: cursor.getUTCMonth() === month,
+        isToday: dayKey === today,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    cells.push(week);
+  }
+  return cells;
+}
+
+/**
  * 生成 N 天的日期范围数组（含今日），用于热力图渲染
  * @param {number} days — 向前回溯天数，默认 365
  * @returns {string[]} dayKey 数组，从最早到今日

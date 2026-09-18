@@ -32,6 +32,20 @@
       <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
     </section>
 
+    <section id="calendar-section">
+      <label class="section-label">日历</label>
+      <div class="calendar-header">
+        <button id="cal-prev" class="cal-nav-btn" aria-label="上一月" title="上一月">‹</button>
+        <span id="cal-month-label" class="cal-month-label"></span>
+        <button id="cal-next" class="cal-nav-btn" aria-label="下一月" title="下一月">›</button>
+        <button id="cal-today" class="cal-today-btn" title="回到本月并编辑今天">今天</button>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="日历"></div>
+    </section>
+
     <section id="todo-section">
       <div class="todo-header">
         <label class="section-label">待办清单</label>
