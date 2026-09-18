@@ -89,3 +89,42 @@ renderTodoList(todos, onToggle);
 - Rendering functions that secretly read storage → hard to test, re-render bugs.
 - Multiple listeners attached on every render (leak) → attach once, use event delegation on the container.
 - Styling with `!important` to fight specificity → restructure CSS instead.
+- Debounce + 日期/上下文切换不同步 → 草稿丢失或写入错误目标（见下方 Gotcha）
+
+---
+
+## Gotcha: 防抖保存 + 上下文切换的竞态
+
+**场景**：textarea 输入用 `debounce(500ms)` 保存，但用户可能在防抖窗口内切换编辑目标（如日历选另一天）。若不处理，待执行的防抖回调会用过期上下文保存，或新上下文内容被旧保存覆盖。
+
+**处理模式（flush-before-switch）**：
+
+1. `debounce()` 包装函数暴露 `cancel()` 方法，切换前取消未执行的定时器。
+2. 切换函数先**立即落盘**当前内容（flush），再更新状态。
+3. 用**序列号**防止并发切换：只有最后一次切换能提交，过期异步加载不覆盖 textarea。
+
+```js
+// debounce 需可 cancel
+function debounce(fn, ms = 500) {
+  let timer = null;
+  const wrapped = (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  wrapped.cancel = () => { clearTimeout(timer); timer = null; };
+  return wrapped;
+}
+
+// 切换前先 flush（sidepanel.js switchToDate 模式）
+let switchSeq = 0;
+async function switchToDate(newDate) {
+  if (newDate === selectedDate) return;
+  const seq = ++switchSeq;
+  debouncedSave.cancel();           // 1. 取消防抖
+  await saveJournal(selectedDate, textarea.value);  // 2. 落盘当前上下文
+  if (seq !== switchSeq) return;    // 3. 已被更新的切换取代
+  selectedDate = newDate;
+  const text = await getJournal(newDate);
+  if (seq !== switchSeq) return;    // 防过期加载覆盖
+  textarea.value = text;
+}
+```
+
+**原则**：任何「异步写入 + 可切换上下文」的 UI 都必须先 flush 再切换；防抖包装器应支持 cancel。
