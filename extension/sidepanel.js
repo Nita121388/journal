@@ -87,6 +87,7 @@ function renderHeatmap(container, heatmap) {
     const count = heatmap[day] ?? 0;
     cell.title = count > 0 ? day : `${day}（未记录）`;
     if (count > 0) { cell.classList.add('is-filled'); if (day === today) cell.classList.add('is-today'); }
+    container.append(cell);
   }
 }
 
@@ -394,6 +395,11 @@ async function init() {
       todoFilter = btn.dataset.filter;
       renderTodoList();
     });
+  });
+
+  // ── 设置按钮：打开 options 页 ──
+  document.getElementById('btn-settings')?.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
   });
 }
 
