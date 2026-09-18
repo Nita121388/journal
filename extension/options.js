@@ -40,6 +40,8 @@ const els = {
   promptTextarea: document.getElementById('prompt-textarea'),
   copyBtn: document.getElementById('copy-prompt'),
   copyFeedback: document.getElementById('copy-feedback'),
+  exportBtn: document.getElementById('export-data'),
+  exportFeedback: document.getElementById('export-feedback'),
 };
 
 /* ─── 主题 ──────────────────────────────────────────────── */
@@ -96,6 +98,33 @@ async function copyPrompt() {
   }, 2500);
 }
 
+/* ─── 导出扩展数据 ───────────────────────────────────────── */
+
+async function exportData() {
+  const { journals = {}, todos = [], settings: rawSettings = {} } =
+    await chrome.storage.local.get(['journals', 'todos', 'settings']);
+  const exportObj = {
+    _exportedAt: new Date().toISOString(),
+    _source: 'journal-extension-chrome-storage',
+    journals,
+    todos,
+    settings: rawSettings,
+  };
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `journal-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  els.exportBtn.textContent = '✅ 已导出';
+  els.exportFeedback.textContent = '文件已下载，发送给 AI 助手即可完成数据合并';
+  setTimeout(() => {
+    els.exportBtn.textContent = '⬇️ 导出扩展数据';
+    els.exportFeedback.textContent = '';
+  }, 3000);
+}
+
 /* ─── 初始化 ──────────────────────────────────────────────── */
 
 async function init() {
@@ -103,6 +132,7 @@ async function init() {
   els.promptTextarea.value = PROMPT_TEMPLATE;
   probeHost(); // 尽力而为，不 await（失败不影响页面）
   els.copyBtn.addEventListener('click', copyPrompt);
+  els.exportBtn.addEventListener('click', exportData);
 }
 
 init();
