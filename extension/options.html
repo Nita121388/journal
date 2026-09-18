@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header id="header">
+    <span id="app-title">📓 Journal — 设置</span>
+  </header>
+
+  <main>
+    <!-- host 状态区 -->
+    <section id="host-section">
+      <div id="host-status" class="status-row">
+        <span id="host-dot" class="status-dot"></span>
+        <span id="host-label">检测 host 状态…</span>
+      </div>
+      <div id="host-cmd-hint" class="hint-box hidden">
+        <span class="hint-label">启动命令（在项目根目录运行）</span>
+        <code>node host/server.js</code>
+      </div>
+    </section>
+
+    <!-- Agent 接入引导区 -->
+    <section id="agent-section">
+      <h2>🤖 Agent 接入</h2>
+      <p class="desc">
+        让任意 AI Agent（Pi / Claude Code / Codex 等）帮你写日志、查待办。
+        <br>复制下方 prompt 粘贴给你的 Agent 即可。
+      </p>
+
+      <h3>获取 Skill 文件</h3>
+      <p class="desc">
+        技能文件位于项目 <code>.agents/skills/journal/SKILL.md</code>，
+        有两种获取方式（prompt 中已包含）：
+      </p>
+      <ul class="desc">
+        <li><strong>方式 A（轻量）</strong>：直接读 GitHub Raw 链接</li>
+        <li><strong>方式 B（完整）</strong>：<code>git clone</code> 整个仓库</li>
+      </ul>
+
+      <div class="platform-note">
+        支持平台：Pi、Claude Code、Codex —— 均读取项目 <code>.agents/skills/</code> 目录。
+      </div>
+
+      <h3>复制 Prompt</h3>
+      <div class="prompt-box">
+        <textarea id="prompt-textarea" readonly rows="18"></textarea>
+        <button id="copy-prompt" type="button" title="复制到剪贴板">📋 复制 Prompt</button>
+        <span id="copy-feedback" class="copy-feedback"></span>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

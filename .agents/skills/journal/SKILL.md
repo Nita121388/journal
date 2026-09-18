@@ -7,6 +7,15 @@ description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力
 
 > 操作 Journal 扩展的每日日志和 TODO 数据。数据存在本机，通过 host 服务读写。
 
+## 各平台加载方式
+
+本技能位于项目 `.agents/skills/journal/` 目录下：
+- **Pi**：自动发现，无需额外配置
+- **Claude Code**：读取项目 `.agents/skills/` 或用户级 `~/.claude/skills/`（后者需手动复制或 symlink）
+- **Codex**：读取项目 `.agents/skills/` 或用户级 `~/.codex/skills/`（后者需手动复制或 symlink）
+
+确保 `.agents/skills/journal/SKILL.md` 存在于以上对应目录中即可。
+
 ## 前置条件
 
 1. 本地 host 服务已启动：`node E:/projects/journal/host/server.js`（监听 `127.0.0.1:8765`）
