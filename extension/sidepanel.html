@@ -18,18 +18,7 @@
   <main>
     <!-- 看板主体：左右双栏 -->
     <div id="board">
-      <!-- 左侧：日志编辑 -->
-      <section id="journal-section">
-        <label for="journal-input" class="section-label">今日日志</label>
-        <textarea
-          id="journal-input"
-          placeholder="今天做了什么..."
-          spellcheck="true"
-        ></textarea>
-        <div id="save-status"></div>
-      </section>
-
-      <!-- 右侧：日历 + TODO -->
+      <!-- 左侧：日历 + TODO -->
       <aside id="sidebar">
         <section id="calendar-section">
           <label class="section-label">日历</label>
@@ -81,6 +70,17 @@
           <ul id="todo-list"></ul>
         </section>
       </aside>
+
+      <!-- 右侧：日志编辑 -->
+      <section id="journal-section">
+        <label for="journal-input" class="section-label">今日日志</label>
+        <textarea
+          id="journal-input"
+          placeholder="今天做了什么..."
+          spellcheck="true"
+        ></textarea>
+        <div id="save-status"></div>
+      </section>
     </div>
 
     <!-- 底部：热力图 -->
