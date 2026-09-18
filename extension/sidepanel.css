@@ -312,11 +312,12 @@ main {
 
 /* 卡片数量背景色（日历） */
 .cal-day.count-0 { background: var(--color-bg); }
-.cal-day.count-1 { background: #e8f5e9; }
-.cal-day.count-2 { background: #c8e6c9; }
-.cal-day.count-3 { background: #a5d6a7; }
-.cal-day.count-4 { background: #81c784; color: #fff; }
-.cal-day.count-5 { background: var(--color-accent); color: #fff; font-weight: 600; }
+.cal-day.count-1 { background: #e8f5e9 !important; color: var(--color-text) !important; }
+.cal-day.count-2 { background: #c8e6c9 !important; color: var(--color-text) !important; }
+.cal-day.count-3 { background: #a5d6a7 !important; color: var(--color-text) !important; }
+.cal-day.count-4 { background: #81c784 !important; color: #fff !important; }
+.cal-day.count-5 { background: var(--color-accent) !important; color: #fff !important; font-weight: 600; }
+.cal-day.count-4 .cal-count, .cal-day.count-5 .cal-count { color: rgba(255,255,255,0.85) !important; }
 
 /* 日历格子内的卡片数指示器 */
 .cal-count {
