@@ -317,16 +317,16 @@ main {
 .cal-day.count-3 { background: #a5d6a7 !important; color: var(--color-text) !important; }
 .cal-day.count-4 { background: #81c784 !important; color: #fff !important; }
 .cal-day.count-5 { background: var(--color-accent) !important; color: #fff !important; font-weight: 600; }
-.cal-day.count-4 .cal-count, .cal-day.count-5 .cal-count { color: rgba(255,255,255,0.85) !important; }
+.cal-day.count-4 .cal-count, .cal-day.count-5 .cal-count { color: #fff !important; opacity: 1; }
 
 /* 日历格子内的卡片数指示器 */
 .cal-count {
   font-size: 8px;
   line-height: 1;
-  color: inherit;
-  opacity: 0.7;
+  color: var(--color-muted);
+  opacity: 1;
 }
-.cal-day.is-selected .cal-count { color: #fff; opacity: 0.9; }
+.cal-day.is-selected .cal-count { color: #fff !important; opacity: 1; }
 
 /* ─── 热力图 ─────────────────────────────────────── */
 
