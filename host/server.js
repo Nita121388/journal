@@ -99,7 +99,15 @@ async function handle(req, res) {
     if (dayMatch && method === 'PUT') {
       const key = dayMatch[1];
       if (typeof body?.markdown !== 'string') return err(res, 400, 'VALIDATION_ERROR', 'body.markdown 必须是字符串');
-      data.journals[key] = body.markdown;
+      const existing = data.journals[key];
+      const now = new Date().toISOString();
+      // 兼容旧格式：existing 可能是字符串或对象
+      const existingObj = (typeof existing === 'object' && existing !== null) ? existing : null;
+      data.journals[key] = {
+        content: body.markdown,
+        createdAt: existingObj?.createdAt ?? now,
+        updatedAt: now,
+      };
       writeData(data);
       return ok(res, data.journals[key]);
     }
@@ -158,8 +166,10 @@ async function handle(req, res) {
     // ── Heatmap ───────────────────────────────────────
     if (path === '/api/heatmap' && method === 'GET') {
       const heatmap = {};
-      for (const [day, text] of Object.entries(data.journals)) {
-        heatmap[day] = text.length > 0 ? 1 : 0;
+      for (const [day, entry] of Object.entries(data.journals)) {
+        // 兼容新旧格式：值可能是字符串或 { content } 对象
+        const content = (typeof entry === 'object' && entry !== null) ? (entry.content ?? '') : (entry ?? '');
+        heatmap[day] = content.length > 0 ? 1 : 0;
       }
       return ok(res, heatmap);
     }
