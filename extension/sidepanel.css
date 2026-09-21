@@ -344,6 +344,9 @@ main {
   gap: 2px;
   padding: 4px 0;
   width: fit-content;
+  /* 热力图 365 天展开后远超侧栏宽度，横向滚动收纳，避免溢出遮挡右侧日志区 */
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .heatmap-cell {
@@ -474,12 +477,74 @@ main {
   text-align: center; padding: 10px 8px;
 }
 
+/* ─── 本机 Skills ─────────────────────────────────── */
+
+#skills-section {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.skills-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--color-muted);
+  padding: 2px 6px; border-radius: 4px; margin-left: auto;
+}
+.skills-toggle-btn:hover { background: var(--color-cell-empty); }
+.skills-toggle-btn.open { transform: rotate(180deg); }
+
+.skills-panel.hidden { display: none; }
+
+.skills-overall {
+  font-size: 12px; font-weight: 600;
+  margin-bottom: 6px; padding: 5px 7px;
+  border-radius: 6px; background: var(--color-cell-empty);
+}
+
+.skills-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 220px; overflow-y: auto;
+}
+
+.skills-item {
+  display: flex; align-items: flex-start; gap: 5px;
+  padding: 4px 6px; border-radius: 5px; font-size: 11px;
+  background: var(--color-bg); border: 1px solid var(--color-card-border);
+}
+.skills-item-name {
+  font-weight: 600; font-size: 11px;
+  word-break: break-all;
+}
+.skills-item-desc {
+  font-size: 10px; color: var(--color-muted);
+  margin-top: 1px; line-height: 1.4;
+  word-break: break-all; font-family: ui-monospace, Consolas, monospace;
+}
+.skills-copy-btn {
+  background: none; border: 1px solid var(--color-border);
+  border-radius: 4px; font-size: 10px; cursor: pointer;
+  color: var(--color-accent); padding: 1px 5px; flex-shrink: 0;
+}
+.skills-copy-btn:hover { background: var(--color-accent-light); }
+
+.skills-copyall-btn {
+  width: 100%; margin-top: 6px;
+  background: var(--color-accent-light); color: var(--color-accent);
+  border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 5px 0; font-size: 11px; font-family: var(--font);
+  cursor: pointer;
+}
+.skills-copyall-btn:hover { background: var(--color-accent); color: #fff; }
+
 /* ─── 右侧时间线 ─────────────────────────────── */
 
 #timeline-section {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-height: calc(100vh - 110px);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
@@ -496,16 +561,51 @@ main {
 }
 
 #timeline-container {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 14px;
 }
 
-/* 时间线刻度行 */
+/* 日程画布（15 分钟网格 + 绝对定位卡片） */
+.schedule-canvas {
+  position: relative;
+  margin: 8px 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.schedule-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-card-border);
+  cursor: pointer;
+  z-index: 1;
+}
+.schedule-grid-line.is-hour {
+  border-top: 1px solid var(--color-border);
+}
+.schedule-grid-line:hover {
+  background: var(--color-accent-light);
+}
+.schedule-grid-label {
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  font-size: 10px;
+  color: var(--color-muted);
+  user-select: none;
+}
+
+/* 时间线刻度行（兼容旧结构保留，不再用于日程渲染） */
 .timeline-slot {
   display: flex;
   align-items: flex-start;
   gap: 0;
+  flex-wrap: wrap;
   position: relative;
   padding: 8px 0;
 }
@@ -558,6 +658,47 @@ main {
   min-height: 12px;
 }
 
+/* 今日当前时间 marker（画布上的绿色绝对定位线） */
+.timeline-now-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateY(-50%);
+  padding: 0 6px;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  z-index: 6;
+  pointer-events: auto;
+}
+.timeline-now-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+  box-shadow: 0 1px 4px rgba(76, 175, 80, 0.36);
+}
+.timeline-now-line {
+  flex: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  opacity: 0.85;
+}
+.timeline-now-marker:hover .timeline-now-tag,
+.timeline-now-marker:focus-visible .timeline-now-tag {
+  filter: brightness(0.92);
+}
+.timeline-now-marker:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .timeline-cards {
   flex: 1;
   display: flex;
@@ -568,15 +709,69 @@ main {
 
 /* 单张卡片 */
 .timeline-card {
-  flex: 1 1 0;
-  min-width: 180px;
-  max-width: 100%;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
   border: 1px solid var(--color-card-border);
+  border-left: 3px solid var(--color-accent);
   border-radius: 8px;
   background: var(--color-card-bg);
-  padding: 8px 10px;
+  padding: 6px 8px 16px;
   cursor: pointer;
+  overflow: hidden;
+  z-index: 2;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+.timeline-card.is-allday {
+  position: static;
+  width: auto;
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+
+.schedule-allday {
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 8px;
+  margin: 0 0 12px;
+  background: var(--color-surface);
+}
+.schedule-allday-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+.schedule-allday-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  cursor: ns-resize;
+  touch-action: none;
+  background: linear-gradient(transparent, rgba(76, 175, 80, 0.18));
+}
+.card-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  opacity: 0.8;
+}
+body.is-resizing {
+  user-select: none;
 }
 .timeline-card:hover {
   border-color: var(--color-accent);
@@ -603,11 +798,12 @@ main {
   word-break: break-word;
   max-height: 120px;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.card-body.is-done { text-decoration: line-through; color: var(--color-muted); }
-
 .card-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -628,22 +824,7 @@ main {
 .card-footer-btn:hover { background: var(--color-cell-empty); }
 .card-footer-btn.done-btn { color: var(--color-accent); }
 
-/* 时间线底部新建按钮 */
-.timeline-add-btn {
-  width: 100%;
-  padding: 10px;
-  background: var(--color-bg);
-  border: none;
-  border-top: 1px solid var(--color-border);
-  font-size: 12px;
-  font-family: var(--font);
-  color: var(--color-muted);
-  cursor: pointer;
-}
-.timeline-add-btn:hover {
-  color: var(--color-accent);
-  background: var(--color-accent-light);
-}
+.card-body.is-done { text-decoration: line-through; color: var(--color-muted); }
 
 /* 时间线空状态 */
 .timeline-empty {
@@ -716,6 +897,35 @@ main {
 }
 .card-editor-close-btn:hover { background: var(--color-cell-empty); }
 
+.card-editor-times {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.card-editor-times label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-editor-times input[type="time"] {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.card-editor-duration {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
 #card-editor-content {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -746,3 +956,28 @@ main {
   border: 1px dashed var(--color-border);
   border-radius: 8px;
 }
+
+/* ─── Toast 提示 ─────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(0);
+  background: var(--color-text);
+  color: var(--color-bg);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 200;
+  max-width: 80%;
+  text-align: center;
+  opacity: 1;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.toast.hidden { display: none; }
+.toast.toast-error { background: #d32f2f; color: #fff; }
+.toast.toast-success { background: var(--color-accent); color: #fff; }
+.toast.toast-warn { background: #ef6c00; color: #fff; }

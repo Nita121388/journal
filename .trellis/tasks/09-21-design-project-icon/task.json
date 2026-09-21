@@ -1,0 +1,28 @@
+{
+  "id": "design-project-icon",
+  "name": "design-project-icon",
+  "title": "设计并集成项目图标",
+  "description": "为 Journal 扩展设计并集成简洁清晰、可爱而专业的项目图标",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "chemclin",
+  "assignee": "chemclin",
+  "createdAt": "2026-09-21",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-21-timeline-current-time"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -1,6 +1,6 @@
 ---
 name: journal
-description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力图）。当用户提到"今天做了什么""写日志""添加待办""今天的待办""记录一下""改日志"等涉及 Journal 数据的增删改查时使用。通过本地 HTTP 服务操作，支持任意 agent（Pi/Claude Code/Codex 等）调用。
+description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力图）。当用户提到"今天做了什么""写日志""记录一下""日志/today""今天的待办""改日志"或想让界面显示一段日志时使用。通过本地 HTTP 服务操作，支持任意 agent（Pi/Claude Code/Codex 等）调用。
 ---
 
 # Journal Skill
@@ -20,6 +20,21 @@ description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力
 
 1. 本地 host 服务已启动：`node E:/projects/journal/host/server.js`（监听 `127.0.0.1:8765`）
 2. 若 host 未启动，CLI 会返回 `HOST_OFFLINE`，需先启动它
+
+## ⭐ 数据模型（务必先读，避免写错地方）
+
+Journal 有**两套互不相通的数据结构**，注意区分：
+
+| 结构 | 存什么 | CLI 操作 | UI 是否显示 |
+|------|--------|----------|------------|
+| **`journals`**（按天；markdown 文本） | 每天的"段落式日志"，如句柄排查那几大段 | `read` / `write` / `delete` | **界面不显示**（仅供 AI/CLI/today 查询） |
+| **`cards`**（按天 + 时间） | 一条条"卡片"：文本/任务/灵感，带 `time` 时间戳，按时间线排列 | 无 CLI 命令，需走 `POST /api/cards` 或直接改 `cards` | **界面显示**（侧边栏时间线） |
+
+**核心规则**：
+- **想让用户在扩展界面里看到某段内容 → 必须写 `cards`**（带 `assignedDate` 和 `time`），不是 `journals`。
+- `journals` 的文本侧边栏看不到，但仍会被热力图计数，且 `today`/`read` 能读。
+- 如果用户说"记录下来/显示一下"，**默认创建 cards**；只有在明确指"日志区/段落文本"或复查归档时才动 `journals`。
+- **修改 `cards` 时，时间要落在 30 分钟整/半点刻度附近**：界面时间线只有 8:00-22:00 的 `:00`/`:30` 刻度，卡片时间离最近刻度 ≤15 分钟才会显示（如 11:07 归 11:00）。建议直接用整点/半点（如 14:00）。
 
 ## 快速开始
 
@@ -63,13 +78,30 @@ $CLI todo delete <id> --confirm              # 删除（需 --confirm 防误操�
 $CLI heatmap                                # 各天是否有记录
 ```
 
+## 创建卡片（界面可见）
+
+> CLI 没有卡片命令，需要直接调 host 的 HTTP API（端口 8765）。
+
+**创建单张卡片**（`assignedDate` = 哪天，`time` = 时间刻度，建议用整点/半点）：
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/cards \
+  -H "Content-Type: application/json" \
+  -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-17","time":"14:00"}'
+```
+
+- `type`：`text`（文本）/ `task`（任务） / `idea`（灵感）
+- 想在界面时间线显示，务必给 `assignedDate` + 落在整/半点刻度的 `time`（如 09:00、14:30）
+
+**把一段日志转成多张卡片**（让界面能看到）：先 `$CLI read <day>` 拿到 journals 文本，再按段落拆开分别 `POST /api/cards`，每段一个时间。
+
 ## 自然语言 → 命令映射（示例）
 
 | 用户说 | 执行 |
 |--------|------|
 | "我今天做了什么" / "看看日志" | `$CLI today` |
-| "今天记录一下：下午见客户" | `$CLI write 2026-09-17 --content "下午见客户"` |
-| "给 7/8 加一条：整理报告" | `$CLI read 2026-07-08` → 拼接 → `$CLI write 2026-07-08 --content "..."` |
+| "今天记录一下：下午见客户"（想让界面显示） | `POST /api/cards`（`assignedDate`=今天，`time`置整/半点刻度，如 14:00） |
+| "给 7/8 加一条：整理报告" | `read 2026-07-08` 看当天卡片/日志 → 决定加 `journals` 还是 `cards`。若要在界面看到 → `POST /api/cards` |
 | "我的待办有哪些" | `$CLI todo list` |
 | "加个待办：写周报，明天截止" | `$CLI todo add "写周报" --due <明天>` |
 | "把 X 待办标完成" | `$CLI todo list` → 找到 id → `$CLI todo done <id>` |

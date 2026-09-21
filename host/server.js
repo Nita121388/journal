@@ -5,8 +5,8 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -15,6 +15,9 @@ const DATA_FILE = join(DATA_DIR, 'journal-data.json');
 
 const PORT  = 8765;
 const HOST  = '127.0.0.1';
+
+// skills 物理目录（junction 指向 skillshare）。可用环境变量覆盖
+const SKILLS_DIR = process.env.JOURNAL_SKILLS_DIR || 'C:\\Users\\chemclin\\AppData\\Roaming\\skillshare\\skills';
 
 /* ─── 数据层 ────────────────────────────────────────── */
 
@@ -53,6 +56,101 @@ function json(res, status, body) {
 function ok(res, data)   { return json(res, 200, { ok: true, data }); }
 function err(res, status, code, message) { return json(res, status, { ok: false, error: { code, message } }); }
 
+/* ─── skills 扫描 ────────────────────────────────────────── */
+
+function findSkillMd(dir) {
+  // 优先自己目录下，其次一级子目录，最多递归两层
+  const cands = [join(dir, 'SKILL.md')];
+  let sub;
+  try { for (const n of readdirSync(dir)) {
+    sub = join(dir, n, 'SKILL.md');
+    if (statSyncSafe(sub)) { cands.push(sub); break; }
+  } } catch {}
+  for (const p of cands) if (statSyncSafe(p)) return p;
+  return null;
+}
+function statSyncSafe(p) {
+  try { return (statSync(p)?.isFile && statSync(p).isFile()) ? true : null; } catch { return null; }
+}
+
+function parseSkillFrontmatter(skillMd) {
+  try {
+    const raw = readFileSync(skillMd, 'utf-8');
+    const m = raw.match(/^---\s*\n([\s\S]*?)\n---/);
+    const fm = {};
+    if (m) {
+      for (const line of m[1].split('\n')) {
+        const kv = line.match(/^([A-Za-z][\w-]*):\s*(.*)$/);
+        if (kv) fm[kv[1]] = kv[2].replace(/^["']|["']$/g, '');
+      }
+    }
+    return {
+      name: fm.name ?? skillMd.split(sep).filter(Boolean).slice(-2, -1)[0] ?? '',
+      description: fm.description ?? '',
+    };
+  } catch { return { name: '', description: '' }; }
+}
+
+function scanSkills() {
+  let names;
+  try { names = readdirSync(SKILLS_DIR); } catch { return { dir: SKILLS_DIR, exists: false, skills: [] }; }
+  const skills = names
+    .filter(n => !n.startsWith('.'))
+    .map(name => {
+      const dir = join(SKILLS_DIR, name);
+      let isDir = false;
+      try { isDir = statSync(dir).isDirectory(); } catch {}
+      if (!isDir) return null;
+      const skillMd = findSkillMd(dir);
+      const { name: n2, description } = parseSkillFrontmatter(skillMd ?? join(dir, 'SKILL.md'));
+      return {
+        name: n2 || name,
+        slug: name,
+        installed: true,
+        dir,
+        skillMd: skillMd ?? null,
+        description: description.slice(0, 200),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return { dir: SKILLS_DIR, exists: true, skills };
+}
+
+/* ─── journal skill 安装状态检测 ────────────────────────── */
+
+const SKILL_NAME = 'journal';
+const PROJECT_DIR = 'E:\\projects\\journal';
+// 用户级各平台 skills 目录（junction 指向 skillshare）
+const USER_SKILLS_DIRS = {
+  Pi: 'C:\\Users\\chemclin\\.agents\\skills',
+  Claude: 'C:\\Users\\chemclin\\.claude\\skills',
+  Codex: 'C:\\Users\\chemclin\\.codex\\skills',
+};
+
+function checkSkillStatus() {
+  const locations = [
+    { platform: '项目自带', path: join(PROJECT_DIR, '.agents', 'skills', SKILL_NAME, 'SKILL.md') },
+  ];
+  for (const [platform, dir] of Object.entries(USER_SKILLS_DIRS)) {
+    locations.push({ platform, path: join(dir, SKILL_NAME, 'SKILL.md') });
+  }
+  locations.push({ platform: 'skillshare全局', path: join(SKILLS_DIR, SKILL_NAME, 'SKILL.md') });
+
+  const detail = locations.map(loc => ({
+    platform: loc.platform,
+    path: loc.path,
+    installed: statSyncSafe(loc.path) ? true : false,
+  }));
+  const installedCount = detail.filter(d => d.installed).length;
+  return {
+    name: SKILL_NAME,
+    installed: installedCount > 0,
+    installedCount,
+    total: detail.length,
+    locations: detail,
+  };
+}
 /** @returns {Promise<{method:string, path:string, body:object|null}>} */
 function parseReq(req) {
   return new Promise((resolve, reject) => {
@@ -104,6 +202,8 @@ async function handle(req, res) {
         done: Boolean(body.done),
         assignedDate: typeof body.assignedDate === 'string' ? body.assignedDate : null,
         time: typeof body.time === 'string' ? body.time : null,
+        startTime: typeof body.startTime === 'string' ? body.startTime : (typeof body.time === 'string' ? body.time : null),
+        endTime: typeof body.endTime === 'string' ? body.endTime : null,
         createdAt: now,
         updatedAt: now,
       };
@@ -120,6 +220,8 @@ async function handle(req, res) {
       if (body?.done !== undefined) card.done = Boolean(body.done);
       if (body?.assignedDate !== undefined) card.assignedDate = typeof body.assignedDate === 'string' ? body.assignedDate : null;
       if (body?.time !== undefined) card.time = typeof body.time === 'string' ? body.time : null;
+      if (body?.startTime !== undefined) card.startTime = typeof body.startTime === 'string' ? body.startTime : null;
+      if (body?.endTime !== undefined) card.endTime = typeof body.endTime === 'string' ? body.endTime : null;
       card.updatedAt = new Date().toISOString();
       writeData(data);
       return ok(res, card);
@@ -229,6 +331,14 @@ async function handle(req, res) {
     // ── Health ────────────────────────────────────────
     if (path === '/api/health') {
       return ok(res, { status: 'running', dataFile: DATA_FILE });
+    }
+
+    // ── Skills（本机 skills 清单）─────────────────────
+    if (path === '/api/skills' && method === 'GET') {
+      return ok(res, scanSkills());
+    }
+    if (path === '/api/skill-status' && method === 'GET') {
+      return ok(res, checkSkillStatus());
     }
 
     return err(res, 404, 'NOT_FOUND', `${method} ${path} not found`);

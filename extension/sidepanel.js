@@ -8,6 +8,8 @@ import {
   todayKey, currentTime, aggregateHeatmap,
   countCardsByDay, groupCardsForTimeline, getCardTypeCounts,
   todoSummary, dateRange, getMonthMatrix,
+  timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
+  getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
 } from './lib/model.js';
 import {
   getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
@@ -79,6 +81,9 @@ const editorOverlay = document.getElementById('card-editor-overlay');
 const editorTime = document.getElementById('card-editor-time');
 const editorType = document.getElementById('card-editor-type');
 const editorContent = document.getElementById('card-editor-content');
+const editorStart = document.getElementById('card-editor-start');
+const editorEnd = document.getElementById('card-editor-end');
+const editorDuration = document.getElementById('card-editor-duration');
 const editorSave = document.getElementById('card-editor-save');
 const editorCancel = document.getElementById('card-editor-cancel');
 const editorClose = document.getElementById('card-editor-close');
@@ -91,23 +96,47 @@ let editorTargetTime = null;
 /**
  * 打开卡片编辑器
  * @param {object|null} card — null = 新建，否则编辑
- * @param {string} time — HH:MM
+ * @param {string} time — HH:MM（新建时作为开始时间的种子）
  * @param {string|null} date — YYYY-MM-DD
  */
 function openEditor(card, time, date) {
   editingCardId = card?.id ?? null;
-  editorTargetTime = time;
-  editorTime.textContent = `${date ?? selectedDate} ${time}`;
+  let start, end;
+  if (card) {
+    start = getCardStartTime(card) ?? snapToQuarter(currentTime());
+    end = getCardEndTime(card) ?? addMinutes(start, 15);
+  } else {
+    start = snapUpToQuarter(time ?? currentTime());
+    end = addMinutes(start, 15);
+  }
+  editorTargetTime = start;
+  if (editorStart) editorStart.value = start;
+  if (editorEnd) editorEnd.value = end;
+  updateEditorDuration();
+  editorTime.textContent = `${date ?? selectedDate}`;
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
   editorOverlay.classList.remove('hidden');
   editorContent.focus();
 }
 
+/** 编辑器持续时长显示 */
+function updateEditorDuration() {
+  if (!editorDuration) return;
+  const s = editorStart?.value;
+  const e = editorEnd?.value;
+  if (!s || !e) { editorDuration.textContent = ''; return; }
+  const dur = Math.max(0, timeToMinutes(e) - timeToMinutes(s));
+  editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+}
+
 function closeEditor() {
   editorOverlay.classList.add('hidden');
   editingCardId = null;
   editorContent.value = '';
+  if (editorStart) editorStart.value = '';
+  if (editorEnd) editorEnd.value = '';
+  if (editorDuration) editorDuration.textContent = '';
 }
 
 async function saveEditor() {
@@ -115,22 +144,41 @@ async function saveEditor() {
   const type = editorType.value;
   if (!content && !editingCardId) { closeEditor(); return; }
 
+  let start = snapToQuarter(editorStart?.value || editorTargetTime || currentTime());
+  let end = snapToQuarter(editorEnd?.value || addMinutes(start, 15));
+  if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+
   try {
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type });
+      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end });
     } else {
       await createCardEntry({
         content,
         type,
         assignedDate: selectedDate,
-        time: editorTargetTime,
+        time: start,
+        startTime: start,
+        endTime: end,
       });
     }
     closeEditor();
     await refreshAll();
   } catch (e) {
     console.error('[journal] save card failed:', e);
+    showToast('保存失败：host 服务未连接（127.0.0.1:8765）', 'error');
   }
+}
+
+/* ─── Toast 提示 ────────────────────────────────────── */
+
+let toastTimer = null;
+function showToast(msg, kind = '') {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'toast' + (kind ? ' toast-' + kind : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 2600);
 }
 
 /* ─── DOM 引用 ────────────────────────────────────────── */
@@ -152,10 +200,18 @@ const els = {
   calendarGrid: document.getElementById('calendar-grid'),
   timelineContainer: document.getElementById('timeline-container'),
   timelineDateHeader: document.getElementById('timeline-date-header'),
-  btnAddCard: document.getElementById('btn-add-card'),
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
+
+  // skills
+  skillsSection: document.getElementById('skills-section'),
+  skillsCount: document.getElementById('skills-count'),
+  skillsToggle: document.getElementById('btn-skills-toggle'),
+  skillsPanel: document.getElementById('skills-panel'),
+  skillsOverall: document.getElementById('skills-overall'),
+  skillsList: document.getElementById('skills-list'),
+  skillsCopyAll: document.getElementById('btn-skills-copy'),
 };
 
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
@@ -163,7 +219,6 @@ const els = {
 async function renderTimeline() {
   const date = selectedDate;
   const dayCards = await getCardsByDay(date);
-  const groups = groupCardsForTimeline(dayCards);
   const typeCounts = getCardTypeCounts(allCardsCache, date);
 
   // 标题
@@ -174,100 +229,119 @@ async function renderTimeline() {
   const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
   els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
 
-  // 构建时间刻度（8:00 - 22:00）
+  // 日程画布（08:00–22:30，15 分钟网格）
   const container = els.timelineContainer;
   container.replaceChildren();
 
-  if (dayCards.length === 0 && groups.length === 0) {
-    // 空状态
-    const empty = document.createElement('div');
-    empty.className = 'timeline-empty';
-    empty.innerHTML = `
-      <div class="timeline-empty-icon">📝</div>
-      <div class="timeline-empty-text">今天还没有记录</div>
-      <div style="font-size:12px;color:var(--color-muted);">点击下方按钮或空时间点创建卡片</div>
-    `;
-    container.append(empty);
-    return;
-  }
+  const timedCards = dayCards.filter(c => getCardStartTime(c));
 
-  // 全时间刻度 8:00-22:00
-  for (let h = 8; h <= 22; h++) {
-    const timeKey = String(h).padStart(2, '0') + ':00';
-    const timeKey30 = String(h).padStart(2, '0') + ':30';
+  const canvas = document.createElement('div');
+  canvas.className = 'schedule-canvas';
+  canvas.style.height = `${scheduleHeight(DAY_END_MIN)}px`;
+  container.append(canvas);
 
-    // 上半段 :00
-    renderSlot(container, timeKey, findGroupForTime(groups, timeKey));
-    // 下半段 :30
-    renderSlot(container, timeKey30, findGroupForTime(groups, timeKey30));
-  }
-
-  // 无时间的卡片（置底）
-  const noTimeGroup = groups.find(g => g.time === null);
-  if (noTimeGroup) {
-    renderSlot(container, null, noTimeGroup);
-  }
-}
-
-/**
- * 渲染一个时间刻度槽位
- */
-function renderSlot(container, time, group) {
-  const slot = document.createElement('div');
-  slot.className = 'timeline-slot';
-
-  // 时间标签
-  const label = document.createElement('div');
-  label.className = 'timeline-time-label';
-  label.textContent = time ?? '全天';
-  slot.append(label);
-
-  // 轴线 + 圆点
-  const axis = document.createElement('div');
-  axis.className = 'timeline-axis';
-
-  const dot = document.createElement('div');
-  dot.className = 'timeline-dot' + (group ? ' has-cards' : ' is-empty');
-  dot.dataset.time = time ?? '';
-  if (!group) {
-    dot.addEventListener('click', () => openEditor(null, time ?? currentTime(), selectedDate));
-  }
-  axis.append(dot);
-
-  const connector = document.createElement('div');
-  connector.className = 'timeline-connector';
-  axis.append(connector);
-
-  slot.append(axis);
-
-  // 卡片区域
-  if (group && group.cards.length) {
-    const cardsWrap = document.createElement('div');
-    cardsWrap.className = 'timeline-cards';
-    for (const card of group.cards) {
-      cardsWrap.append(renderTimelineCard(card));
+  // 背景网格线（每 15 分钟，整点加粗并显示标签）
+  for (let m = DAY_START_MIN; m <= DAY_END_MIN; m += 15) {
+    const line = document.createElement('div');
+    const isHour = m % 60 === 0;
+    line.className = 'schedule-grid-line' + (isHour ? ' is-hour' : '');
+    line.style.top = `${scheduleHeight(m)}px`;
+    if (isHour) {
+      const lbl = document.createElement('span');
+      lbl.className = 'schedule-grid-label';
+      lbl.textContent = minutesToTime(m);
+      line.append(lbl);
     }
-    slot.append(cardsWrap);
+    line.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditor(null, snapToQuarter(minutesToTime(m)), date);
+    });
+    canvas.append(line);
   }
 
-  container.append(slot);
+  // 点击画布空白区域：根据 Y 坐标计算时间，打开新建编辑器
+  // 卡片/marker 内部冒泡上来的点击直接忽略，否则会覆盖已打开的编辑态
+  canvas.addEventListener('click', (e) => {
+    if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const mins = DAY_START_MIN + (y / SLOT_HEIGHT) * 15;
+    const snapped = snapToQuarter(minutesToTime(mins));
+    openEditor(null, snapped, date);
+  });
+
+  // 重叠区间 lane 分配
+  const laneItems = timedCards.map(c => ({
+    id: c.id,
+    start: timeToMinutes(getCardStartTime(c)),
+    end: timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15)),
+  }));
+  const lanes = layoutScheduleLanes(laneItems);
+
+  for (const card of timedCards) {
+    canvas.append(renderTimelineCard(card, lanes.get(card.id)));
+  }
+  renderCurrentTimeMarker();
+
+  // 无时间的卡片（置底，全天区）
+  const noTimeCards = dayCards.filter(c => !getCardStartTime(c));
+  if (noTimeCards.length) {
+    const all = document.createElement('div');
+    all.className = 'schedule-allday';
+    const head = document.createElement('div');
+    head.className = 'schedule-allday-label';
+    head.textContent = '全天';
+    all.append(head);
+    const wrap = document.createElement('div');
+    wrap.className = 'schedule-allday-cards';
+    for (const card of noTimeCards) wrap.append(renderTimelineCard(card, null, true));
+    all.append(wrap);
+    container.append(all);
+  }
+}
+
+/** 日程画布常量（分钟） */
+const DAY_START_MIN = 8 * 60;       // 08:00
+const DAY_END_MIN = 22 * 60 + 30;   // 22:30
+/** 15 分钟一格的高度（px） */
+const SLOT_HEIGHT = 30;
+
+/** 时间分钟数 → 画布 top 偏移（px） */
+function scheduleHeight(mins) {
+  return (mins - DAY_START_MIN) / 15 * SLOT_HEIGHT;
 }
 
 /**
- * 渲染单张时间线卡片
+ * 渲染单张日程卡片（绝对定位在画布上）
+ * @param {object} card
+ * @param {{lane:number, laneCount:number}|null} lane — null 表示全天卡片
+ * @param {boolean} [allday=false]
  */
-function renderTimelineCard(card) {
+function renderTimelineCard(card, lane = null, allday = false) {
   const el = document.createElement('div');
-  el.className = 'timeline-card';
+  el.className = 'timeline-card' + (allday ? ' is-allday' : '');
   el.dataset.id = card.id;
+
+  if (!allday && lane) {
+    const start = getCardStartTime(card);
+    const end = getCardEndTime(card) ?? addMinutes(start, 15);
+    const dur = Math.max(15, timeToMinutes(end) - timeToMinutes(start));
+    const laneCount = Math.max(1, lane.laneCount);
+    el.style.top = `${scheduleHeight(timeToMinutes(start))}px`;
+    el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
+    el.style.left = `calc(${(lane.lane / laneCount) * 100}% + 3px)`;
+    el.style.width = `calc(${100 / laneCount}% - 6px)`;
+    el.dataset.start = start;
+    el.dataset.end = end;
+  }
 
   // Header
   const header = document.createElement('div');
   header.className = 'card-header';
   header.innerHTML = `
     <span class="card-type-icon">${typeIcon(card.type)}</span>
-    <span class="card-time">${card.time ?? '全天'}</span>
-    <span class="card-meta">${wordCount(card.content)} 字</span>
+    <span class="card-time">${allday ? '全天' : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
+    <span class="card-meta">${allday ? '' : `${Math.max(15, getCardDuration(card))} 分钟`}</span>
   `;
 
   // Body
@@ -276,6 +350,81 @@ function renderTimelineCard(card) {
   body.textContent = card.content || '(空卡片)';
 
   // Footer
+  const footer = buildCardFooter(card);
+
+  // 点击卡片编辑（拖拽后抑制一次；阻止冒泡到 canvas，避免二次打开空编辑器）
+  let suppressClick = false;
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (suppressClick) { suppressClick = false; return; }
+    openEditor(card, getCardStartTime(card) ?? currentTime(), selectedDate);
+  });
+
+  // 非全天卡片：底部 resize 手柄调整结束时间
+  if (!allday && lane) {
+    const handle = document.createElement('div');
+    handle.className = 'card-resize-handle';
+    handle.title = '拖动调整时长（15 分钟吸附）';
+    let dragging = false;
+    const onMove = (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const rect = el.parentElement.getBoundingClientRect();
+      const rawMins = DAY_START_MIN + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+      let endMin = Math.round(rawMins / 15) * 15;
+      const startMin = timeToMinutes(getCardStartTime(card));
+      endMin = Math.max(startMin + 15, endMin);
+      endMin = Math.min(DAY_END_MIN, endMin);
+      const end = minutesToTime(endMin);
+      el.dataset.end = end;
+      el.style.height = `${((endMin - startMin) / 15) * SLOT_HEIGHT}px`;
+      const time = el.querySelector('.card-time');
+      if (time) time.textContent = `${getCardStartTime(card)}–${end}`;
+      const meta = el.querySelector('.card-meta');
+      if (meta) meta.textContent = `${endMin - startMin} 分钟`;
+    };
+    const onUp = async (e) => {
+      if (!dragging) return;
+      dragging = false;
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+      document.body.classList.remove('is-resizing');
+      suppressClick = true;
+      const start = getCardStartTime(card);
+      // 若 pointerup 未经过 pointermove（如只点了 handle），从当前高度反推结束时间
+      let end = el.dataset.end;
+      if (!end) {
+        const heightPx = el.getBoundingClientRect().height || SLOT_HEIGHT;
+        const dur = Math.max(15, Math.round((heightPx / SLOT_HEIGHT) * 15 / 15) * 15);
+        end = minutesToTime(timeToMinutes(start) + dur);
+      }
+      if (start && end) {
+        try {
+          await updateCardEntry(card.id, { time: start, startTime: start, endTime: end });
+          await refreshAll();
+        } catch (err) {
+          console.error('[journal] resize save failed:', err);
+        }
+      }
+    };
+    handle.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      document.body.classList.add('is-resizing');
+      handle.setPointerCapture(e.pointerId);
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+      handle.addEventListener('pointercancel', onUp);
+    });
+    el.append(handle);
+  }
+
+  el.append(header, body, footer);
+  return el;
+}
+
+/** 构建卡片底部操作区（完成/类型/删除） */
+function buildCardFooter(card) {
   const footer = document.createElement('div');
   footer.className = 'card-footer';
 
@@ -314,29 +463,62 @@ function renderTimelineCard(card) {
     }
   });
   footer.append(delBtn);
-
-  // 点击卡片编辑
-  el.addEventListener('click', () => openEditor(card, card.time ?? currentTime(), selectedDate));
-
-  el.append(header, body, footer);
-  return el;
+  return footer;
 }
 
 /**
- * 查找某个时间点对应的分组（5分钟窗口匹配）
+ * 今日当前时间刻度 marker：只在今天显示，绝对定位在画布对应 Y 坐标，绿色横线 + 「现在 HH:mm」。
+ * 范围外钳制到画布顶部/底部，保证可见。
  */
-function findGroupForTime(groups, time) {
-  const targetMin = timeToMin(time);
-  for (const g of groups) {
-    if (!g.time) continue;
-    if (Math.abs(timeToMin(g.time) - targetMin) <= 2) return g;
-  }
-  return null;
+function renderCurrentTimeMarker() {
+  const canvas = els.timelineContainer.querySelector('.schedule-canvas');
+  if (!canvas) return;
+
+  // 移除上一次的 marker，避免每次 refreshAll 叠加
+  canvas.querySelectorAll('.timeline-now-marker').forEach(el => el.remove());
+
+  // 仅今天显示
+  if (selectedDate !== todayKey()) return;
+
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const clamped = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, nowMin));
+  const nowLabel =
+    String(now.getHours()).padStart(2, '0') + ':' +
+    String(now.getMinutes()).padStart(2, '0');
+
+  const marker = document.createElement('div');
+  marker.className = 'timeline-now-marker';
+  marker.style.top = `${scheduleHeight(clamped)}px`;
+  const tag = document.createElement('span');
+  tag.className = 'timeline-now-tag';
+  tag.textContent = `● 现在 ${nowLabel}`;
+  marker.append(tag);
+  const line = document.createElement('span');
+  line.className = 'timeline-now-line';
+  marker.append(line);
+  marker.title = '点击在当前时间新建卡片';
+  marker.setAttribute('role', 'button');
+  marker.tabIndex = 0;
+  const createAtNow = () => openEditor(null, snapUpToQuarter(currentTime()), selectedDate);
+  marker.addEventListener('click', (e) => {
+    e.stopPropagation();
+    createAtNow();
+  });
+  marker.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      createAtNow();
+    }
+  });
+  canvas.append(marker);
 }
 
-function timeToMin(t) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+/** 每分钟更新今日当前时间 marker（不影响已有时间槽/卡片） */
+function startNowMarkerTimer() {
+  setInterval(() => {
+    renderCurrentTimeMarker();
+  }, 60 * 1000);
 }
 
 /* ─── 渲染：卡片池 ──────────────────────────────────────── */
@@ -374,7 +556,8 @@ async function renderCardPool() {
     schedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       // 直接安排到当天
-      updateCardEntry(card.id, { assignedDate: selectedDate, time: currentTime() })
+      const st = snapUpToQuarter(currentTime());
+      updateCardEntry(card.id, { assignedDate: selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
         .then(() => refreshAll())
         .catch(err => console.error('[journal] schedule card failed:', err));
     });
@@ -416,6 +599,9 @@ function renderHeatmap(container, heatmap) {
     }
     els.heatmapStreak.textContent = streak > 0 ? `🔥 ${streak} 天` : '';
   }
+
+  // 默认滚到最右侧（今天在最右）
+  container.scrollLeft = container.scrollWidth;
 }
 
 /* ─── 渲染：日历 ──────────────────────────────────────── */
@@ -545,6 +731,77 @@ async function refreshAll() {
   renderTodoList();
 }
 
+/* ─── 本机 Skills ────────────────────────────────────── */
+
+let skillsCache = null;
+
+async function loadSkillStatus() {
+  try {
+    const res = await fetch('http://127.0.0.1:8765/api/skill-status');
+    const data = await res.json();
+    skillsCache = data?.data ?? null;
+  } catch (e) {
+    skillsCache = null;
+  }
+  renderSkillStatus();
+}
+
+function renderSkillStatus() {
+  const s = skillsCache;
+  els.skillsList.replaceChildren();
+
+  if (!s) {
+    els.skillsCount.textContent = '—';
+    els.skillsOverall.textContent = '⚠️ host 未连接，无法检测';
+    return;
+  }
+
+  els.skillsCount.textContent = s.installed ? '✅' : '❌';
+  els.skillsOverall.textContent = s.installed
+    ? `journal skill：✅ 已安装（${s.installedCount}/${s.total}）`
+    : `journal skill：❌ 未安装（${s.installedCount}/${s.total}）`;
+
+  for (const loc of s.locations) {
+    const li = document.createElement('li');
+    li.className = 'skills-item';
+
+    const info = document.createElement('div');
+    info.style.cssText = 'flex:1;min-width:0;';
+
+    const top = document.createElement('div');
+    top.style.cssText = 'display:flex;align-items:center;gap:5px;';
+    const dot = document.createElement('span');
+    dot.textContent = loc.installed ? '✅' : '❌';
+    const name = document.createElement('span');
+    name.className = 'skills-item-name';
+    name.style.flex = '';
+    name.textContent = loc.platform;
+    top.append(dot, name);
+    info.append(top);
+
+    const path = document.createElement('div');
+    path.className = 'skills-item-desc';
+    path.textContent = loc.path;
+    path.title = loc.path;
+    info.append(path);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'skills-copy-btn';
+    copyBtn.textContent = '复制';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(loc.path);
+        showToast(`✅ 已复制 ${loc.platform} 路径`, 'success');
+      } catch (e) {
+        showToast('复制失败，请手动复制', 'error');
+      }
+    });
+
+    li.append(info, copyBtn);
+    els.skillsList.append(li);
+  }
+}
+
 /* ─── 初始化 ────────────────────────────────────────── */
 
 async function init() {
@@ -556,24 +813,27 @@ async function init() {
   }
 
   // 拉取 host 数据
-  await pullFromHost();
+  const pulled = await pullFromHost();
+  if (!pulled.pulled) {
+    showToast('⚠️ host 服务未连接，数据可能无法保存', 'warn');
+  }
   startPushListener();
 
   // 首次全量渲染
   updateHeaderDate();
   await refreshAll();
 
+  // 今日当前时间 marker 每分钟更新
+  startNowMarkerTimer();
+
   // ── 编辑器事件 ──
   editorSave.addEventListener('click', saveEditor);
   editorCancel.addEventListener('click', closeEditor);
   editorClose.addEventListener('click', closeEditor);
+  editorStart?.addEventListener('change', updateEditorDuration);
+  editorEnd?.addEventListener('change', updateEditorDuration);
   editorOverlay.addEventListener('click', (e) => {
     if (e.target === editorOverlay) saveEditor();
-  });
-
-  // ── 新建卡片按钮 ──
-  els.btnAddCard.addEventListener('click', () => {
-    openEditor(null, currentTime(), selectedDate);
   });
 
   // ── 卡片池新建 ──
@@ -675,6 +935,25 @@ async function init() {
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
+
+  // ── AI Skill 状态 ──
+  els.skillsToggle.addEventListener('click', () => {
+    const isOpen = !els.skillsPanel.classList.contains('hidden');
+    els.skillsPanel.classList.toggle('hidden', isOpen);
+    els.skillsToggle.classList.toggle('open', !isOpen);
+    if (!isOpen && !skillsCache) loadSkillStatus();
+  });
+  els.skillsCopyAll.addEventListener('click', async () => {
+    if (!skillsCache) return;
+    const text = skillsCache.locations.map(l => l.path).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('✅ 已复制全部路径', 'success');
+    } catch (e) {
+      showToast('复制失败，请手动复制', 'error');
+    }
+  });
+  await loadSkillStatus();
 
   // ── 外部存储变更刷新 ──
   subscribeJournals(() => { refreshAll(); });

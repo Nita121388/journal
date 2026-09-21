@@ -1,0 +1,28 @@
+{
+  "id": "timeline-current-time",
+  "name": "timeline-current-time",
+  "title": "添加今日当前时间刻度",
+  "description": "在今日时间线显示当前时间并每分钟更新",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "chemclin",
+  "assignee": "chemclin",
+  "createdAt": "2026-09-21",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-21-timeline-scheduling"
+  ],
+  "parent": "09-21-design-project-icon",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

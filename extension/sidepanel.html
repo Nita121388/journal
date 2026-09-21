@@ -89,6 +89,20 @@
 
           <ul id="todo-list"></ul>
         </section>
+
+        <!-- 本机 Skills（快速复制给 AI） -->
+        <section id="skills-section">
+          <div class="section-header">
+            <span class="section-label">🧠 AI Skill 状态</span>
+            <span id="skills-count" class="section-badge">…</span>
+            <button id="btn-skills-toggle" class="skills-toggle-btn" aria-label="展开/收起" title="展开/收起">▾</button>
+          </div>
+          <div id="skills-panel" class="skills-panel hidden">
+            <div id="skills-overall" class="skills-overall"></div>
+            <ul id="skills-list" class="skills-list"></ul>
+            <button id="btn-skills-copy" class="skills-copyall-btn">📋 复制所有路径给 AI</button>
+          </div>
+        </section>
       </aside>
 
       <!-- 右侧：时间线 -->
@@ -97,10 +111,12 @@
         <div id="timeline-container">
           <!-- 时间线动态渲染 -->
         </div>
-        <button id="btn-add-card" class="timeline-add-btn">＋ 在当前时间新建卡片</button>
       </section>
     </div>
   </main>
+
+  <!-- 操作提示 toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <!-- 卡片编辑弹窗 -->
   <div id="card-editor-overlay" class="overlay hidden">
@@ -113,6 +129,11 @@
           <option value="idea">💡 灵感</option>
         </select>
         <button id="card-editor-close" class="card-editor-close-btn">✕</button>
+      </div>
+      <div class="card-editor-times">
+        <label>开始 <input type="time" id="card-editor-start" step="900" /></label>
+        <label>结束 <input type="time" id="card-editor-end" step="900" /></label>
+        <span id="card-editor-duration" class="card-editor-duration"></span>
       </div>
       <textarea id="card-editor-content" placeholder="写下你的想法..." rows="4"></textarea>
       <div class="card-editor-footer">

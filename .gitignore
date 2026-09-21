@@ -18,6 +18,8 @@ npm-debug.log*
 
 # Host data (user privacy)
 host/data/
+# 日志数据备份（含隐私，不进公开仓库；日志备份走私有仓库 journal-data）
+backup/
 
 # Editor
 .idea/

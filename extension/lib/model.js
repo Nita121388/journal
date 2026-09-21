@@ -24,18 +24,21 @@ export function currentTime() {
 
 /**
  * 创建一张新卡片
- * @param {object} patch — { content?, type?, done?, assignedDate?, time? }
+ * @param {object} patch — { content?, type?, done?, assignedDate?, time?, startTime?, endTime? }
  * @returns {import('./types').Card}
  */
 export function createCard(patch = {}) {
   const now = new Date().toISOString();
+  const start = patch.startTime ?? patch.time ?? null;
   return {
     id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     content: patch.content ?? '',
     type: patch.type ?? 'text',
     done: patch.done ?? false,
     assignedDate: patch.assignedDate ?? null,
-    time: patch.time ?? null,
+    time: patch.time ?? start,
+    startTime: start,
+    endTime: patch.endTime ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -111,9 +114,11 @@ export function getCardsByDate(cards, date) {
   return cards
     .filter(c => c.assignedDate === date)
     .sort((a, b) => {
-      if (a.time && b.time) return a.time.localeCompare(b.time);
-      if (a.time) return -1;
-      if (b.time) return 1;
+      const sa = getCardStartTime(a);
+      const sb = getCardStartTime(b);
+      if (sa && sb) return sa.localeCompare(sb) || a.createdAt.localeCompare(b.createdAt);
+      if (sa) return -1;
+      if (sb) return 1;
       return a.createdAt.localeCompare(b.createdAt);
     });
 }
@@ -137,7 +142,8 @@ export function groupCardsForTimeline(dayCards) {
   if (!dayCards.length) return [];
   const groups = [];
   for (const card of dayCards) {
-    if (!card.time) {
+    const cardTime = getCardStartTime(card);
+    if (!cardTime) {
       // 无时间卡片归入 "全天" 组（置于最后）
       const last = groups[groups.length - 1];
       if (last && last.time === null) {
@@ -150,21 +156,101 @@ export function groupCardsForTimeline(dayCards) {
     const last = groups[groups.length - 1];
     if (last && last.time !== null) {
       // 检查是否在 5 分钟窗口内（并列）
-      const diffMin = timeToMinutes(card.time) - timeToMinutes(last.time);
+      const diffMin = timeToMinutes(cardTime) - timeToMinutes(last.time);
       if (diffMin <= 5 && diffMin >= 0) {
         last.cards.push(card);
         continue;
       }
     }
-    groups.push({ time: card.time, cards: [card] });
+    groups.push({ time: cardTime, cards: [card] });
   }
   return groups;
 }
 
-/** @param {string} hhmm — "HH:MM" */
-function timeToMinutes(hhmm) {
+/* ─── 日程时间工具（15 分钟网格） ───────────────────────────── */
+
+/** @param {string} hhmm — "HH:MM" @returns {number} 当天分钟数 */
+export function timeToMinutes(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
+}
+
+/** @param {number} mins — 当天分钟数 @returns {string} "HH:MM" */
+export function minutesToTime(mins) {
+  const total = ((Math.round(mins) % 1440) + 1440) % 1440;
+  return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+
+/** @param {string} hhmm @param {number} mins @returns {string} */
+export function addMinutes(hhmm, mins) {
+  return minutesToTime(timeToMinutes(hhmm) + mins);
+}
+
+/** 四舍五入吸附到 15 分钟 */
+export function snapToQuarter(hhmm) {
+  return minutesToTime(Math.round(timeToMinutes(hhmm) / 15) * 15);
+}
+
+/** 向上取整吸附到 15 分钟 */
+export function snapUpToQuarter(hhmm) {
+  return minutesToTime(Math.ceil(timeToMinutes(hhmm) / 15) * 15);
+}
+
+/** 兼容读取开始时间：startTime ?? time */
+export function getCardStartTime(card) {
+  return card?.startTime ?? card?.time ?? null;
+}
+
+/** 兼容读取结束时间：endTime ?? start+15min */
+export function getCardEndTime(card) {
+  if (card?.endTime) return card.endTime;
+  const start = getCardStartTime(card);
+  return start ? addMinutes(start, 15) : null;
+}
+
+/** @returns {number} 持续分钟数（无时间返回 0） */
+export function getCardDuration(card) {
+  const s = getCardStartTime(card);
+  const e = getCardEndTime(card);
+  if (!s || !e) return 0;
+  return Math.max(0, timeToMinutes(e) - timeToMinutes(s));
+}
+
+/**
+ * 重叠区间 lane 分配（区间分区贪心算法）
+ * @param {Array<{id:string, start:number, end:number}>} items — 分钟数区间
+ * @returns {Map<string, {lane:number, laneCount:number}>}
+ */
+export function layoutScheduleLanes(items) {
+  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
+  const out = new Map();
+  let group = [];
+  let groupEnd = -1;
+  let groupMax = 0;
+  let laneEnd = [];
+  const flush = () => {
+    for (const it of group) out.set(it.id, { lane: it.lane, laneCount: groupMax });
+    group = [];
+    groupEnd = -1;
+    groupMax = 0;
+    laneEnd = [];
+  };
+  for (const it of sorted) {
+    if (group.length && it.start >= groupEnd) flush();
+    let lane = laneEnd.findIndex(end => end <= it.start);
+    if (lane === -1) {
+      lane = laneEnd.length;
+      laneEnd.push(it.end);
+    } else {
+      laneEnd[lane] = it.end;
+    }
+    it.lane = lane;
+    group.push(it);
+    groupEnd = Math.max(groupEnd, it.end);
+    groupMax = Math.max(groupMax, laneEnd.length);
+  }
+  flush();
+  return out;
 }
 
 /**
