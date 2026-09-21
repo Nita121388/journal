@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "sidepanel.js 新增 host 检测/启动的局部状态与异步流程，需遵守现有扩展前端状态管理约定"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "新增 host 横幅 + 启动按钮 UI 组件，需符合组件与交互规范"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "扩展前端改动应满足质量门禁（node --check、error handling、防重复点击等）"}

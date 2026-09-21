@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "核查 host 检测/启动状态如何并入现有 sidepanel 状态，避免与既有渲染/拉取冲突"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "侧栏改动质量门禁：node --check、异步错误处理、重复点击防护、无回归"}
