@@ -770,12 +770,66 @@ main {
   background: var(--color-accent);
   opacity: 0.8;
 }
-body.is-resizing {
+body.is-resizing,
+body.is-dragging {
   user-select: none;
 }
 .timeline-card:hover {
   border-color: var(--color-accent);
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+/* 放在 :hover 之后，避免拖动时被 hover 阴影覆盖 */
+.timeline-card.is-dragging {
+  opacity: 0.85;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 100;
+  transition: none;
+  touch-action: none;
+}
+
+/* 短卡片（时长 ≤ 30 分钟）紧凑布局：
+   收缩底部 padding、折叠 footer，使 header + 首行正文在槽位高度内可见（正文溢出即截断，而非裁成空白）。
+   仅作用于 .is-short，不影响普通（≥45 分钟）卡片。 */
+.timeline-card.is-short {
+  padding-bottom: 2px;
+  overflow: hidden;
+  transition: height 0.2s ease, max-height 0.2s ease, padding-bottom 0.2s ease,
+    box-shadow 0.2s ease, border-color 0.15s;
+}
+.timeline-card.is-short .card-header {
+  margin-bottom: 2px;
+}
+.timeline-card.is-short .card-footer {
+  display: none; /* 紧凑态折叠 footer；悬停展开后恢复 */
+}
+.timeline-card.is-short .card-body {
+  overflow: hidden; /* 正文截断到可见区域，不出现滚动条/不裁成空白 */
+  max-height: none;
+}
+/* 拖拽移动/缩放 resize 时禁用过渡，避免实时拖动滞后。
+   注意：body.is-dragging 选择器需要高于 .is-short 的特异性（0,3,1）才能压过其 transition。 */
+body.is-resizing .timeline-card.is-short,
+body.is-dragging .timeline-card.is-short {
+  transition: none;
+}
+
+/* 短卡片悬停展开：仅非拖拽（:not(.is-dragging)）时触发，避免拖动中涨高。
+   height:auto 覆盖内联 style.height 槽位高度；max-height 兜底长文。 */
+.timeline-card.is-short:not(.is-dragging):hover {
+  z-index: 120;
+  height: auto !important; /* 覆盖内联 style.height（槽位 px） */
+  max-height: 240px;
+  padding-bottom: 16px;
+  overflow-y: auto;
+  border-color: var(--color-accent);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
+.timeline-card.is-short:not(.is-dragging):hover .card-footer {
+  display: flex; /* 悬停恢复 footer（完成/类型/删除） */
+}
+.timeline-card.is-short:not(.is-dragging):hover .card-body {
+  overflow-y: auto;
+  max-height: 120px;
 }
 
 .card-header {

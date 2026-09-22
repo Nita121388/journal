@@ -326,6 +326,8 @@ function renderTimelineCard(card, lane = null, allday = false) {
     const start = getCardStartTime(card);
     const end = getCardEndTime(card) ?? addMinutes(start, 15);
     const dur = Math.max(15, timeToMinutes(end) - timeToMinutes(start));
+    // 短卡片（时长 ≤ 30 分钟）启用紧凑布局 + 悬停展开；拖拽时保持紧凑，避免拖动中涨高
+    if (dur <= 30) el.classList.add('is-short');
     const laneCount = Math.max(1, lane.laneCount);
     el.style.top = `${scheduleHeight(timeToMinutes(start))}px`;
     el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
@@ -417,6 +419,76 @@ function renderTimelineCard(card, lane = null, allday = false) {
       handle.addEventListener('pointercancel', onUp);
     });
     el.append(handle);
+  }
+
+  // 非全天卡片：拖动主体（header/body 区域）纵向移动，改变开始时间、时长不变
+  // 15 分钟吸附、钳制到画布范围，拖放后持久化并刷新（lane 自动重排）
+  if (!allday && lane) {
+    const startMin = timeToMinutes(getCardStartTime(card));
+    const endMin = timeToMinutes(getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15));
+    const dur = Math.max(15, endMin - startMin);
+    let dragging = false;
+    let moved = false;
+    let grabOffsetMin = 0;
+    let startY = 0;
+    const MOVE_THRESHOLD_PX = 4; // 忽略点击时的微小抖动，避免误判为拖动
+    const onMove = (e) => {
+      if (!dragging) return;
+      if (!moved && Math.abs(e.clientY - startY) < MOVE_THRESHOLD_PX) return;
+      e.preventDefault();
+      moved = true;
+      const rect = el.parentElement.getBoundingClientRect();
+      const rawMins = DAY_START_MIN + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15 - grabOffsetMin;
+      const snappedMin = Math.round(rawMins / 15) * 15;
+      // 钳制：开始时间 ∈ [DAY_START_MIN, DAY_END_MIN - dur]，保证结束不越过 22:30
+      const newStartMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - dur, snappedMin));
+      const newStart = minutesToTime(newStartMin);
+      const newEnd = minutesToTime(newStartMin + dur);
+      el.dataset.start = newStart;
+      el.dataset.end = newEnd;
+      el.style.top = `${scheduleHeight(newStartMin)}px`;
+      const time = el.querySelector('.card-time');
+      if (time) time.textContent = `${newStart}–${newEnd}`;
+      const meta = el.querySelector('.card-meta');
+      if (meta) meta.textContent = `${dur} 分钟`;
+    };
+    const onUp = async () => {
+      if (!dragging) return;
+      dragging = false;
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+      document.body.classList.remove('is-dragging');
+      el.classList.remove('is-dragging');
+      // 仅在真正发生位移时才抑制点击并持久化；纯点击保持编辑功能
+      if (!moved) return;
+      suppressClick = true;
+      const newStart = el.dataset.start;
+      const newEnd = el.dataset.end;
+      if (newStart && newEnd) {
+        try {
+          await updateCardEntry(card.id, { time: newStart, startTime: newStart, endTime: newEnd });
+          await refreshAll();
+        } catch (err) {
+          console.error('[journal] card move save failed:', err);
+        }
+      }
+    };
+    el.addEventListener('pointerdown', (e) => {
+      // 不拦截 footer 按钮与 resize 手柄的交互
+      if (e.target.closest('.card-footer, .card-resize-handle')) return;
+      dragging = true;
+      moved = false;
+      startY = e.clientY;
+      const grabY = e.clientY - el.getBoundingClientRect().top;
+      grabOffsetMin = (grabY / SLOT_HEIGHT) * 15;
+      document.body.classList.add('is-dragging');
+      el.classList.add('is-dragging');
+      el.setPointerCapture(e.pointerId);
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+      el.addEventListener('pointercancel', onUp);
+    });
   }
 
   el.append(header, body, footer);
