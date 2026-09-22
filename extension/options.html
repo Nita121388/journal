@@ -8,25 +8,44 @@
 </head>
 <body>
   <header id="header">
-    <span id="app-title">📓 Journal — 设置</span>
+    <span id="app-logo" aria-hidden="true">📓</span>
+    <span id="app-title">Journal<small>扩展设置</small></span>
   </header>
 
   <main>
     <!-- host 状态区 -->
-    <section id="host-section">
-      <div id="host-status" class="status-row">
-        <span id="host-dot" class="status-dot"></span>
-        <span id="host-label">检测 host 状态…</span>
-      </div>
+    <details id="host-section" class="card collapsible" open>
+      <summary class="collapse-header">
+        <div class="host-status-card">
+          <span class="section-icon" aria-hidden="true">⚡</span>
+          <div>
+            <div class="eyebrow">LOCAL SERVICE</div>
+            <div id="host-status" class="status-row">
+              <span id="host-dot" class="status-dot"></span>
+              <span id="host-label">检测 host 状态…</span>
+            </div>
+          </div>
+        </div>
+        <span class="collapse-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="collapse-content">
       <div id="host-cmd-hint" class="hint-box hidden">
         <span class="hint-label">启动命令（在项目根目录运行）</span>
         <code>node host/server.js</code>
       </div>
-    </section>
+      </div>
+    </details>
 
     <!-- Agent 接入引导区 -->
-    <section id="agent-section">
-      <h2>🤖 Agent 接入</h2>
+    <details id="agent-section" class="card collapsible" open>
+      <summary class="collapse-header">
+        <div class="section-head">
+          <span class="section-icon" aria-hidden="true">🤖</span>
+          <h2>Agent 接入</h2>
+        </div>
+        <span class="collapse-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="collapse-content">
       <p class="desc">
         让任意 AI Agent（Pi / Claude Code / Codex 等）帮你写日志、查待办。
         <br>复制下方 prompt 粘贴给你的 Agent 即可。
@@ -48,19 +67,84 @@
 
       <h3>复制 Prompt</h3>
       <div class="prompt-box">
-        <textarea id="prompt-textarea" readonly rows="18"></textarea>
-        <button id="copy-prompt" type="button" title="复制到剪贴板">📋 复制 Prompt</button>
+        <textarea id="prompt-textarea" readonly rows="10"></textarea>
+        <button id="copy-prompt" class="btn" type="button" title="复制到剪贴板">📋 复制 Prompt</button>
         <span id="copy-feedback" class="copy-feedback"></span>
       </div>
-    </section>
+    </details>
 
     <!-- 数据区 -->
-    <section id="data-section">
-      <h2>💾 数据</h2>
+    <details id="data-section" class="card collapsible" open>
+      <summary class="collapse-header">
+        <div class="section-head">
+          <span class="section-icon" aria-hidden="true">💾</span>
+          <h2>数据</h2>
+        </div>
+        <span class="collapse-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="collapse-content">
       <p class="desc">导出扩展本地存储的日志数据（JSON），用于备份或与 host 数据合并。</p>
-      <button id="export-data" type="button" title="导出扩展本地数据">⬇️ 导出扩展数据</button>
+      <button id="export-data" class="btn btn-block" type="button" title="导出扩展本地数据">⬇️ 导出扩展数据</button>
       <span id="export-feedback" class="copy-feedback"></span>
-    </section>
+      </div>
+    </details>
+
+    <!-- 同步区 -->
+    <details id="sync-section" class="card collapsible" open>
+      <summary class="collapse-header">
+        <div class="section-head">
+          <span class="section-icon" aria-hidden="true">☁️</span>
+          <h2>数据同步</h2>
+        </div>
+        <span class="collapse-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="collapse-content">
+      <p class="desc">
+        host 是权威数据源（SQLite）。同步把卡片同步到共享介质：本地文件夹 / WebDAV / GitHub 私有仓库。
+        多台设备各自同步即可收敛（逐卡 LWW + 删除墓碑）。密钥仅存本机 host 数据目录，不会回传到页面。
+      </p>
+
+      <div class="status-row">
+        <span id="sync-dot" class="status-dot"></span>
+        <span id="sync-label">同步未开启</span>
+      </div>
+      <div id="sync-meta" class="desc"></div>
+
+      <label class="field">同步方式
+        <select id="sync-provider">
+          <option value="off">关闭</option>
+          <option value="local">本地文件夹</option>
+          <option value="webdav">WebDAV（坚果云等）</option>
+          <option value="github">GitHub 私有仓库</option>
+        </select>
+      </label>
+
+      <div id="sync-local" class="provider-fields hidden">
+        <label class="field">同步目录<input id="local-dir" type="text" placeholder="如 ~/Dropbox/journal-sync"></label>
+      </div>
+
+      <div id="sync-webdav" class="provider-fields hidden">
+        <label class="field">服务器 URL<input id="webdav-base" type="text" placeholder="https://dav.jianguoyun.com/dav/"></label>
+        <label class="field">用户名<input id="webdav-user" type="text"></label>
+        <label class="field">密码 / 应用密码<input id="webdav-pass" type="password" placeholder="留空表示不修改"></label>
+        <label class="field">文件路径<input id="webdav-path" type="text" placeholder="journal/data.json"></label>
+      </div>
+
+      <div id="sync-github" class="provider-fields hidden">
+        <label class="field">仓库（owner/repo）<input id="gh-repo" type="text" placeholder="Nita121388/journal-data"></label>
+        <label class="field">分支<input id="gh-branch" type="text" placeholder="sync-data"></label>
+        <label class="field">文件路径<input id="gh-path" type="text" placeholder="journal-sync.json"></label>
+        <label class="field">访问 Token（repo 权限）<input id="gh-token" type="password" placeholder="留空表示不修改"></label>
+      </div>
+
+      <div class="btn-row">
+        <button id="sync-save" class="btn" type="button">保存配置</button>
+        <button id="sync-test" class="btn" type="button">连接测试</button>
+        <button id="sync-now" class="btn" type="button">☁️ 立即同步</button>
+      </div>
+      <span id="sync-feedback" class="copy-feedback"></span>
+      </div>
+    </details>
   </main>
 
   <script type="module" src="options.js"></script>

@@ -1,0 +1,18 @@
+{
+  "name": "journal-host",
+  "version": "0.1.0",
+  "description": "Journal 本地 host：WebSocket 连扩展 + MCP stdio 供本机 agent 操作",
+  "type": "module",
+  "bin": {
+    "journal-host": "./server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "mcp": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  }
+}

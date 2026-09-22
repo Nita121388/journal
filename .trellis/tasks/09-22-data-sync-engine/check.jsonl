@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量检查：测试、lint、安全规则"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "响应契约与错误码检查"}

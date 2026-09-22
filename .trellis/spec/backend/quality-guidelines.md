@@ -6,13 +6,13 @@
 
 ## Testing
 
-- **Unit tests**: **Vitest** (same tool as frontend) for `services/` and `lib/`.
-- Test files beside source: `host/services/intent.test.js`, `host/lib/storage.test.js`.
-- Mock the LLM client in tests — never make real API calls in CI.
-- **Intent parser** (`services/intent.js`) is the highest-value test target: natural language → action mapping needs a broad table of cases.
+- **Unit tests**: Node's built-in **`node:test`** (no third-party deps) for `lib/` and `sync/`.
+- Test files live in `host/test/*.test.mjs`. Mock external transports by injecting a `fetchImpl`; never hit the network in tests.
+- Highest-value targets: `sync/merge.js` (LWW + tombstone table), `sync/engine.js` (two-device convergence), `lib/storage.js` (CRUD + migration).
 
 ```bash
-cd host && npx vitest run --coverage   # target >80% on services/ + lib/
+cd host && npm test            # node --test
+cd host && node --test test/merge.test.mjs
 ```
 
 ---
@@ -38,7 +38,7 @@ cd host && npx vitest run --coverage   # target >80% on services/ + lib/
 ## Security Rules
 
 - **Bind to `127.0.0.1` only** — never `0.0.0.0`. This is a local host; exposing it on the network would leak the user's private journal.
-- **API key** is read from `chrome.storage.local` (sent by extension over the bridge) or from a local env var — never hardcoded, never logged.
+- **Secrets** (sync tokens / WebDAV passwords) live in host settings, are **never logged**, and are masked on `GET /api/sync/config`.
 - **Origin check**: if the host exposes plain HTTP (non-MCP), validate an `Origin`/`Host` header and/or a per-session token so only the extension can call it (mitigates DNS rebinding / drive-by from malicious tabs).
 - **No eval, no `child_process.exec`** with user input (prefer `execFile` if any shell-out is ever needed).
 

@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "cards 表加列、SQLite WAL、迁移与备份规范（本任务将补充 WAL 备份约定）"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "host 存储 / server / sync 分层结构，改动落位参考"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "后端质量标准、测试与 node --check 验收要求"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "迁移/校验失败的回滚与报错约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "前端卡片状态、编辑器与筛选状态管理约定"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "卡片渲染与 chip/输入组件实现约定"}

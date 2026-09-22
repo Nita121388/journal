@@ -1,0 +1,388 @@
+/* ================================================================
+   Journal — style.css
+   视觉语言：暖纸底色 + sage/amber 色板（继承 TabShelf 家族），
+   侧边栏窄屏友好，大量留白，圆角卡片。
+   ================================================================ */
+
+:root {
+  --bg: #f6f3ec;
+  --bg-card: #fffdf8;
+  --ink: #3a3a35;
+  --ink-muted: #8a867c;
+  --line: #e6e1d5;
+  --sage: #5a7a62;
+  --sage-light: #8aaa92;
+  --sage-dim: #d8e2da;
+  --amber: #c8713a;
+  --rose: #b35a5a;
+  --slate: #5a6b7a;
+  --radius: 10px;
+  --shadow-sm: 0 1px 2px rgba(58, 58, 53, .06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+input, select, textarea, button { font: inherit; }
+input, select, textarea { outline: none; box-shadow: none; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-y: auto;
+}
+
+.hidden { display: none !important; }
+
+/* ─── 顶栏 ─────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-dot, .host-dot {
+  font-size: 12px;
+  cursor: default;
+  opacity: .5;
+  transition: opacity .2s;
+}
+.sync-dot.on  { color: var(--sage);  opacity: 1; }
+.sync-dot.err { color: var(--rose);  opacity: 1; }
+.host-dot.on  { opacity: 1; }
+
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+}
+.btn-icon:hover {
+  background: rgba(58, 58, 53, .07);
+  color: var(--ink);
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--bg-card);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--sage-light); background: #fff; }
+.btn.subtle {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-muted);
+}
+.btn.subtle:hover {
+  background: rgba(58, 58, 53, .06);
+  color: var(--ink);
+}
+.btn.primary {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.btn.primary:hover { background: #4d6b55; border-color: #4d6b55; }
+.btn-add { font-size: 15px; padding: 1px 9px; line-height: 1.4; }
+
+/* ─── 热力图 ───────────────────────────────────────────────── */
+
+.heatmap-section {
+  padding: 8px 16px 12px;
+}
+
+.heatmap-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.heatmap-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.nav-arrow { font-size: 11px; padding: 2px 6px; }
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.heatmap-grid .wk-label {
+  font-size: 9px;
+  color: var(--ink-muted);
+  text-align: center;
+  line-height: 1.2;
+  padding: 1px 0;
+  align-self: center;
+}
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: transform .1s, border-color .1s;
+  position: relative;
+}
+.heatmap-cell:hover {
+  transform: scale(1.12);
+  border-color: var(--sage-light);
+  z-index: 1;
+}
+.heatmap-cell.todo {
+  background: #e8d9a8;
+  border-color: #e8d9a8;
+}
+.heatmap-cell.log {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+.heatmap-cell.today {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--amber);
+}
+.heatmap-cell.selected {
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--slate);
+}
+.heatmap-cell.blank {
+  border-color: transparent;
+  cursor: default;
+}
+
+.heatmap-legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--ink-muted);
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.heatmap-cell.empty { width: 11px; height: 11px; border-radius: 3px; }
+.heatmap-cell.low { width: 11px; height: 11px; background: #e8d9a8; border-color: #e8d9a8; }
+.heatmap-cell.high { width: 11px; height: 11px; background: var(--sage); border-color: var(--sage); }
+.heatmap-cell.today { width: 11px; height: 11px; box-shadow: 0 0 0 1.5px var(--amber); }
+
+/* ─── 日期头 ───────────────────────────────────────────────── */
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px 4px;
+  border-top: 1px solid var(--line);
+}
+.day-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ─── 日志 ─────────────────────────────────────────────────── */
+
+.log-section {
+  padding: 8px 16px;
+}
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+}
+.log-editor {
+  width: 100%;
+  min-height: 130px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  color: var(--ink);
+  transition: border-color .15s, box-shadow .15s;
+}
+.log-editor:focus {
+  border-color: var(--sage-light);
+  box-shadow: 0 0 0 2px rgba(90, 122, 98, .12);
+}
+.log-status {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+  min-height: 14px;
+}
+
+/* ─── 待办 ─────────────────────────────────────────────────── */
+
+.todo-section {
+  padding: 8px 16px 16px;
+}
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-row .section-label { margin-bottom: 0; }
+
+.todo-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  transition: border-color .15s;
+}
+.todo-item:hover { border-color: var(--sage-light); }
+.todo-item.done .todo-text {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+.todo-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--ink-muted);
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+  position: relative;
+}
+.todo-check:checked {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+.todo-check:checked::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.todo-text {
+  flex: 1;
+  word-break: break-word;
+}
+.todo-priority {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.todo-priority.high { background: #f3ded6; color: #a4432c; }
+.todo-priority.medium { background: #efe8d2; color: #8a7420; }
+.todo-priority.low { background: #e3e8e2; color: #5a6b5a; }
+.todo-del {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity .15s, color .15s, background .15s;
+}
+.todo-item:hover .todo-del { opacity: 1; }
+.todo-del:hover { color: var(--rose); background: rgba(179, 90, 90, .1); }
+.todo-empty {
+  color: var(--ink-muted);
+  text-align: center;
+  padding: 14px 0;
+  font-size: 12px;
+}
+
+/* ─── 底栏 ─────────────────────────────────────────────────── */
+
+.status-bar {
+  padding: 8px 16px 14px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+/* ─── 待办内联添加 ──────────────────────────────────────────── */
+
+.todo-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.todo-input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--ink);
+  transition: border-color .15s, box-shadow .15s;
+}
+.todo-input:focus {
+  border-color: var(--sage-light);
+  box-shadow: 0 0 0 2px rgba(90, 122, 98, .12);
+}
+.todo-input-row input[type="date"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-card);
+  padding: 6px 8px;
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}

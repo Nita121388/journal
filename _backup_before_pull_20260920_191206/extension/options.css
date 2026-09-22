@@ -1,0 +1,140 @@
+/* ================================================================
+   Journal — options.css
+   设置页样式，与 style.css 同一套设计语言。
+   ================================================================ */
+
+:root {
+  --bg: #f6f3ec;
+  --bg-card: #fffdf8;
+  --ink: #3a3a35;
+  --ink-muted: #8a867c;
+  --line: #e6e1d5;
+  --sage: #5a7a62;
+  --sage-light: #8aaa92;
+  --rose: #b35a5a;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+input, select, textarea, button { font: inherit; }
+input, select, textarea { outline: none; box-shadow: none; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.options {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+
+.options-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.brand-icon { width: 28px; height: 28px; border-radius: 6px; }
+.options-header h1 { font-size: 20px; font-weight: 700; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.card .desc {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin-bottom: 14px;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-bottom: 4px;
+}
+.field input, .field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 11px;
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color .15s, box-shadow .15s;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--sage-light);
+  box-shadow: 0 0 0 2px rgba(90, 122, 98, .12);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { border-color: var(--sage-light); }
+.btn.primary {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.btn.primary:hover { background: #4d6b55; }
+.btn.danger { color: var(--rose); border-color: rgba(179, 90, 90, .4); }
+.btn.danger:hover { background: rgba(179, 90, 90, .08); }
+
+.result {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.result.ok { color: var(--sage); }
+.result.err { color: var(--rose); }
+
+.hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+.code-block {
+  margin-top: 12px;
+  background: #f0ede4;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.hidden { display: none !important; }

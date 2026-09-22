@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Journal 日志</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 顶栏：品牌 + 设置 -->
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-icon" src="icons/icon48.png" alt="">
+      <span class="brand-name">Journal</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="sync-dot off" id="syncDot" title="同步状态">●</span>
+      <span class="host-dot off" id="hostDot" title="本机 Agent 状态">🤖</span>
+      <button class="btn-icon" id="optionsBtn" title="设置">⚙</button>
+    </div>
+  </header>
+
+  <!-- 热力图区域 -->
+  <section class="heatmap-section">
+    <div class="heatmap-nav">
+      <button class="btn-icon nav-arrow" id="prevMonth">◀</button>
+      <span class="heatmap-title" id="heatmapTitle">2025 年 9 月</span>
+      <button class="btn-icon nav-arrow" id="nextMonth">▶</button>
+    </div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+    <div class="heatmap-legend">
+      <span class="legend-item"><span class="heatmap-cell empty"></span>无记录</span>
+      <span class="legend-item"><span class="heatmap-cell low"></span>仅待办</span>
+      <span class="legend-item"><span class="heatmap-cell high"></span>有日志</span>
+      <span class="legend-item"><span class="heatmap-cell today"></span>今天</span>
+    </div>
+  </section>
+
+  <!-- 日期选择 -->
+  <section class="day-header">
+    <span class="day-title" id="dayTitle">9月13日 · 周六</span>
+    <button class="btn subtle" id="todayBtn">今天</button>
+  </section>
+
+  <!-- 日志编辑区 -->
+  <section class="log-section">
+    <h3 class="section-label">📝 日志</h3>
+    <textarea id="logEditor" class="log-editor" placeholder="今天做了什么…&#10;&#10;支持 Markdown"></textarea>
+    <div class="log-status" id="logStatus"></div>
+  </section>
+
+  <!-- 待办列表 -->
+  <section class="todo-section">
+    <div class="section-row">
+      <h3 class="section-label">✅ 待办</h3>
+      <button class="btn subtle btn-add" id="addTodoBtn" title="添加待办">＋</button>
+    </div>
+    <div id="todoList" class="todo-list"></div>
+  </section>
+
+  <!-- 底栏：host 提示 -->
+  <footer class="status-bar">
+    <span id="statusText">加载中…</span>
+  </footer>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

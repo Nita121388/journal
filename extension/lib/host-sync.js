@@ -8,7 +8,7 @@
  * - host 离线时缓存层独立可用，恢复后下次启动同步
  */
 
-const HOST = 'http://127.0.0.1:8765';
+export const HOST = 'http://127.0.0.1:8765';
 
 /* ─── HTTP 工具 ────────────────────────────────────── */
 
@@ -18,7 +18,7 @@ const HOST = 'http://127.0.0.1:8765';
  * @param {object|null} body
  * @returns {Promise<{ok:boolean, data?:any, error?:{code:string,message:string}}>}
  */
-async function api(method, path, body = null) {
+export async function hostApi(method, path, body = null) {
   const url = `${HOST}${path}`;
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
@@ -31,8 +31,10 @@ async function api(method, path, body = null) {
   }
 }
 
-/* ─── 统一归一化：旧格式 string → 新格式对象 ──────────────── */
+/** 内部别名：其余函数沿用 `api(...)` */
+const api = hostApi;
 
+/* ─── 统一归一化：旧格式 string → 新格式对象 ──────────────── */
 /** @param {string|{content:string,createdAt?:string,updatedAt?:string}} entry */
 function normalizeEntry(entry) {
   if (typeof entry === 'string') {

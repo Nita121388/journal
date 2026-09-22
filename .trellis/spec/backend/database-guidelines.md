@@ -1,63 +1,78 @@
 # Database Guidelines (Backend)
 
-> Data persistence for the Node host: local JSON files mirroring the extension's storage shape.
+> Data persistence for the Node host: **SQLite** (local, `node:sqlite`) as the single source of truth, with a JSON fallback and cross-device sync.
 
 ---
 
 ## Overview
 
-Journal keeps all data **local**. The extension writes to `chrome.storage.local`; the **host** does not use a database — it reads/writes the same logical data via a **local JSON file** (or directly manipulates the extension's storage through the native messaging bridge when available). The canonical source of truth remains the extension's `chrome.storage.local`.
+Journal keeps all data **local**. The **host** owns the authoritative store:
+
+- **Primary**: SQLite via `node:sqlite` (`host/lib/storage.js`) → `host/data/journal.db`.
+- **Fallback**: if `node:sqlite` is unavailable (older Node), an equivalent JSON-file store is used automatically — same interface, same semantics.
+- The extension's `chrome.storage.local` is only a **mirror cache**; it pulls from host and writes back through the REST API.
+
+The canonical source of truth is the **host SQLite store**. Sync replicates it across devices (see `host/sync/`).
 
 ---
 
-## Storage Model (mirrors frontend schema)
+## Data Model
 
-```json
-{
-  "journals": { "2026-09-16": "markdown...", "2026-09-17": "..." },
-  "todos": [ { "id": "uuid", "title": "...", "done": false, "due": null, "priority": "medium" } ],
-  "settings": { "sync": {...}, "ai": {...} }
-}
+Single unified `cards` table (see `host/lib/storage.js`):
+
+```sql
+cards(
+  id TEXT PRIMARY KEY,       -- c_* ; journals use c_mj_<day>, todos c_mt_<uuid>
+  content TEXT, type TEXT,   -- text | task | idea
+  done INTEGER,              -- 0/1
+  assignedDate TEXT,         -- YYYY-MM-DD (null = card pool)
+  time/startTime/endTime TEXT,
+  priority TEXT,             -- high | medium | low
+  tags TEXT,                 -- JSON string array, normalized trim+lowercase
+  createdAt TEXT, updatedAt TEXT,   -- ISO8601
+  deleted INTEGER            -- tombstone (1 = deleted, kept for sync)
+)
 ```
 
-- **`journals`** — `Record<string, string>`: day key → markdown.
-- **`todos`** — array of `{ id, title, done, due, priority }`.
-- Host reads/writes this exact shape so it can hand data back to the extension without transformation.
+- **journals are derived** from `c_mj_<day>` cards — there is no separate journals table (avoids dual sources of truth). `journals`/`todos` are legacy views over cards.
+- `settings` (key/value JSON) and `meta` (deviceId, lastSyncAt, …) are auxiliary tables.
 
 ---
 
 ## Access Patterns
 
-- `host/lib/storage.js` exposes `getData()`, `setData(patch)`, `getJournal(dayKey)`, `saveJournal(dayKey, text)`.
-- **Atomic writes**: write a temp file + `fs.rename` to avoid corrupting the JSON on crash:
-
-```js
-const tmp = `${file}.tmp`;
-await fs.writeFile(tmp, JSON.stringify(data, null, 2));
-await fs.rename(tmp, file);
-```
-
-- Debounce/queue concurrent writes; never let two async writes interleave.
+- All access goes through the store returned by `createStore({ file, jsonFile })`:
+  `listCards`, `getCard`, `createCard`, `updateCard`, `deleteCard`, `applyMergedCards`,
+  `getJournals`, `setJournal`, `deleteJournal`, `getSettings`, `setSettings`, `getMeta`, `setMeta`, `getDeviceId`.
+- Writes are **transactional** (single upsert per card); the JSON fallback writes temp-file + `rename` (atomic).
+- Delete = **tombstone** (`deleted=1`), never physical delete — required so deletions propagate across devices.
 
 ---
 
-## Concurrency & Race Protection
+## Sync (host/sync/)
 
-- Host is single-process, single-writer: serialize all writes through one queue in `lib/storage.js`.
-- The extension's `chrome.storage.onChanged` → re-reads host file; host must not write while the extension is mid-read. Use a monotonic `version` field if cross-process sync is ever added.
+| Module | Role |
+|--------|------|
+| `sync/merge.js` | pure LWW + tombstone merge (no IO) |
+| `sync/backplane.js` | pluggable transport: Memory / LocalFolder / WebDAV / GitHub |
+| `sync/engine.js` | `runSync`: pull → merge → persist → push |
+
+- Merge is **transport-agnostic**: swapping GitHub for WebDAV is a new Backplane class, zero merge changes.
+- Snapshot: `{ schemaVersion, deviceId, generatedAt, cards[] }` (cards include tombstones).
 
 ---
 
-## Naming & Validation
+## Migration & Compatibility
 
-- Data file: `host/data/journal.json` (gitignored — contains user's private journal).
-- Validate on load: if JSON is corrupt, back it up to `journal.json.bak` and start fresh (never silently lose old data).
-- IDs: `crypto.randomUUID()`.
+- On first start, legacy `host/data/journal-data.json` is migrated idempotently into the store; a `.migrated.bak` copy is written first.
+- The REST contract (`/api/cards`, `/api/journals`, `/api/todos`, …) is unchanged, so the extension/CLI keep working.
+- Secrets (GitHub token, WebDAV password) live only in host `settings`; they are never logged and are masked (`*Set: true`) on `GET /api/sync/config`.
 
 ---
 
 ## Common Mistakes
 
-- `fs.writeFile` directly on the live file (crash → corruption). Always temp + rename.
-- Two async writes racing (last write wins with partial data). Serialize.
-- Letting the host own a **different** data shape than the extension → sync bugs. Mirror the schema exactly.
+- Physical delete instead of tombstone → deletions don't propagate and resurrect on sync.
+- Creating a second journals store → dual source of truth, drift.
+- Blocking the event loop with heavy work on a request (store is sync SQLite; keep handlers small).
+- Logging journal content / credentials (privacy leak).

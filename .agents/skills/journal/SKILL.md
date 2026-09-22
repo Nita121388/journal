@@ -82,6 +82,18 @@ $CLI todo delete <id> --confirm              # 删除（需 --confirm 防误操�
 $CLI heatmap                                # 各天是否有记录
 ```
 
+### 跨设备同步（可选）
+
+```bash
+$CLI sync status      # 查看同步状态（provider / 上次同步 / 设备 id）
+$CLI sync             # 触发一次同步（auto：拉取 → 合并 → 推送）
+$CLI sync push        # 仅推送
+$CLI sync pull        # 仅拉取
+```
+
+> 同步由 host 执行（本地文件夹 / WebDAV / GitHub），逐卡 LWW + 删除墓碑。
+> 未在设置里配置 provider 时返回 `SYNC_DISABLED`。
+
 ## 创建卡片（界面可见）
 
 > CLI 没有卡片命令，需要直接调 host 的 HTTP API（端口 8765）。
@@ -122,4 +134,4 @@ curl -X POST http://127.0.0.1:8765/api/cards \
   想在具体时刻显示 → 用 `POST /api/cards` 并明确给 `time`。
 - **追加日志**：先 `read` 再 `write` 覆盖，避免丢内容
 - 所有输出为 JSON，`ok:false` 时看 `error.code`（`HOST_OFFLINE` = 启动 host；`VALIDATION_ERROR` = 参数错误；`NOT_FOUND` = 目标不存在）
-- 数据文件：`E:/projects/journal/host/data/journal-data.json`（host 与扩展双向同步）
+- 数据文件：`E:/projects/journal/host/data/journal.db`（host SQLite 权威库；扩展是镜像缓）

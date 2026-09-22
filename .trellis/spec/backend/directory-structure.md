@@ -14,30 +14,29 @@ The **backend** of Journal is the `host/` directory: a **local Node.js process**
 
 ```
 host/
-├── package.json          # Node host deps + scripts
-├── index.js              # Entry point: starts the local server / MCP host
-├── server.js             # HTTP/MCP server — receives extension requests
-├── routes/
-│   ├── journal.js        # AI CRUD on journal entries ("today?" / "add to 7/8")
-│   └── todo.js           # AI CRUD on todos ("mark Monday's todo done")
-├── services/
-│   ├── ai.js             # LLM client (local model or API key)
-│   └── intent.js         # natural-language → structured action parser
+├── package.json          # scripts: start / dev / test
+├── server.js             # HTTP server (routes inline) — exports createApp / startServer
+├── cli.mjs               # agent/CLI client over the REST API
 ├── lib/
-│   └── storage.js        # Reads/writes the same chrome.storage-shaped data
-└── test/
-    └── ...
+│   ├── logger.js         # [host][level] component: msg
+│   └── storage.js        # SQLite store (+ JSON fallback), migration
+├── sync/
+│   ├── merge.js          # pure LWW + tombstone merge
+│   ├── backplane.js      # Memory / LocalFolder / WebDAV / GitHub transports
+│   ├── engine.js         # runSync orchestration
+│   └── index.js          # barrel export
+└── test/                 # node:test suites (*.test.mjs)
 ```
 
 ---
 
 ## Module Organization
 
-- **`index.js`** — bootstrap only: read config, start server, wire routes. No business logic.
-- **`routes/`** — request handlers. Thin: parse request → call service → return JSON.
-- **`services/`** — business logic: AI calls, intent parsing, CRUD operations.
-- **`lib/`** — shared helpers (storage access, validation, logging).
-- Keep `routes/` thin and `services/` deep (logic lives in services).
+- **`server.js`** — HTTP layer: parse request → call store/sync → return JSON. Also exports `createApp(store)` and `startServer(opts)` so tests can boot it on an ephemeral port.
+- **`lib/storage.js`** — the authoritative store (cards / journals-derived / settings / meta) + legacy migration.
+- **`sync/`** — merge engine (pure), pluggable backplanes (transport), and the runSync orchestrator. Keep merge pure and backplanes transport-only.
+- **`cli.mjs`** — thin REST client; no business logic.
+- Keep the HTTP layer thin; logic lives in `lib/` and `sync/`.
 
 ---
 

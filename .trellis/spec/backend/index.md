@@ -6,7 +6,7 @@
 
 ## Overview
 
-The **backend** is the `host/` directory: a **local Node.js process** that provides AI intent parsing + CRUD to the extension over `localhost`. It mirrors the extension's storage shape; no remote server, no database.
+The **backend** is the `host/` directory: a **local Node.js process** that provides storage + CRUD (and cross-device sync) to the extension and CLI over `localhost`. It binds to `127.0.0.1` only; no remote server. Data lives in a local **SQLite** store (`node:sqlite`).
 
 ---
 
@@ -14,11 +14,11 @@ The **backend** is the `host/` directory: a **local Node.js process** that provi
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | `host/` layout, routes → services → lib | ✅ Filled |
-| [Database Guidelines](./database-guidelines.md) | JSON file storage, atomic writes, schema mirroring frontend | ✅ Filled |
+| [Directory Structure](./directory-structure.md) | `host/` layout, `lib/` store, `sync/` engine | ✅ Filled |
+| [Database Guidelines](./database-guidelines.md) | SQLite store, tombstones, migration, sync | ✅ Filled |
 | [Error Handling](./error-handling.md) | Structured `{ ok, error: { code } }` responses, async handler wrapper | ✅ Filled |
 | [Logging Guidelines](./logging-guidelines.md) | `[host][level] component: msg`, no secrets logged | ✅ Filled |
-| [Quality Guidelines](./quality-guidelines.md) | Vitest, `127.0.0.1` bind only, no eval, input validation | ✅ Filled |
+| [Quality Guidelines](./quality-guidelines.md) | `node:test`, `127.0.0.1` bind only, no eval, input validation | ✅ Filled |
 
 ---
 
@@ -36,7 +36,7 @@ Before writing any host code, confirm:
 
 ## Quality Check
 
-- [ ] `npm test` passes (Vitest, >80% on `services/` + `lib/`)
+- [ ] `npm test` passes (`node --test`, covers `lib/` + `sync/`)
 - [ ] `npx eslint host/` — 0 errors
-- [ ] Host binds to `127.0.0.1` only; console shows `[info] listening on 127.0.0.1:8765`
+- [ ] Host binds to `127.0.0.1` only; log shows `listening on 127.0.0.1:<port>`
 - [ ] Responses always `{ ok, data/error }`, never raw stack traces

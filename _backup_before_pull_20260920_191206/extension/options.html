@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Journal 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="options">
+    <header class="options-header">
+      <img class="brand-icon" src="icons/icon48.png" alt="">
+      <h1>Journal 设置</h1>
+    </header>
+
+    <!-- 数据同步 -->
+    <section class="card">
+      <h2>数据同步</h2>
+      <p class="desc">把数据同步到 WebDAV（坚果云 / Nextcloud），多设备共用一份。数据默认只存在本机浏览器。</p>
+      <div class="field">
+        <label>同步开关</label>
+        <select id="syncProvider">
+          <option value="off">关闭</option>
+          <option value="webdav">WebDAV</option>
+        </select>
+      </div>
+      <div id="webdavFields" class="hidden">
+        <div class="field">
+          <label>服务器地址</label>
+          <input type="text" id="davServer" placeholder="https://dav.jianguoyun.com/dav/">
+        </div>
+        <div class="field">
+          <label>账号（邮箱）</label>
+          <input type="text" id="davUser" placeholder="your@email.com">
+        </div>
+        <div class="field">
+          <label>应用密码</label>
+          <input type="password" id="davPassword" placeholder="应用密码（不是登录密码）">
+        </div>
+        <div class="field">
+          <label>远端路径</label>
+          <input type="text" id="davPath" placeholder="journal/data.json">
+        </div>
+        <div class="actions">
+          <button class="btn" id="davTestBtn">测试连接</button>
+          <span id="davTestResult" class="result"></span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="saveSyncBtn">保存</button>
+        <button class="btn" id="syncNowBtn">立即同步</button>
+        <span id="syncResult" class="result"></span>
+      </div>
+      <p class="hint" id="syncStatusHint"></p>
+    </section>
+
+    <!-- 本机 Agent -->
+    <section class="card">
+      <h2>本机 Agent（AI 操作）</h2>
+      <p class="desc">启动本机 host 后，你的 Agent（Claude Code / Pi Agent 等）就能通过 MCP 直接增删改查日志和待办。</p>
+      <div class="field">
+        <label>Host 地址</label>
+        <input type="text" id="hostPort" placeholder="23517">
+      </div>
+      <div class="field">
+        <label>Token</label>
+        <input type="password" id="hostToken" placeholder="从 ~/journal/config.json 获取">
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="saveHostBtn">保存</button>
+        <button class="btn" id="testHostBtn">测试连接</button>
+        <span id="hostResult" class="result"></span>
+      </div>
+      <div class="code-block" id="hostSetupHint"></div>
+    </section>
+
+    <!-- 数据管理 -->
+    <section class="card">
+      <h2>数据管理</h2>
+      <div class="actions">
+        <button class="btn" id="exportBtn">导出 JSON</button>
+        <button class="btn" id="importBtn">导入 JSON</button>
+        <input type="file" id="importFile" class="hidden" accept=".json">
+        <button class="btn danger" id="resetBtn">重置全部数据</button>
+        <span id="dataResult" class="result"></span>
+      </div>
+      <p class="hint" id="storageHint"></p>
+    </section>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

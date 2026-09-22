@@ -13,6 +13,7 @@
  *   node cli.mjs todo done <id>
  *   node cli.mjs todo delete <id> [--confirm]
  *   node cli.mjs heatmap
+ *   node cli.mjs sync [status|push|pull|auto]
  */
 
 const BASE = process.env.JOURNAL_HOST || 'http://127.0.0.1:8765';
@@ -178,6 +179,21 @@ async function cmdHeatmap() {
   out(res);
 }
 
+/** sync [status|push|pull|auto] — 触发或查看跨设备同步（由 host 执行） */
+async function cmdSync() {
+  // args = [sync, <sub>]
+  const sub = args[1];
+  if (sub === 'status') {
+    const res = await request('GET', '/api/sync/status');
+    requireHostOnline(res);
+    return out(res);
+  }
+  const direction = ['push', 'pull', 'auto'].includes(sub) ? sub : 'auto';
+  const res = await request('POST', '/api/sync/now', { direction });
+  requireHostOnline(res);
+  out(res);
+}
+
 /* ─── 分发 ────────────────────────────────────────────── */
 
 const commands = {
@@ -186,6 +202,7 @@ const commands = {
   write:      cmdWrite,
   delete:     cmdDelete,
   heatmap:    cmdHeatmap,
+  sync:       cmdSync,
   todo: {
     list:   cmdTodoList,
     add:    cmdTodoAdd,
@@ -202,7 +219,7 @@ try {
   } else if (typeof commands[cmd] === 'function') {
     await commands[cmd]();
   } else {
-    fail(`未知命令: ${cmd}。可用命令: today, read, write, delete, todo, heatmap`);
+    fail(`未知命令: ${cmd}。可用命令: today, read, write, delete, todo, heatmap, sync`);
   }
 } catch (e) {
   fail(e.message);

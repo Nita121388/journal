@@ -28,3 +28,26 @@ disablePanelOnActionClick();
 chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: chrome.runtime.getURL('sidepanel.html') });
 });
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== 'journal:start-host') return;
+  try {
+    const port = chrome.runtime.connectNative('com.journal.host');
+    const finish = (payload) => {
+      try { port.disconnect(); } catch { /* already closed */ }
+      sendResponse(payload);
+    };
+    port.onMessage.addListener((response) => finish({
+      ok: response?.success !== false,
+      error: response?.error || '',
+    }));
+    port.onDisconnect.addListener(() => finish({
+      ok: !chrome.runtime.lastError,
+      error: chrome.runtime.lastError?.message || '',
+    }));
+    port.postMessage({ type: 'start' });
+  } catch (e) {
+    sendResponse({ ok: false, error: e.message });
+  }
+  return true;
+});

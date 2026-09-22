@@ -1,0 +1,6 @@
+{
+  "name": "journal-extension",
+  "private": true,
+  "type": "module",
+  "//": "仅供工具/测试（如 node --test）将 extension/*.js 识别为 ESM；Chrome 扩展加载会忽略本文件。"
+}

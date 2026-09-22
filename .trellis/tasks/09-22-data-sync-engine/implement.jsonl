@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "后端规范入口：pre-dev checklist + quality check"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "存储规范：原子写、并发、schema 镜像"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误契约：{ok,error:{code}} + 异步包装"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "测试/安全：127.0.0.1、无 secrets、输入校验"}

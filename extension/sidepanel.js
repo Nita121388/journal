@@ -87,6 +87,13 @@ const editorDuration = document.getElementById('card-editor-duration');
 const editorSave = document.getElementById('card-editor-save');
 const editorCancel = document.getElementById('card-editor-cancel');
 const editorClose = document.getElementById('card-editor-close');
+const editorTagInput = document.getElementById('card-editor-tag-input');
+editorTagInput?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  addEditorTag(editorTagInput.value);
+  editorTagInput.value = '';
+});
 
 /** 正在编辑的卡片 ID（null = 新建模式） */
 let editingCardId = null;
@@ -101,8 +108,36 @@ let editorAssignDate;
  * @param {string} time — HH:MM（新建时作为开始时间的种子）
  * @param {string|null} date — YYYY-MM-DD
  */
+let editorTags = [];
+
+function renderEditorTags() {
+  const box = document.getElementById('card-editor-tag-chips');
+  if (!box) return;
+  box.replaceChildren();
+  for (const name of editorTags) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-chip';
+    chip.textContent = name + ' ×';
+    chip.addEventListener('click', () => {
+      editorTags = editorTags.filter(t => t !== name);
+      renderEditorTags();
+    });
+    box.append(chip);
+  }
+}
+
+function addEditorTag(raw) {
+  const name = String(raw ?? '').trim().toLowerCase();
+  if (!name || editorTags.includes(name)) return;
+  editorTags.push(name);
+  renderEditorTags();
+}
+
 function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
+  editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
+  renderEditorTags();
   editorAssignDate = assignedDate;
   let start, end;
   if (card) {
@@ -138,6 +173,10 @@ function closeEditor() {
   editingCardId = null;
   editorAssignDate = undefined;
   editorContent.value = '';
+  editorTags = [];
+  renderEditorTags();
+  const tagInput = document.getElementById('card-editor-tag-input');
+  if (tagInput) tagInput.value = '';
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
@@ -146,6 +185,8 @@ function closeEditor() {
 async function saveEditor() {
   const content = editorContent.value.trim();
   const type = editorType.value;
+  const pendingTag = document.getElementById('card-editor-tag-input')?.value;
+  if (pendingTag) addEditorTag(pendingTag);
   if (!content && !editingCardId) { closeEditor(); return; }
 
   let start = snapToQuarter(editorStart?.value || editorTargetTime || currentTime());
@@ -154,7 +195,7 @@ async function saveEditor() {
 
   try {
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end });
+      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end, tags: editorTags });
     } else {
       await createCardEntry({
         content,
@@ -163,6 +204,7 @@ async function saveEditor() {
         time: start,
         startTime: start,
         endTime: end,
+        tags: editorTags,
       });
     }
     closeEditor();
@@ -182,7 +224,7 @@ function showToast(msg, kind = '') {
   el.textContent = msg;
   el.className = 'toast' + (kind ? ' toast-' + kind : '');
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add('hidden'), 2600);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), kind === 'error' ? 12000 : 2600);
 }
 
 /* ─── DOM 引用 ────────────────────────────────────────── */
@@ -216,7 +258,55 @@ const els = {
   skillsOverall: document.getElementById('skills-overall'),
   skillsList: document.getElementById('skills-list'),
   skillsCopyAll: document.getElementById('btn-skills-copy'),
+  hostBanner: document.getElementById('host-banner'),
+  hostBannerText: document.getElementById('host-banner-text'),
+  btnStartHost: document.getElementById('btn-start-host'),
 };
+
+const HOST_HEALTH_URL = 'http://127.0.0.1:8765/api/health';
+
+async function checkHostHealth() {
+  try {
+    const res = await fetch(HOST_HEALTH_URL, { signal: AbortSignal.timeout(1200) });
+    const data = await res.json();
+    const online = data.ok || data.status === 'running';
+    els.hostBanner?.classList.toggle('hidden', online);
+    return online;
+  } catch {
+    els.hostBanner?.classList.remove('hidden');
+    return false;
+  }
+}
+
+async function waitForHost(timeoutMs = 15000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await checkHostHealth()) return true;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
+async function startHost() {
+  if (!els.btnStartHost) return;
+  els.btnStartHost.disabled = true;
+  if (els.hostBannerText) els.hostBannerText.textContent = '正在启动 Host…';
+  try {
+    const result = await chrome.runtime.sendMessage({ type: 'journal:start-host' });
+    if (!result?.ok) throw new Error(result?.error || 'Native Host 未注册，请先运行 host\\install-host.bat');
+    const online = await waitForHost();
+    if (!online) throw new Error('启动超时，请确认已运行 host\\install-host.bat');
+    await pullFromHost();
+    await refreshAll();
+    showToast('Host 已启动', 'success');
+  } catch (e) {
+    els.hostBanner?.classList.remove('hidden');
+    if (els.hostBannerText) els.hostBannerText.textContent = 'Host 未连接';
+    showToast(`启动失败：${e.message || '请先运行 host\\install-host.bat'}`, 'error');
+  } finally {
+    if (els.btnStartHost) els.btnStartHost.disabled = false;
+  }
+}
 
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
 
@@ -558,6 +648,18 @@ function buildCardFooter(card) {
   const footer = document.createElement('div');
   footer.className = 'card-footer';
 
+  if (Array.isArray(card.tags) && card.tags.length) {
+    const chips = document.createElement('span');
+    chips.className = 'card-tags';
+    for (const name of card.tags) {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip is-static';
+      chip.textContent = name;
+      chips.append(chip);
+    }
+    footer.append(chips);
+  }
+
   if (card.type === 'task') {
     const doneBtn = document.createElement('button');
     doneBtn.className = 'card-footer-btn done-btn';
@@ -653,15 +755,41 @@ function startNowMarkerTimer() {
 
 /* ─── 渲染：卡片池 ──────────────────────────────────────── */
 
+let poolTagFilter = '';
+
+function renderPoolTagFilters(pool) {
+  const names = [...new Set(pool.flatMap(c => c.tags ?? []))];
+  if (!names.length && !poolTagFilter) return;
+  const bar = document.createElement('li');
+  bar.className = 'cardpool-tag-filters';
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'tag-chip' + (poolTagFilter ? '' : ' is-active');
+  all.textContent = '全部';
+  all.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = ''; renderCardPool(); });
+  bar.append(all);
+  for (const name of names) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-chip' + (poolTagFilter === name ? ' is-active' : '');
+    btn.textContent = name;
+    btn.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = name; renderCardPool(); });
+    bar.append(btn);
+  }
+  els.cardpoolList.append(bar);
+}
+
 async function renderCardPool() {
-  const pool = await getPoolCards();
-  els.cardpoolCount.textContent = pool.length;
+  const allPool = await getPoolCards();
+  const pool = poolTagFilter ? allPool.filter(c => (c.tags ?? []).includes(poolTagFilter)) : allPool;
+  els.cardpoolCount.textContent = allPool.length;
   els.cardpoolList.replaceChildren();
+  renderPoolTagFilters(allPool);
 
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    li.textContent = '没有未安排的卡片';
+    li.textContent = poolTagFilter ? '没有这个标签的卡片' : '没有未安排的卡片';
     els.cardpoolList.append(li);
     return;
   }
@@ -947,6 +1075,7 @@ async function init() {
   if (!pulled.pulled) {
     showToast('⚠️ host 服务未连接，数据可能无法保存', 'warn');
   }
+  await checkHostHealth();
   startHostSync(() => {
     // 拖拽/缩放中不打断；其余情况外部变化就全量重渲染
     if (document.body.classList.contains('is-dragging') ||
@@ -1069,6 +1198,8 @@ async function init() {
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
+
+  els.btnStartHost?.addEventListener('click', startHost);
 
   // ── AI Skill 状态 ──
   els.skillsToggle.addEventListener('click', () => {

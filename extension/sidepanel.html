@@ -15,6 +15,11 @@
     <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
   </header>
 
+  <section id="host-banner" class="host-banner hidden" role="status">
+    <span id="host-banner-text">Host 未连接</span>
+    <button id="btn-start-host" type="button">启动 Host</button>
+  </section>
+
   <main>
     <div id="board">
       <!-- 左侧栏 -->
@@ -136,6 +141,10 @@
         <span id="card-editor-duration" class="card-editor-duration"></span>
       </div>
       <textarea id="card-editor-content" placeholder="写下你的想法..." rows="4"></textarea>
+      <div class="card-editor-tags">
+        <div id="card-editor-tag-chips" class="tag-chips"></div>
+        <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />
+      </div>
       <div class="card-editor-footer">
         <button id="card-editor-cancel" class="btn-secondary">取消</button>
         <button id="card-editor-save" class="btn-primary">保存</button>
