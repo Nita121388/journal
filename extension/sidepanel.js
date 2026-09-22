@@ -16,7 +16,7 @@ import {
   createCardEntry, updateCardEntry, deleteCardEntry,
   getTodos, saveTodos, getSettings,
 } from './lib/store.js';
-import { pullFromHost, startPushListener } from './lib/host-sync.js';
+import { pullFromHost, startHostSync } from './lib/host-sync.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -92,6 +92,8 @@ const editorClose = document.getElementById('card-editor-close');
 let editingCardId = null;
 /** 编辑器打开时的目标时间 */
 let editorTargetTime = null;
+/** 新建时的安排日期：undefined = 用 selectedDate，null = 未安排（卡片池） */
+let editorAssignDate;
 
 /**
  * 打开卡片编辑器
@@ -99,8 +101,9 @@ let editorTargetTime = null;
  * @param {string} time — HH:MM（新建时作为开始时间的种子）
  * @param {string|null} date — YYYY-MM-DD
  */
-function openEditor(card, time, date) {
+function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
+  editorAssignDate = assignedDate;
   let start, end;
   if (card) {
     start = getCardStartTime(card) ?? snapToQuarter(currentTime());
@@ -113,7 +116,7 @@ function openEditor(card, time, date) {
   if (editorStart) editorStart.value = start;
   if (editorEnd) editorEnd.value = end;
   updateEditorDuration();
-  editorTime.textContent = `${date ?? selectedDate}`;
+  editorTime.textContent = date ?? (assignedDate === null ? '未安排' : selectedDate);
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
   editorOverlay.classList.remove('hidden');
@@ -133,6 +136,7 @@ function updateEditorDuration() {
 function closeEditor() {
   editorOverlay.classList.add('hidden');
   editingCardId = null;
+  editorAssignDate = undefined;
   editorContent.value = '';
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
@@ -155,7 +159,7 @@ async function saveEditor() {
       await createCardEntry({
         content,
         type,
-        assignedDate: selectedDate,
+        assignedDate: editorAssignDate === undefined ? selectedDate : editorAssignDate,
         time: start,
         startTime: start,
         endTime: end,
@@ -235,13 +239,25 @@ async function renderTimeline() {
 
   const timedCards = dayCards.filter(c => getCardStartTime(c));
 
+  // 视图边界：默认 08:00–22:30，数据超出时自动扩展，避免卡片被 canvas overflow 裁掉
+  viewStartMin = DAY_START_MIN;
+  viewEndMin = DAY_END_MIN;
+  for (const c of timedCards) {
+    const s = timeToMinutes(getCardStartTime(c));
+    const e = timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15));
+    viewStartMin = Math.min(viewStartMin, Math.floor(s / 15) * 15);
+    viewEndMin = Math.max(viewEndMin, Math.ceil(e / 15) * 15);
+  }
+  viewStartMin = Math.max(0, viewStartMin);
+  viewEndMin = Math.min(24 * 60, viewEndMin);
+
   const canvas = document.createElement('div');
   canvas.className = 'schedule-canvas';
-  canvas.style.height = `${scheduleHeight(DAY_END_MIN)}px`;
+  canvas.style.height = `${scheduleHeight(viewEndMin)}px`;
   container.append(canvas);
 
   // 背景网格线（每 15 分钟，整点加粗并显示标签）
-  for (let m = DAY_START_MIN; m <= DAY_END_MIN; m += 15) {
+  for (let m = viewStartMin; m <= viewEndMin; m += 15) {
     const line = document.createElement('div');
     const isHour = m % 60 === 0;
     line.className = 'schedule-grid-line' + (isHour ? ' is-hour' : '');
@@ -265,7 +281,7 @@ async function renderTimeline() {
     if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
     const rect = canvas.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const mins = DAY_START_MIN + (y / SLOT_HEIGHT) * 15;
+    const mins = viewStartMin + (y / SLOT_HEIGHT) * 15;
     const snapped = snapToQuarter(minutesToTime(mins));
     openEditor(null, snapped, date);
   });
@@ -279,7 +295,45 @@ async function renderTimeline() {
   const lanes = layoutScheduleLanes(laneItems);
 
   for (const card of timedCards) {
-    canvas.append(renderTimelineCard(card, lanes.get(card.id)));
+    const laneInfo = lanes.get(card.id);
+    const cardEl = renderTimelineCard(card, laneInfo);
+    canvas.append(cardEl);
+
+    // 最右侧卡片：hover 时在右侧滑入"同一时间新建"按钮
+    // 按钮直接放在 canvas 上（避免 overflow 裁剪），通过 JS 鼠标联动控制显示
+    if (laneInfo) {
+      const laneCount = Math.max(1, laneInfo.laneCount);
+      if (laneInfo.lane >= laneCount - 1) {
+        const startMin = timeToMinutes(getCardStartTime(card));
+        const endMin = timeToMinutes(getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15));
+        const midMin = (startMin + endMin) / 2;
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'card-add-btn';
+        addBtn.title = '在同一时间新建卡片';
+        addBtn.textContent = '＋';
+        addBtn.style.top = `${scheduleHeight(midMin)}px`;
+        addBtn.style.left = `calc(${((laneInfo.lane + 1) / laneCount) * 100}% - 29px)`;
+        canvas.append(addBtn);
+
+        const showAdd = () => {
+          cardEl.classList.add('is-hover-add');
+          addBtn.classList.add('is-visible');
+        };
+        const hideAdd = () => {
+          cardEl.classList.remove('is-hover-add');
+          addBtn.classList.remove('is-visible');
+        };
+        cardEl.addEventListener('mouseenter', showAdd);
+        cardEl.addEventListener('mouseleave', hideAdd);
+        addBtn.addEventListener('mouseenter', showAdd);
+        addBtn.addEventListener('mouseleave', hideAdd);
+        addBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditor(null, getCardStartTime(card) ?? currentTime(), selectedDate);
+        });
+      }
+    }
   }
   renderCurrentTimeMarker();
 
@@ -300,15 +354,18 @@ async function renderTimeline() {
   }
 }
 
-/** 日程画布常量（分钟） */
-const DAY_START_MIN = 8 * 60;       // 08:00
-const DAY_END_MIN = 22 * 60 + 30;   // 22:30
+/** 日程画布默认范围（分钟）：08:00–22:30 */
+const DAY_START_MIN = 8 * 60;
+const DAY_END_MIN = 22 * 60 + 30;
+/** 当前视图范围（分钟）：默认 08:00–22:30；当天卡片超出时由 renderTimeline 扩展 */
+let viewStartMin = DAY_START_MIN;
+let viewEndMin = DAY_END_MIN;
 /** 15 分钟一格的高度（px） */
 const SLOT_HEIGHT = 30;
 
-/** 时间分钟数 → 画布 top 偏移（px） */
+/** 时间分钟数 → 画布 top 偏移（px，基于当前视图范围） */
 function scheduleHeight(mins) {
-  return (mins - DAY_START_MIN) / 15 * SLOT_HEIGHT;
+  return (mins - viewStartMin) / 15 * SLOT_HEIGHT;
 }
 
 /**
@@ -332,7 +389,8 @@ function renderTimelineCard(card, lane = null, allday = false) {
     el.style.top = `${scheduleHeight(timeToMinutes(start))}px`;
     el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
     el.style.left = `calc(${(lane.lane / laneCount) * 100}% + 3px)`;
-    el.style.width = `calc(${100 / laneCount}% - 6px)`;
+    el.style.setProperty('--lane-w', `calc(${100 / laneCount}% - 6px)`);
+    el.style.width = 'var(--lane-w)';
     el.dataset.start = start;
     el.dataset.end = end;
   }
@@ -372,11 +430,11 @@ function renderTimelineCard(card, lane = null, allday = false) {
       if (!dragging) return;
       e.preventDefault();
       const rect = el.parentElement.getBoundingClientRect();
-      const rawMins = DAY_START_MIN + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+      const rawMins = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
       let endMin = Math.round(rawMins / 15) * 15;
       const startMin = timeToMinutes(getCardStartTime(card));
       endMin = Math.max(startMin + 15, endMin);
-      endMin = Math.min(DAY_END_MIN, endMin);
+      endMin = Math.min(viewEndMin, endMin);
       const end = minutesToTime(endMin);
       el.dataset.end = end;
       el.style.height = `${((endMin - startMin) / 15) * SLOT_HEIGHT}px`;
@@ -438,10 +496,10 @@ function renderTimelineCard(card, lane = null, allday = false) {
       e.preventDefault();
       moved = true;
       const rect = el.parentElement.getBoundingClientRect();
-      const rawMins = DAY_START_MIN + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15 - grabOffsetMin;
+      const rawMins = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15 - grabOffsetMin;
       const snappedMin = Math.round(rawMins / 15) * 15;
-      // 钳制：开始时间 ∈ [DAY_START_MIN, DAY_END_MIN - dur]，保证结束不越过 22:30
-      const newStartMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - dur, snappedMin));
+      // 钳制：开始时间 ∈ [视图上界, 视图下界 - dur]，保证卡片始终在画布内
+      const newStartMin = Math.max(viewStartMin, Math.min(viewEndMin - dur, snappedMin));
       const newStart = minutesToTime(newStartMin);
       const newEnd = minutesToTime(newStartMin + dur);
       el.dataset.start = newStart;
@@ -554,7 +612,7 @@ function renderCurrentTimeMarker() {
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const clamped = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, nowMin));
+  const clamped = Math.max(viewStartMin, Math.min(viewEndMin, nowMin));
   const nowLabel =
     String(now.getHours()).padStart(2, '0') + ':' +
     String(now.getMinutes()).padStart(2, '0');
@@ -889,7 +947,12 @@ async function init() {
   if (!pulled.pulled) {
     showToast('⚠️ host 服务未连接，数据可能无法保存', 'warn');
   }
-  startPushListener();
+  startHostSync(() => {
+    // 拖拽/缩放中不打断；其余情况外部变化就全量重渲染
+    if (document.body.classList.contains('is-dragging') ||
+        document.body.classList.contains('is-resizing')) return;
+    refreshAll();
+  });
 
   // 首次全量渲染
   updateHeaderDate();
@@ -909,11 +972,9 @@ async function init() {
   });
 
   // ── 卡片池新建 ──
-  els.btnNewCard.addEventListener('click', async () => {
-    await createCardEntry({ content: '', type: 'text' });
-    const pool = await getPoolCards();
-    if (pool.length) openEditor(pool[0], currentTime(), null);
-    await refreshAll();
+  els.btnNewCard.addEventListener('click', () => {
+    // 直接开空白编辑器，保存时才落库（assignedDate = null → 未安排），取消不产生空卡片
+    openEditor(null, currentTime(), null, null);
   });
 
   // ── 日历月份导航 ──
@@ -971,6 +1032,7 @@ async function init() {
       content: title,
       type: 'task',
       assignedDate: els.todoDue.value || null,
+      priority: els.todoPriority?.value || 'medium',
     });
     els.todoInput.value = '';
     els.todoDue.value = '';
@@ -1028,7 +1090,7 @@ async function init() {
   await loadSkillStatus();
 
   // ── 外部存储变更刷新 ──
-  subscribeJournals(() => { refreshAll(); });
+  // 已被 startHostSync（host → 缓存 → 重渲染）取代，storage.onChanged 会在上面的回调里统一刷新
 }
 
 init().catch(err => console.error('[journal] init failed:', err));

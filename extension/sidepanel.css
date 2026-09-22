@@ -713,6 +713,7 @@ main {
   display: flex;
   flex-direction: column;
   min-width: 120px;
+  width: var(--lane-w, 100%);
   border: 1px solid var(--color-card-border);
   border-left: 3px solid var(--color-accent);
   border-radius: 8px;
@@ -785,6 +786,41 @@ body.is-dragging {
   z-index: 100;
   transition: none;
   touch-action: none;
+}
+
+/* 最右侧卡片 hover：收缩宽度，右侧滑入"同一时间新建"按钮 */
+.timeline-card.is-hover-add {
+  width: calc(var(--lane-w) - 26px) !important;
+  transition: border-color 0.15s, box-shadow 0.15s, width 0.15s ease;
+}
+.card-add-btn {
+  position: absolute;
+  transform: translateY(-50%) translateX(6px);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 7;
+  box-shadow: 0 1px 4px rgba(76, 175, 80, 0.4);
+}
+.card-add-btn.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+.card-add-btn:hover {
+  filter: brightness(0.92);
 }
 
 /* 短卡片（时长 ≤ 30 分钟）紧凑布局：

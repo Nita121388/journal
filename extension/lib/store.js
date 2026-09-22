@@ -112,6 +112,7 @@ export async function createCardEntry(patch = {}) {
     time: card.time,
     startTime: card.startTime ?? null,
     endTime: card.endTime ?? null,
+    priority: card.priority,
   });
   if (!ok) throw new Error('createCard failed');
   await addCardToCache(saved);
@@ -205,7 +206,7 @@ export async function getTodos() {
       title: c.content,
       done: c.done,
       due: c.assignedDate,
-      priority: c.type === 'task' ? 'medium' : 'low',
+      priority: ['high', 'medium', 'low'].includes(c.priority) ? c.priority : 'medium',
     }));
 }
 

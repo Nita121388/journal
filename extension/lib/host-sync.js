@@ -121,3 +121,38 @@ export function startPushListener() {
   // 新架构下无需监听 storage 变更推送（扩展编辑直接写 host）
   console.debug('[host-sync] startPushListener: no-op (new architecture)');
 }
+
+/* ─── 轮询同步（host → extension）：外部写入可见 ─────────── */
+
+/**
+ * 定时从 host 拉取（默认 20s）。只有当数据确实变化时才写入缓存并回调，
+ * 解决「已打开的侧边栏看不到 CLI / agent 对 host 的写入」问题。
+ * @param {() => void} onChange — 检测到外部变化时触发（调用方负责重渲染）
+ * @param {number} [intervalMs=20000]
+ * @returns {number} setInterval id
+ */
+export function startHostSync(onChange, intervalMs = 20000) {
+  let lastSig = null;
+  const tick = async () => {
+    const [cardRes, journalRes, todoRes] = await Promise.all([
+      api('GET', '/api/cards'),
+      api('GET', '/api/journals'),
+      api('GET', '/api/todos'),
+    ]);
+    if (!cardRes.ok || !journalRes.ok || !todoRes.ok) return; // host 离线：保留缓存
+
+    const cards = cardRes.data || [];
+    const journals = journalRes.data || {};
+    const todos = todoRes.data || [];
+    const sig = JSON.stringify([cards, journals, todos]);
+
+    // 首轮只建基线，不触发渲染（避免与 init 的首次全量渲染重复）
+    if (lastSig === null) { lastSig = sig; return; }
+    if (sig === lastSig) return;
+
+    lastSig = sig;
+    await chrome.storage.local.set({ cards, journals, todos });
+    onChange();
+  };
+  return setInterval(tick, intervalMs);
+}

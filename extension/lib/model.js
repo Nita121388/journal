@@ -8,7 +8,17 @@
  * @returns {string}
  */
 export function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return toDayKey(new Date());
+}
+
+/**
+ * 本地时区日期 key "YYYY-MM-DD"。
+ * 用本地字段而非 toISOString()，避免 UTC+8 凌晨 0–8 点被算成前一天。
+ * @param {Date} date
+ * @returns {string}
+ */
+export function toDayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 /**
@@ -39,6 +49,7 @@ export function createCard(patch = {}) {
     time: patch.time ?? start,
     startTime: start,
     endTime: patch.endTime ?? null,
+    priority: ['high', 'medium', 'low'].includes(patch.priority) ? patch.priority : 'medium',
     createdAt: now,
     updatedAt: now,
   };
@@ -116,10 +127,10 @@ export function getCardsByDate(cards, date) {
     .sort((a, b) => {
       const sa = getCardStartTime(a);
       const sb = getCardStartTime(b);
-      if (sa && sb) return sa.localeCompare(sb) || a.createdAt.localeCompare(b.createdAt);
+      if (sa && sb) return sa.localeCompare(sb) || (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
       if (sa) return -1;
       if (sb) return 1;
-      return a.createdAt.localeCompare(b.createdAt);
+      return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
     });
 }
 
@@ -313,22 +324,22 @@ export function todoSummary(todos) {
  * @returns {Array<Array<{dayKey:string, day:number, isCurrentMonth:boolean, isToday:boolean}>>}
  */
 export function getMonthMatrix(year, month) {
-  const first = new Date(Date.UTC(year, month, 1));
-  const startOffset = first.getUTCDay();
+  const first = new Date(year, month, 1);
+  const startOffset = first.getDay();
   const today = todayKey();
   const cells = [];
-  const cursor = new Date(Date.UTC(year, month, 1 - startOffset));
+  const cursor = new Date(year, month, 1 - startOffset);
   for (let row = 0; row < 6; row++) {
     const week = [];
     for (let col = 0; col < 7; col++) {
-      const dayKey = cursor.toISOString().slice(0, 10);
+      const dayKey = toDayKey(cursor);
       week.push({
         dayKey,
-        day: cursor.getUTCDate(),
-        isCurrentMonth: cursor.getUTCMonth() === month,
+        day: cursor.getDate(),
+        isCurrentMonth: cursor.getMonth() === month,
         isToday: dayKey === today,
       });
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
+      cursor.setDate(cursor.getDate() + 1);
     }
     cells.push(week);
   }
@@ -346,7 +357,7 @@ export function dateRange(days = 365) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(now.getDate() - i);
-    keys.push(d.toISOString().slice(0, 10));
+    keys.push(toDayKey(d));
   }
   return keys;
 }
