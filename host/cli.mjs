@@ -38,7 +38,11 @@ async function request(method, path, body = null) {
 function out(result) { process.stdout.write(JSON.stringify(result, null, 2) + '\n'); }
 function fail(msg, code = 'CLI_ERROR') { out({ ok: false, error: { code, message: msg } }); process.exit(1); }
 
-function todayKey() { return new Date().toISOString().slice(0, 10); }
+/** 本地时区日期 key（不用 toISOString，避免 UTC+8 凌晨偏移一天） */
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 /* ─── 参数解析 ────────────────────────────────────────── */
 
@@ -136,12 +140,14 @@ async function cmdTodoList() {
 async function cmdTodoAdd() {
   // args = [todo, add, <title>] → 位置参数从 args[2] 开始
   const title = args.slice(2).join(' ');
-  if (!title) fail('用法: todo add <title> [--priority high|medium|low] [--due YYYY-MM-DD]');
+  if (!title) fail('用法: todo add <title> [--priority high|medium|low] [--due YYYY-MM-DD] [--time HH:MM]');
   const body = {
     title,
     priority: ['high', 'medium', 'low'].includes(flags.priority) ? flags.priority : 'medium',
     due: /^\d{4}-\d{2}-\d{2}$/.test(flags.due) ? flags.due : null,
   };
+  // 时间刻度：界面时间线只有 :00/:30 刻度，不打 --time 的待办会落进「全天」组
+  if (typeof flags.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(flags.time)) body.time = flags.time;
   const res = await request('POST', '/api/todos', body);
   requireHostOnline(res);
   out(res);

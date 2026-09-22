@@ -149,6 +149,7 @@ function cardToTodo(c) {
     done: Boolean(c.done),
     priority: ['high', 'medium', 'low'].includes(c.priority) ? c.priority : 'medium',
     due: c.assignedDate ?? null,
+    time: c.startTime ?? c.time ?? null,
   };
 }
 
@@ -156,6 +157,16 @@ function cardToTodo(c) {
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** "HH:MM" 格式校验（00:00 ~ 23:59） */
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** "HH:MM" + n 分钟 → "HH:MM"（跨天取模） */
+function addMinutes(hhmm, mins) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const t = (((h * 60 + m + mins) % 1440) + 1440) % 1440;
+  return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
 }
 
 function readData() {
@@ -409,15 +420,17 @@ async function handle(req, res) {
     if (path === '/api/todos' && method === 'POST') {
       if (!body?.title || typeof body.title !== 'string') return err(res, 400, 'VALIDATION_ERROR', 'body.title 必须是非空字符串');
       const now = new Date().toISOString();
+      // 时间刻度：界面时间线只有 8:00-22:00 的 :00/:30 刻度，缺 time 的卡片会落进「全天」组。
+      const hhmm = typeof body.time === 'string' && HHMM_RE.test(body.time) ? body.time : null;
       const card = {
         id: TODO_CARD_PREFIX + crypto.randomUUID(),
         content: body.title.trim(),
         type: 'task',
         done: false,
         assignedDate: typeof body.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.due) ? body.due : null,
-        time: null,
-        startTime: null,
-        endTime: null,
+        time: hhmm,
+        startTime: hhmm,
+        endTime: hhmm ? addMinutes(hhmm, 30) : null,
         priority: ['high', 'medium', 'low'].includes(body.priority) ? body.priority : 'medium',
         createdAt: now,
         updatedAt: now,
@@ -434,6 +447,12 @@ async function handle(req, res) {
       if (body?.priority !== undefined && ['high', 'medium', 'low'].includes(body.priority)) card.priority = body.priority;
       if (body?.due !== undefined) {
         card.assignedDate = (typeof body.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.due)) ? body.due : null;
+      }
+      if (body?.time !== undefined) {
+        const hhmm = typeof body.time === 'string' && HHMM_RE.test(body.time) ? body.time : null;
+        card.time = hhmm;
+        card.startTime = hhmm;
+        card.endTime = hhmm ? addMinutes(hhmm, 30) : null;
       }
       card.updatedAt = new Date().toISOString();
       writeData(data);
