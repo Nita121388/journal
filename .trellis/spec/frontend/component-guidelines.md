@@ -128,3 +128,15 @@ async function switchToDate(newDate) {
 ```
 
 **原则**：任何「异步写入 + 可切换上下文」的 UI 都必须先 flush 再切换；防抖包装器应支持 cancel。
+
+## Gotcha: 短卡片悬停展开 + 拖拽的 CSS 互斥
+
+**场景**：日程画布上时长 ≤ 30 分钟的卡片只有 30px 高，正文被 `overflow:hidden` 裁掉。做法是给这类卡片加 `.is-short`：紧凑布局（收缩 padding、折叠 footer）+ `:hover` 撑开显示完整内容。
+
+**互斥要点**：
+1. **悬停展开必须用 `:not(.is-dragging)` 门控**，否则拖拽中指针停在卡片上会让卡片涨高，拖动定位全乱。因为 `pointerdown` 就加 `.is-dragging`（早于任何移动），整个拖拽期间该选择器被排除；`pointerup/pointercancel` 移除后才允许再展开。
+2. **过渡抑制规则要两条都写**：`.is-short { transition: height .2s }` 是 0,2,0；`.timeline-card.is-dragging { transition:none }` 也是 0,2,0 且更靠前 —— 拖拽类的抑制会被短的等权重规则覆盖。必须补一条更高特异性的 `body.is-dragging .timeline-card.is-short { transition:none }`（0,3,1），否则拖拽结束卡片会从槽位高度"动画"回弹而非瞬时收起。
+3. **撑开靠 `height:auto !important`**：卡片高度由内联 `style.height`（槽位 px）决定，CSS 必须 `!important` 才能覆盖内联样式。这是唯一合理的 `!important` 用法（覆盖内联布局值）。
+4. 收缩 `padding-bottom` 时 resize 手柄（`position:absolute; bottom:0`）不受影响 —— 它绘制在流内内容之上。
+
+**原则**：给"靠状态类互斥的交互"（拖拽/缩放/悬停展开）写 CSS 时，逐条核对同特异性规则的出现顺序，并用更高特异性的门控规则显式关掉不需要的过渡。
