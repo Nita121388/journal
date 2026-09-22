@@ -67,10 +67,14 @@ $CLI delete <day>                       # 删除某天日志
 
 ```bash
 $CLI todo list [--filter active|all|done]   # 列出待办
-$CLI todo add <title> [--priority high|medium|low] [--due YYYY-MM-DD]
+$CLI todo add <title> [--priority high|medium|low] [--due YYYY-MM-DD] [--time HH:MM]
 $CLI todo done <id>                          # 标记完成
 $CLI todo delete <id> --confirm              # 删除（需 --confirm 防误操作）
 ```
+
+> ⚠️ **不加 `--time` 的待办会落进界面时间线的「全天」组**（排在最底部），
+> 不会出现在具体时刻上。想让待办显示在时间线上某个点，必须传 `--time`，
+> 且时间要落在 `:00`/`:30` 刻度附近（与卡片同规则，见下文「创建卡片」）。
 
 ### 热力图 / 汇总
 
@@ -103,7 +107,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 | "今天记录一下：下午见客户"（想让界面显示） | `POST /api/cards`（`assignedDate`=今天，`time`置整/半点刻度，如 14:00） |
 | "给 7/8 加一条：整理报告" | `read 2026-07-08` 看当天卡片/日志 → 决定加 `journals` 还是 `cards`。若要在界面看到 → `POST /api/cards` |
 | "我的待办有哪些" | `$CLI todo list` |
-| "加个待办：写周报，明天截止" | `$CLI todo add "写周报" --due <明天>` |
+| "加个待办：写周报，明天截止" | `$CLI todo add "写周报" --due <明天> --time 14:00`（要显示在时间线上就给 `--time`）|
 | "把 X 待办标完成" | `$CLI todo list` → 找到 id → `$CLI todo done <id>` |
 | "删掉 X 待办" | `$CLI todo list` → 找到 id → `$CLI todo delete <id> --confirm` |
 
@@ -112,6 +116,10 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 - **日期计算**：`today`/`明天`/`昨天` 用系统日期计算，格式 `YYYY-MM-DD`。示例：明天 = `date -d "+1 day" +%F`
 - **中文日期**："7/8" 通常指 7 月 8 日，若年份不明确用最近年份
 - **TODO 删除必须 `--confirm`**，否则命令会失败（防误操作）
+- **`journals` 与 `cards` 的关系**：`journals` 只是纯文本归档区；**界面时间线只读 `cards`**。
+  host 在启动时会把 `journals` 回填为 `c_mj_<day>` 卡片（幂等），
+  且 `PUT /api/journals/:day` 会双写对应卡片 —— 但这类自动卡片 **`time` 为 null，会显示在「全天」**。
+  想在具体时刻显示 → 用 `POST /api/cards` 并明确给 `time`。
 - **追加日志**：先 `read` 再 `write` 覆盖，避免丢内容
 - 所有输出为 JSON，`ok:false` 时看 `error.code`（`HOST_OFFLINE` = 启动 host；`VALIDATION_ERROR` = 参数错误；`NOT_FOUND` = 目标不存在）
 - 数据文件：`E:/projects/journal/host/data/journal-data.json`（host 与扩展双向同步）
