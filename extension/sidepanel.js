@@ -376,6 +376,38 @@ async function renderTimeline() {
     openEditor(null, snapped, date);
   });
 
+  // ── 拖拽来自卡片池的卡片：根据 Y 坐标设置时间槽 ──
+  canvas.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    canvas.classList.add('drag-over');
+  });
+  canvas.addEventListener('dragleave', () => {
+    canvas.classList.remove('drag-over');
+  });
+  canvas.addEventListener('drop', (e) => {
+    e.preventDefault();
+    canvas.classList.remove('drag-over');
+    const cardId = e.dataTransfer.getData('text/plain');
+    if (!cardId) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const rawMins = viewStartMin + (y / SLOT_HEIGHT) * 15;
+    const snapped = snapToQuarter(minutesToTime(Math.max(viewStartMin, Math.min(viewEndMin - 15, rawMins))));
+    updateCardEntry(cardId, {
+      assignedDate: date,
+      time: snapped,
+      startTime: snapped,
+      endTime: addMinutes(snapped, 15),
+    }).then(async () => {
+      await refreshAll();
+      // 拖拽放置后直接打开编辑器（「拖到单元格进行编辑」）
+      const dropped = allCardsCache.find(c => c.id === cardId);
+      if (dropped) openEditor(dropped, snapped, date);
+    })
+      .catch(err => console.error('[journal] drop move failed:', err));
+  });
+
   // 重叠区间 lane 分配
   const laneItems = timedCards.map(c => ({
     id: c.id,
@@ -798,6 +830,21 @@ async function renderCardPool() {
     const li = document.createElement('li');
     li.className = 'cardpool-item';
     li.dataset.id = card.id;
+    // 支持拖拽到今日时间线（HTML5 DnD）
+    li.draggable = true;
+    let cardDragged = false; // 真拖拽后抑制 click 打开编辑器
+    li.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', card.id);
+      e.dataTransfer.effectAllowed = 'move';
+      li.classList.add('is-dragging');
+      cardDragged = false; // 初始化，dragend 前不会触发 click
+    });
+    li.addEventListener('dragend', () => {
+      li.classList.remove('is-dragging');
+      // 标记已发生拖拽，后续 click 不打开编辑器
+      cardDragged = true;
+      setTimeout(() => { cardDragged = false; }, 0); // 下一帧解除，只跳过一次
+    });
 
     const icon = document.createElement('span');
     icon.className = 'cardpool-type-icon';
@@ -820,10 +867,23 @@ async function renderCardPool() {
         .catch(err => console.error('[journal] schedule card failed:', err));
     });
 
-    // 点击编辑
-    li.addEventListener('click', () => openEditor(card, currentTime(), selectedDate));
+    const delBtn = document.createElement('button');
+    delBtn.className = 'cardpool-delete-btn';
+    delBtn.textContent = '🗑️';
+    delBtn.title = '删除卡片';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('删除这张卡片？')) {
+        deleteCardEntry(card.id)
+          .then(() => refreshAll())
+          .catch(err => console.error('[journal] delete card failed:', err));
+      }
+    });
 
-    li.append(icon, text, schedBtn);
+    // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
+    li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
+
+    li.append(icon, text, schedBtn, delBtn);
     els.cardpoolList.append(li);
   }
 }

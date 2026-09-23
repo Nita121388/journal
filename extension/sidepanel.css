@@ -13,6 +13,9 @@
   --color-card-bg: #ffffff;
   --color-card-border: #e8e8e8;
   --color-timeline: #d0d5dd;
+  --color-scroll-thumb: #cfd3da;
+  --banner-block-h: 69px;             /* Host 横幅本体 + 其上外边距 */
+  --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
 }
@@ -29,6 +32,7 @@
   --color-card-bg: #2a2a2a;
   --color-card-border: #3a3a3a;
   --color-timeline: #444;
+  --color-scroll-thumb: #4a4a4a;
 }
 
 * { box-sizing: border-box; }
@@ -187,6 +191,36 @@ main {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  /* 列不再无限增长：到顶后内部滚动，底部组件始终可达 */
+  max-height: var(--panel-max-h);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll-thumb) transparent;
+}
+
+/* 窄栏里默认滚动条太抢位置，侧栏与两个列表统一压细 */
+#sidebar::-webkit-scrollbar,
+#cardpool-list::-webkit-scrollbar,
+#todo-list::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-track,
+#cardpool-list::-webkit-scrollbar-track,
+#todo-list::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb,
+#cardpool-list::-webkit-scrollbar-thumb,
+#todo-list::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: 3px;
+}
+#sidebar::-webkit-scrollbar-thumb:hover,
+#cardpool-list::-webkit-scrollbar-thumb:hover,
+#todo-list::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+
+/* Host 离线横幅占位时，同步压缩左右两栏上限，避免底部被顶出视口 */
+body:has(#host-banner:not(.hidden)) #sidebar,
+body:has(#host-banner:not(.hidden)) #timeline-section {
+  max-height: calc(var(--panel-max-h) - var(--banner-block-h));
 }
 
 /* ─── 卡片池 ─────────────────────────────────────── */
@@ -205,8 +239,12 @@ main {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 160px;
+  /* 随面板高度自适应：矮窗收窄少占位，高窗放开多显示 */
+  max-height: clamp(120px, 22vh, 200px);
   overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll-thumb) transparent;
 }
 
 .cardpool-item {
@@ -222,6 +260,7 @@ main {
   font-size: 12px;
 }
 .cardpool-item:hover { border-color: var(--color-accent); }
+.cardpool-item.is-dragging { opacity: 0.5; border-style: dashed; }
 
 .cardpool-type-icon { font-size: 12px; flex-shrink: 0; }
 
@@ -243,6 +282,21 @@ main {
   flex-shrink: 0;
 }
 .cardpool-schedule-btn:hover { background: var(--color-cell-empty); }
+
+.cardpool-delete-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 2px 3px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cardpool-item:hover .cardpool-delete-btn { opacity: 1; }
+.cardpool-delete-btn:hover { color: #e53935; background: rgba(229,57,53,0.08); }
 
 .cardpool-add-btn {
   width: 100%;
@@ -471,7 +525,11 @@ main {
 #todo-list {
   list-style: none; margin: 0; padding: 0;
   display: flex; flex-direction: column; gap: 4px;
-  max-height: 180px; overflow-y: auto;
+  max-height: clamp(140px, 26vh, 240px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scroll-thumb) transparent;
 }
 
 .todo-item {
@@ -579,7 +637,7 @@ main {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100vh - 110px);
+  max-height: var(--panel-max-h);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface);
@@ -806,6 +864,13 @@ main {
   background: var(--color-accent);
   opacity: 0.8;
 }
+/* 拖拽卡片池卡片到时间线时的画布高亮 */
+.schedule-canvas.drag-over {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -2px;
+  background: var(--color-accent-light);
+}
+
 body.is-resizing,
 body.is-dragging {
   user-select: none;
@@ -871,7 +936,7 @@ body.is-dragging {
   margin-bottom: 2px;
 }
 .timeline-card.is-short .card-footer {
-  display: none; /* 紧凑态折叠 footer；悬停展开后恢复 */
+  display: none; /* 紧凑态折叠 footer（不再悬停展开恢复） */
 }
 .timeline-card.is-short .card-body {
   overflow: hidden; /* 正文截断到可见区域，不出现滚动条/不裁成空白 */
@@ -882,25 +947,6 @@ body.is-dragging {
 body.is-resizing .timeline-card.is-short,
 body.is-dragging .timeline-card.is-short {
   transition: none;
-}
-
-/* 短卡片悬停展开：仅非拖拽（:not(.is-dragging)）时触发，避免拖动中涨高。
-   height:auto 覆盖内联 style.height 槽位高度；max-height 兜底长文。 */
-.timeline-card.is-short:not(.is-dragging):hover {
-  z-index: 120;
-  height: auto !important; /* 覆盖内联 style.height（槽位 px） */
-  max-height: 240px;
-  padding-bottom: 16px;
-  overflow-y: auto;
-  border-color: var(--color-accent);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
-}
-.timeline-card.is-short:not(.is-dragging):hover .card-footer {
-  display: flex; /* 悬停恢复 footer（完成/类型/删除） */
-}
-.timeline-card.is-short:not(.is-dragging):hover .card-body {
-  overflow-y: auto;
-  max-height: 120px;
 }
 
 .card-header {
@@ -949,7 +995,20 @@ body.is-dragging .timeline-card.is-short {
 .tag-chip.is-static { cursor: default; }
 .tag-chip.is-active { background: var(--color-accent, #4caf50); color: #fff; border-color: transparent; }
 .card-editor-tags { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.card-editor-tags input { width: 100%; box-sizing: border-box; }
+.card-editor-tags input {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.card-editor-tags input:focus { border-color: var(--color-accent); }
+.card-editor-tags input::placeholder { color: var(--color-muted); opacity: 0.7; }
 .cardpool-tag-filters { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0 0 6px; padding: 0; }
 
 .card-footer-btn {
