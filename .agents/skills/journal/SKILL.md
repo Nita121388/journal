@@ -81,7 +81,9 @@ $CLI todo add "写周报" --origin agent-assisted --agent pi --model deepseek-v4
 直接调 HTTP API 时在 body 里带 `provenance`：
 
 ```bash
-curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/json"   -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-24","time":"14:00",
+curl -X POST http://127.0.0.1:8765/api/cards \
+  -H "Content-Type: application/json" \
+  -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-24","time":"14:00",
        "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/projects/journal"}}'
 ```
 
@@ -148,6 +150,9 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 
 - `type`：`text`（文本）/ `task`（任务） / `idea`（灵感）
 - 想在界面时间线显示，务必给 `assignedDate` + 落在整/半点刻度的 `time`（如 09:00、14:30）
+- **agent 调用时加 `provenance`**（让人知道是谁写的；不加则 host 默认标 `human`）：
+  `"provenance":{"origin":"agent-assisted","agent":"pi","model":"$PI_MODEL","project":"工作目录"}`
+  详见上文「来源元数据」章节。
 
 **把一段日志转成多张卡片**（让界面能看到）：先 `$CLI read <day>` 拿到 journals 文本，再按段落拆开分别 `POST /api/cards`，每段一个时间。
 
@@ -181,9 +186,11 @@ node E:/projects/journal/host/auto-summary.mjs --agent codex
 node E:/projects/journal/host/auto-summary.mjs --dry-run
 ```
 
-**会话来源标记**：每张卡片带 `tags: ['src:<agent>-<sessionId>']`，用于去重和溯源。
+**会话来源标记**（两层，各司其职）：
+- `tags: ['src:<agent>-<sessionId>']` —— **去重**用：同一会话同一天只写一次，第二次运行全部 skipped。
+- `meta.provenance` —— **溯源**用：标 `origin: 'agent-auto'` + 来源 agent + 会话模型（从会话 `model_change` 提取）+ 项目目录（会话 `cwd`）。
 
-**去重逻辑**：同一会话（sessionId）同一天只写一次，第二次运行时全部 skipped。
+两者都自动写入，无需手动指定；「来源元数据」章节有完整说明。
 
 **可配置 agent**：`--agent pi|codex|claude`（默认 `pi`）。Pi 扫 `~/.pi/agent/sessions/`，Codex 扫 `~/.codex/sessions/`。
 
