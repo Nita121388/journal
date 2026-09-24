@@ -111,6 +111,32 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 | "把 X 待办标完成" | `$CLI todo list` → 找到 id → `$CLI todo done <id>` |
 | "删掉 X 待办" | `$CLI todo list` → 找到 id → `$CLI todo delete <id> --confirm` |
 
+## 自动沉淀（会话历史 → 日程卡片，幂等）
+
+`host/auto-summary.mjs` 扫描本机 agent 会话历史，提取当天真实任务，幂等写入卡片（界面时间线可见）。
+
+```bash
+# 默认扫描 Pi 会话（最近主力），提取今天任务
+node E:/projects/journal/host/auto-summary.mjs
+
+# 指定天数
+node E:/projects/journal/host/auto-summary.mjs --day 2026-09-23
+
+# 只扫 Codex 会话
+node E:/projects/journal/host/auto-summary.mjs --agent codex
+
+# 预览不写入
+node E:/projects/journal/host/auto-summary.mjs --dry-run
+```
+
+**会话来源标记**：每张卡片带 `tags: ['src:<agent>-<sessionId>']`，用于去重和溯源。
+
+**去重逻辑**：同一会话（sessionId）同一天只写一次，第二次运行时全部 skipped。
+
+**可配置 agent**：`--agent pi|codex|claude`（默认 `pi`）。Pi 扫 `~/.pi/agent/sessions/`，Codex 扫 `~/.codex/sessions/`。
+
+**定时运行**（可选）：Windows 计划任务每天 22:00 自动运行，会话结束自动沉淀。
+
 ## 注意事项
 
 - **日期计算**：`today`/`明天`/`昨天` 用系统日期计算，格式 `YYYY-MM-DD`。示例：明天 = `date -d "+1 day" +%F`
@@ -122,4 +148,4 @@ curl -X POST http://127.0.0.1:8765/api/cards \
   想在具体时刻显示 → 用 `POST /api/cards` 并明确给 `time`。
 - **追加日志**：先 `read` 再 `write` 覆盖，避免丢内容
 - 所有输出为 JSON，`ok:false` 时看 `error.code`（`HOST_OFFLINE` = 启动 host；`VALIDATION_ERROR` = 参数错误；`NOT_FOUND` = 目标不存在）
-- 数据文件：`E:/projects/journal/host/data/journal-data.json`（host 与扩展双向同步）
+- 数据文件：`E:/projects/journal/host/data/journal.db`（host SQLite 权威库；扩展是镜像缓存）

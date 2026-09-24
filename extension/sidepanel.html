@@ -110,11 +110,23 @@
         </section>
       </aside>
 
-      <!-- 右侧：时间线 -->
+      <!-- 右侧：日历/周历/时间线 -->
       <section id="timeline-section">
-        <div id="timeline-date-header"></div>
+        <div class="view-header">
+          <div class="view-nav">
+            <button id="view-prev" class="cal-nav-btn" aria-label="上一页">‹</button>
+            <span id="timeline-date-header"></span>
+            <button id="view-next" class="cal-nav-btn" aria-label="下一页">›</button>
+            <button id="view-today" class="cal-today-btn" title="回到今天">今天</button>
+          </div>
+          <div class="view-modes">
+            <button id="view-mode-month" class="view-mode-btn" data-mode="month" title="月历">📅</button>
+            <button id="view-mode-week" class="view-mode-btn" data-mode="week" title="周历">📆</button>
+            <button id="view-mode-timeline" class="view-mode-btn" data-mode="timeline" title="日程">⏱</button>
+          </div>
+        </div>
         <div id="timeline-container">
-          <!-- 时间线动态渲染 -->
+          <!-- 时间线/月历/周历 动态渲染 -->
         </div>
       </section>
     </div>

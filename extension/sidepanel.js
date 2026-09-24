@@ -7,7 +7,7 @@
 import {
   todayKey, currentTime, aggregateHeatmap,
   countCardsByDay, groupCardsForTimeline, getCardTypeCounts,
-  todoSummary, dateRange, getMonthMatrix,
+  todoSummary, dateRange, getMonthMatrix, toDayKey,
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
 } from './lib/model.js';
@@ -69,6 +69,11 @@ let calendarMonth = monthOf(todayKey());
 let heatmapCache = {};
 let allCardsCache = [];
 let switchSeq = 0;
+
+/** @type {'month'|'week'|'timeline'} 右侧主视图模式 */
+let viewMode = localStorage.getItem('journal.viewMode') || 'timeline';
+/** 周历的基准日期（该周的某一天） */
+let weekAnchor = selectedDate;
 
 /** @type {'active'|'all'|'done'} */
 let todoFilter = 'active';
@@ -246,6 +251,10 @@ const els = {
   calendarGrid: document.getElementById('calendar-grid'),
   timelineContainer: document.getElementById('timeline-container'),
   timelineDateHeader: document.getElementById('timeline-date-header'),
+  viewPrev: document.getElementById('view-prev'),
+  viewNext: document.getElementById('view-next'),
+  viewToday: document.getElementById('view-today'),
+  viewModeBtns: document.querySelectorAll('.view-mode-btn'),
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
@@ -308,6 +317,177 @@ async function startHost() {
   }
 }
 
+/* ─── 渲染：右视图（月历 / 周历 / 日程） ──────────────────────────────── */
+
+/** dayKey ± n 天 → dayKey（本地时区） */
+function addDays(dayKey, n) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + n);
+  return toDayKey(dt);
+}
+
+/** 右侧头部标题文案 */
+function viewHeaderLabel() {
+  if (viewMode === 'month') {
+    const { year, month } = calendarMonth;
+    return `${year}年${month + 1}月`;
+  }
+  if (viewMode === 'week') {
+    const [y, m, d] = weekAnchor.split('-').map(Number);
+    const sun = new Date(y, m - 1, d); sun.setDate(sun.getDate() - sun.getDay());
+    const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
+    return `${toDayKey(sun).slice(5).replace('-', '/')} – ${toDayKey(sat).slice(5).replace('-', '/')} · ${toDayKey(sun).slice(0, 4)}`;
+  }
+  const date = selectedDate;
+  const typeCounts = getCardTypeCounts(allCardsCache, date);
+  const parts = [];
+  if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
+  if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
+  if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
+  const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
+  return `📅 ${formatDateLabel(date)}${countStr}`;
+}
+
+/** 同步取某天卡片（从缓存，按时间排序） */
+function getCardsByDaySync(date) {
+  if (!Array.isArray(allCardsCache)) return [];
+  return allCardsCache
+    .filter(c => c.assignedDate === date)
+    .sort((a, b) => {
+      const sa = getCardStartTime(a), sb = getCardStartTime(b);
+      if (sa && sb) return sa.localeCompare(sb);
+      if (sa) return -1;
+      if (sb) return 1;
+      return 0;
+    });
+}
+
+/** 高亮当前视图模式按钮 */
+function markViewMode() {
+  els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === viewMode));
+}
+
+/** 右侧视图统一入口 */
+async function renderRightView() {
+  markViewMode();
+  if (els.timelineDateHeader) els.timelineDateHeader.textContent = viewHeaderLabel();
+  const container = els.timelineContainer;
+  container.replaceChildren();
+  if (viewMode === 'month') { renderMonthGrid(container); return; }
+  if (viewMode === 'week') { renderWeekGrid(container); return; }
+  await renderTimeline();
+}
+
+/** 月历网格 */
+function renderMonthGrid(container) {
+  const matrix = getMonthMatrix(calendarMonth.year, calendarMonth.month);
+  const weekday = document.createElement('div');
+  weekday.className = 'calview-weekdays';
+  for (const name of ['日', '一', '二', '三', '四', '五', '六']) {
+    const s = document.createElement('span');
+    s.textContent = name;
+    weekday.append(s);
+  }
+  const grid = document.createElement('div');
+  grid.className = 'calview-month-grid';
+  const today = todayKey();
+  for (const week of matrix) {
+    for (const cell of week) {
+      const dayEl = document.createElement('div');
+      dayEl.className = 'calview-day';
+      dayEl.dataset.day = cell.dayKey;
+      if (!cell.isCurrentMonth) dayEl.classList.add('is-out-month');
+      if (cell.isToday) dayEl.classList.add('is-today');
+      if (cell.dayKey === selectedDate) dayEl.classList.add('is-selected');
+      const num = document.createElement('div');
+      num.className = 'calview-day-num';
+      num.textContent = String(cell.day);
+      dayEl.append(num);
+      const cards = getCardsByDaySync(cell.dayKey);
+      const list = document.createElement('div');
+      list.className = 'calview-day-cards';
+      for (const card of cards.slice(0, 3)) list.append(buildCalSummary(card));
+      if (cards.length > 3) {
+        const more = document.createElement('div');
+        more.className = 'calview-more';
+        more.textContent = `+${cards.length - 3}`;
+        list.append(more);
+      }
+      dayEl.append(list);
+      dayEl.addEventListener('click', async (e) => {
+        if (e.target.closest('.calview-summary')) return;
+        selectedDate = cell.dayKey;
+        weekAnchor = cell.dayKey;
+        calendarMonth = monthOf(cell.dayKey);
+        viewMode = 'timeline';
+        await refreshAll();
+      });
+      grid.append(dayEl);
+    }
+  }
+  container.append(weekday, grid);
+}
+
+/** 周历 7 列 */
+function renderWeekGrid(container) {
+  const [y, m, d] = weekAnchor.split('-').map(Number);
+  const sunday = new Date(y, m - 1, d); sunday.setDate(sunday.getDate() - sunday.getDay());
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(sunday); dt.setDate(sunday.getDate() + i);
+    days.push(toDayKey(dt));
+  }
+  const today = todayKey();
+  const weekEl = document.createElement('div');
+  weekEl.className = 'calview-week-grid';
+  const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  for (const dayKey of days) {
+    const col = document.createElement('div');
+    col.className = 'calview-week-col';
+    col.dataset.day = dayKey;
+    if (dayKey === today) col.classList.add('is-today');
+    if (dayKey === selectedDate) col.classList.add('is-selected');
+    const head = document.createElement('div');
+    head.className = 'calview-week-head';
+    const dt = new Date(Number(dayKey.slice(0, 4)), Number(dayKey.slice(5, 7)) - 1, Number(dayKey.slice(8, 10)));
+    const cards = getCardsByDaySync(dayKey);
+    head.innerHTML = `<span>${weekNames[dt.getDay()]} ${dayKey.slice(5).replace('-', '/')}</span><span class="calview-week-count">${cards.length}</span>`;
+    head.addEventListener('click', async () => {
+      selectedDate = dayKey;
+      weekAnchor = dayKey;
+      calendarMonth = monthOf(dayKey);
+      viewMode = 'timeline';
+      await refreshAll();
+    });
+    col.append(head);
+    const list = document.createElement('div');
+    list.className = 'calview-week-cards';
+    for (const card of cards) list.append(buildCalSummary(card));
+    col.append(list);
+    weekEl.append(col);
+  }
+  container.append(weekEl);
+}
+
+/** 卡片摘要（月历/周历共用）：时间 + 类型图标 + 内容截断，点击进编辑器 */
+function buildCalSummary(card) {
+  const el = document.createElement('div');
+  el.className = `calview-summary type-${card.type || 'text'}` + (card.type === 'task' && card.done ? ' is-done' : '');
+  const start = getCardStartTime(card);
+  const timeHtml = start ? `<span class="calview-summary-time">${start}</span>` : '';
+  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEditor(card, start ?? currentTime(), card.assignedDate ?? selectedDate);
+  });
+  return el;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
 
 async function renderTimeline() {
@@ -315,13 +495,16 @@ async function renderTimeline() {
   const dayCards = await getCardsByDay(date);
   const typeCounts = getCardTypeCounts(allCardsCache, date);
 
-  // 标题
-  const parts = [];
-  if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
-  if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
-  const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
-  els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
+  // ── 视图切换：timeline 模式才写入 dateHeader ──
+  if (viewMode === 'timeline') {
+    // 标题
+    const parts = [];
+    if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
+    if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
+    if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
+    const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
+    els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
+  }
 
   // 日程画布（08:00–22:30，15 分钟网格）
   const container = els.timelineContainer;
@@ -505,7 +688,7 @@ function renderTimelineCard(card, lane = null, allday = false) {
     const start = getCardStartTime(card);
     const end = getCardEndTime(card) ?? addMinutes(start, 15);
     const dur = Math.max(15, timeToMinutes(end) - timeToMinutes(start));
-    // 短卡片（时长 ≤ 30 分钟）启用紧凑布局 + 悬停展开；拖拽时保持紧凑，避免拖动中涨高
+    // 短卡片（时长 ≤ 30 分钟）紧凑横向布局：单行展示时间+内容前缀；拖拽时保持紧凑
     if (dur <= 30) el.classList.add('is-short');
     const laneCount = Math.max(1, lane.laneCount);
     el.style.top = `${scheduleHeight(timeToMinutes(start))}px`;
@@ -517,13 +700,15 @@ function renderTimelineCard(card, lane = null, allday = false) {
     el.dataset.end = end;
   }
 
-  // Header
+  const isShort = el.classList.contains('is-short');
+
+  // Header（短卡片只显示开始时间，把横向空间让给内容）
   const header = document.createElement('div');
   header.className = 'card-header';
   header.innerHTML = `
     <span class="card-type-icon">${typeIcon(card.type)}</span>
-    <span class="card-time">${allday ? '全天' : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
-    <span class="card-meta">${allday ? '' : `${Math.max(15, getCardDuration(card))} 分钟`}</span>
+    <span class="card-time">${allday ? '全天' : isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
+    <span class="card-meta">${!allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''}</span>
   `;
 
   // Body
@@ -558,12 +743,14 @@ function renderTimelineCard(card, lane = null, allday = false) {
       endMin = Math.max(startMin + 15, endMin);
       endMin = Math.min(viewEndMin, endMin);
       const end = minutesToTime(endMin);
+      const dur = endMin - startMin;
       el.dataset.end = end;
-      el.style.height = `${((endMin - startMin) / 15) * SLOT_HEIGHT}px`;
+      el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
       const time = el.querySelector('.card-time');
-      if (time) time.textContent = `${getCardStartTime(card)}–${end}`;
+      const isShort = el.classList.contains('is-short');
+      if (time) time.textContent = isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${end}`;
       const meta = el.querySelector('.card-meta');
-      if (meta) meta.textContent = `${endMin - startMin} 分钟`;
+      if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
     };
     const onUp = async (e) => {
       if (!dragging) return;
@@ -628,9 +815,10 @@ function renderTimelineCard(card, lane = null, allday = false) {
       el.dataset.end = newEnd;
       el.style.top = `${scheduleHeight(newStartMin)}px`;
       const time = el.querySelector('.card-time');
-      if (time) time.textContent = `${newStart}–${newEnd}`;
+      const isShort = el.classList.contains('is-short');
+      if (time) time.textContent = isShort ? newStart : `${newStart}–${newEnd}`;
       const meta = el.querySelector('.card-meta');
-      if (meta) meta.textContent = `${dur} 分钟`;
+      if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
     };
     const onUp = async () => {
       if (!dragging) return;
@@ -1042,7 +1230,7 @@ async function refreshAll() {
   heatmapCache = countCardsByDay(allCardsCache);
   renderHeatmap(els.heatmap, heatmapCache);
   renderCalendarView();
-  await renderTimeline();
+  await renderRightView();
   await renderCardPool();
   // 刷新 TODO（从 cards 中筛选 task）
   todosCache = await getTodos();
@@ -1145,7 +1333,65 @@ async function init() {
 
   // 首次全量渲染
   updateHeaderDate();
+  markViewMode();
   await refreshAll();
+
+  // ── 右视图导航 / 模式切换 ──
+  els.viewPrev.addEventListener('click', async () => {
+    if (viewMode === 'month') {
+      let { year, month } = calendarMonth;
+      month -= 1;
+      if (month < 0) { month = 11; year -= 1; }
+      calendarMonth = { year, month };
+      renderCalendarView();
+    } else if (viewMode === 'week') {
+      weekAnchor = addDays(weekAnchor, -7);
+    } else {
+      selectedDate = addDays(selectedDate, -1);
+      weekAnchor = selectedDate;
+      calendarMonth = monthOf(selectedDate);
+      updateHeaderDate();
+      renderCalendarView();
+    }
+    await renderRightView();
+  });
+
+  els.viewNext.addEventListener('click', async () => {
+    if (viewMode === 'month') {
+      let { year, month } = calendarMonth;
+      month += 1;
+      if (month > 11) { month = 0; year += 1; }
+      calendarMonth = { year, month };
+      renderCalendarView();
+    } else if (viewMode === 'week') {
+      weekAnchor = addDays(weekAnchor, 7);
+    } else {
+      selectedDate = addDays(selectedDate, 1);
+      weekAnchor = selectedDate;
+      calendarMonth = monthOf(selectedDate);
+      updateHeaderDate();
+      renderCalendarView();
+    }
+    await renderRightView();
+  });
+
+  els.viewToday.addEventListener('click', async () => {
+    calendarMonth = monthOf(todayKey());
+    weekAnchor = todayKey();
+    selectedDate = todayKey();
+    updateHeaderDate();
+    renderCalendarView();
+    await renderRightView();
+  });
+
+  els.viewModeBtns?.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      viewMode = btn.dataset.mode;
+      localStorage.setItem('journal.viewMode', viewMode);
+      markViewMode();
+      await renderRightView();
+    });
+  });
 
   // 今日当前时间 marker 每分钟更新
   startNowMarkerTimer();
@@ -1166,13 +1412,14 @@ async function init() {
     openEditor(null, currentTime(), null, null);
   });
 
-  // ── 日历月份导航 ──
+  // ── 日历月份导航（左侧小日历）──
   els.calPrev.addEventListener('click', () => {
     let { year, month } = calendarMonth;
     month -= 1;
     if (month < 0) { month = 11; year -= 1; }
     calendarMonth = { year, month };
     renderCalendarView();
+    if (viewMode === 'month') renderRightView();
   });
 
   els.calNext.addEventListener('click', () => {
@@ -1181,14 +1428,16 @@ async function init() {
     if (month > 11) { month = 0; year += 1; }
     calendarMonth = { year, month };
     renderCalendarView();
+    if (viewMode === 'month') renderRightView();
   });
 
   els.calToday.addEventListener('click', async () => {
     calendarMonth = monthOf(todayKey());
     selectedDate = todayKey();
+    weekAnchor = todayKey();
     updateHeaderDate();
     renderCalendarView();
-    await renderTimeline();
+    await renderRightView();
   });
 
   // ── 日历点击切换日期 ──
@@ -1196,9 +1445,10 @@ async function init() {
     const cell = e.target.closest('.cal-day');
     if (!cell || !cell.dataset.day) return;
     selectedDate = cell.dataset.day;
+    weekAnchor = cell.dataset.day;
     updateHeaderDate();
     renderCalendarView();
-    await renderTimeline();
+    await renderRightView();
   });
 
   // ── 热力图点击切换日期 ──
@@ -1206,11 +1456,12 @@ async function init() {
     const cell = e.target.closest('.heatmap-cell');
     if (!cell || !cell.dataset.day) return;
     selectedDate = cell.dataset.day;
+    weekAnchor = cell.dataset.day;
     // 跳到对应月份
     calendarMonth = monthOf(cell.dataset.day);
     updateHeaderDate();
     renderCalendarView();
-    renderTimeline();
+    renderRightView();
   });
 
   // ── TODO：添加 ──

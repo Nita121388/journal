@@ -653,6 +653,187 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
   background: var(--color-bg);
 }
 
+/* 右视图头部：导航 + 模式切换 */
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+.view-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.view-nav #timeline-date-header {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.view-modes {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.view-mode-btn {
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  padding: 3px 6px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s;
+}
+.view-mode-btn:hover { background: var(--color-cell-empty); opacity: 0.85; }
+.view-mode-btn.is-active { opacity: 1; background: var(--color-accent-light); border-color: var(--color-accent); }
+
+/* ─── 月历视图 ─────────────────────────────── */
+.calview-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: center;
+}
+.calview-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.calview-day {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  min-height: 84px;
+  padding: 4px 5px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.calview-day:hover { border-color: var(--color-accent); }
+.calview-day.is-out-month { opacity: 0.35; }
+.calview-day.is-today { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+.calview-day.is-selected { border-color: var(--color-accent); background: var(--color-accent-light); }
+.calview-day-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.calview-day.is-selected .calview-day-num { color: var(--color-accent); }
+.calview-day-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.calview-more {
+  font-size: 9px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* ─── 周历视图 ─────────────────────────────── */
+.calview-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+  align-items: start;
+}
+.calview-week-col {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.calview-week-col.is-today { border-color: var(--color-accent); }
+.calview-week-col.is-selected { background: var(--color-accent-light); }
+.calview-week-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 7px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-surface);
+}
+.calview-week-head:hover { background: var(--color-cell-empty); }
+.calview-week-count {
+  font-size: 10px;
+  color: var(--color-muted);
+  background: var(--color-cell-empty);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+.calview-week-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ─── 卡片摘要（月历/周历共用） ─────────────── */
+.calview-summary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  line-height: 1.3;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--color-cell-empty);
+  color: var(--color-text);
+  cursor: pointer;
+  min-width: 0;
+  border-left: 2px solid var(--color-muted);
+}
+.calview-summary:hover { background: var(--color-accent-light); }
+.calview-summary.type-task { border-left-color: #42a5f5; }
+.calview-summary.type-idea { border-left-color: #ab47bc; }
+.calview-summary.type-text { border-left-color: var(--color-accent); }
+.calview-summary.is-done { opacity: 0.55; }
+.calview-summary.is-done .calview-summary-text { text-decoration: line-through; }
+.calview-summary-time {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+.calview-summary .card-type-icon { flex-shrink: 0; font-size: 9px; }
+.calview-summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 #timeline-container {
   flex: 1 1 auto;
   min-height: 0;
@@ -927,19 +1108,33 @@ body.is-dragging {
    收缩底部 padding、折叠 footer，使 header + 首行正文在槽位高度内可见（正文溢出即截断，而非裁成空白）。
    仅作用于 .is-short，不影响普通（≥45 分钟）卡片。 */
 .timeline-card.is-short {
-  padding-bottom: 2px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
   overflow: hidden;
   transition: height 0.2s ease, max-height 0.2s ease, padding-bottom 0.2s ease,
     box-shadow 0.2s ease, border-color 0.15s;
 }
 .timeline-card.is-short .card-header {
-  margin-bottom: 2px;
+  flex-shrink: 0;
+  margin: 0;
+  gap: 3px;
+  font-size: 10px;
 }
+.timeline-card.is-short .card-meta { display: none; }
 .timeline-card.is-short .card-footer {
-  display: none; /* 紧凑态折叠 footer（不再悬停展开恢复） */
+  display: none; /* 紧凑态折叠 footer */
 }
 .timeline-card.is-short .card-body {
-  overflow: hidden; /* 正文截断到可见区域，不出现滚动条/不裁成空白 */
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
   max-height: none;
 }
 /* 拖拽移动/缩放 resize 时禁用过渡，避免实时拖动滞后。
@@ -967,20 +1162,33 @@ body.is-dragging .timeline-card.is-short {
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 120px;
   overflow-y: auto;
   flex: 1 1 auto;
   min-height: 0;
 }
 
+/* 长卡片（≥45 分钟）：footer 默认隐藏，内容占满全高，hover 时淡入 */
 .card-footer {
   flex-shrink: 0;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 4px;
   margin-top: 6px;
   padding-top: 4px;
   border-top: 1px solid var(--color-card-border);
+}
+.timeline-card:hover .card-footer {
+  display: flex;
+  animation: footer-fadein 0.15s ease;
+}
+/* 短卡片即使 hover 也不显示 footer */
+.timeline-card.is-short:hover .card-footer {
+  display: none;
+  animation: none;
+}
+@keyframes footer-fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .tag-chips, .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
