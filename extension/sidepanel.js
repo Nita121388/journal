@@ -851,10 +851,16 @@ function renderTimelineCard(card, lane = null, allday = false) {
 
   const isShort = el.classList.contains('is-short');
 
+  // 来源角标：标在 header，title 为完整 provenance（hover 可见）
+  const originIcon = { human: '👤', 'agent-assisted': '🤖', 'agent-auto': '⚙️' };
+  const by = card.meta?.createdBy ?? null;
+  const originBadge = by?.origin ? `<span class="card-origin" title="${formatProvenance(by)}">${originIcon[by.origin] ?? '👤'}</span>` : '';
+
   // Header（短卡片只显示开始时间，把横向空间让给内容）
   const header = document.createElement('div');
   header.className = 'card-header';
   header.innerHTML = `
+    ${originBadge}
     <span class="card-type-icon">${typeIcon(card.type)}</span>
     <span class="card-time">${allday ? '全天' : isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
     <span class="card-meta">${!allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''}</span>

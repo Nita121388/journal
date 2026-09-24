@@ -1187,6 +1187,11 @@ body.is-dragging .timeline-card.is-short {
   color: var(--color-muted);
 }
 .card-type-icon { font-size: 11px; }
+.card-origin {
+  font-size: 10px;
+  flex-shrink: 0;
+  cursor: help;
+}
 .card-time { font-weight: 500; }
 .card-meta { margin-left: auto; font-size: 9px; }
 

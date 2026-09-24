@@ -150,9 +150,20 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 
 - `type`：`text`（文本）/ `task`（任务） / `idea`（灵感）
 - 想在界面时间线显示，务必给 `assignedDate` + 落在整/半点刻度的 `time`（如 09:00、14:30）
+- **⭐ 必须带 `tags`（项目标签）**：写卡片时一律带上项目标签，否则界面无法按项目筛选、导出到 Obsidian 后也归不了类。
+  `"tags":["journal"]` —— 用项目名/仓库名（如 `journal`、`LiCASmart`、`tabshelf`）。
+  同时 `provenance.project` 给项目目录（如 `E:/projects/journal`）。
 - **agent 调用时加 `provenance`**（让人知道是谁写的；不加则 host 默认标 `human`）：
   `"provenance":{"origin":"agent-assisted","agent":"pi","model":"$PI_MODEL","project":"工作目录"}`
   详见上文「来源元数据」章节。
+
+**完整示例（agent 写一张卡，带标签 + 来源）**：
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/json"   -d '{"content":"优化侧栏滚动","type":"text","tags":["journal"],
+       "assignedDate":"2026-09-24","time":"09:30","startTime":"09:30","endTime":"10:00",
+       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/projects/journal"}}'
+```
 
 **把一段日志转成多张卡片**（让界面能看到）：先 `$CLI read <day>` 拿到 journals 文本，再按段落拆开分别 `POST /api/cards`，每段一个时间。
 
@@ -167,6 +178,102 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 | "加个待办：写周报，明天截止" | `$CLI todo add "写周报" --due <明天> --time 14:00`（要显示在时间线上就给 `--time`）|
 | "把 X 待办标完成" | `$CLI todo list` → 找到 id → `$CLI todo done <id>` |
 | "删掉 X 待办" | `$CLI todo list` → 找到 id → `$CLI todo delete <id> --confirm` |
+
+## ⭐ 三层数据关系：SQLite / Markdown / JSON
+
+同一个 Journal 数据有**三个投影**，职责不同，**不要搞混**：
+
+| 层 | 文件 | 定位 | 谁能改 |
+|---|---|---|---|
+| **SQLite** | `host/data/journal.db` | **唯一权威源** | 只由 host 写（人不可直接改） |
+| **Markdown** | 你配置的 md 目录（如 `journal/*.md`） | **给人看 / 人改**（Obsidian） | 人 + host 导出 |
+| **JSON** | `journal-sync.json`（GitHub/WebDAV/本地目录） | **给机器传**（设备间同步） | 只由 host 写 |
+
+```
+        ┌──────────────────────────┐
+        │  SQLite (唯一权威)        │
+        └───┬──────────────┬───────┘
+   导出/导入 │              │ push/pull
+            ▼              ▼
+   ┌────────────────┐  ┌──────────────────┐
+   │ Markdown .md   │  │ journal-sync.json│
+   │ 人改 → 回流     │  │ 设备间同步        │
+   └────────────────┘  └──────────────────┘
+```
+
+- **md 是给人读写的视图**，不是权威源：改 md 后执行 `sync` (pull) 会让改动回流进 SQLite
+- **json 是设备间搬运格式**，人不要手改
+- md 目录是**设备本地设置**（不同电脑可不同），不会被同步覆盖
+
+### md 文件格式（Obsidian 友好）
+
+一天一个文件 `YYYY-MM-DD.md`，卡片用 **Obsidian 属性**记元数据：
+
+```markdown
+---
+date: 2026-09-24
+weekday: 周三
+type: journal-day
+project: E:/projects/journal
+device: DESKTOP-36AHUML
+tags: [journal]
+---
+
+# 2026-09-24 周三
+
+## 日志
+一段散文日志
+`id:: c_mj_2026-09-24` `type:: text`
+
+## 时间线
+### 09:00
+排查同步 404
+`id:: c_1790228243977` `type:: text` `end:: 09:30` `by:: pi` `model:: deepseek-v4-pro`
+
+## 待办
+- [ ] 未完成的任务
+  `id:: c_456` `type:: task` `tags:: todo`
+```
+
+- **文件级 frontmatter**：这一天的属性（date/project/device/tags）
+- **块级内联属性** `` `key:: value` ``：每张卡片的 id/type/end/by/model/tags
+  （反引号包裹 → Obsidian 阅读模式不显示，干净；双冒号 → Dataview/属性面板可识别）
+- **卡片池**（未安排）→ `inbox.md`
+- 目录下**非日期命名的 .md**（你自己的笔记）不会被解析，安全
+
+### 人在 Obsidian 里改了 → 怎么回流
+
+```bash
+$CLI sync          # 或 sync pull —— 把 md 改动合并回 SQLite
+```
+
+- md 里**新增**条目（无 id）→ 自动生成稳定 id 后作为新卡加入，**重复 pull 不会重复建卡**
+- md 里**删除**条目 → 默认**不删** SQLite 的卡（安全优先，防误删）
+- **meta（谁创建/谁修改）不会被 md 覆盖** —— md 不是 meta 权威源，SQLite 里的来源信息受保护
+
+## ⭐ 跨设备同步
+
+三种后端（在扩展选项页 → 数据同步 配置）：
+
+| provider | 同步到 | 关键配置 |
+|---|---|---|
+| `local` | 本地文件夹（如 Dropbox 同步目录） | 同步目录 |
+| `webdav` | WebDAV（坚果云等） | URL + 账号密码 + 路径 |
+| `github` | GitHub 私有仓库 | owner/repo + 分支 + token |
+| `markdown` | obsidian md 文件 | md 目录 |
+
+机制：host 生成快照（全部卡片 + 删除墓碑）→ push 到后端 → 别台设备 pull → **逐卡 LWW（updatedAt 新者胜）+ 删除墓碑**合并。
+
+```bash
+$CLI sync status                # 查看同步状态（provider / 上次同步 / 设备 id）
+$CLI sync                       # 触发一次同步（auto: pull → 合并 → push）
+$CLI sync push                  # 仅推送（SQLite → 后端）
+$CLI sync pull                  # 仅拉取（后端 → SQLite）
+$CLI sync config                # 查看当前同步配置（已脱敏）
+```
+
+> ⚠️ **同步前必须先配置**：未配置时 `sync` 会报 `SYNC_CONFIG`（提示去选项页配置）。
+> 密钥只存本机 host 数据目录，不会回传到页面。sync 不同步 settings（含 md 目录），所以各设备可独立设置。
 
 ## 自动沉淀（会话历史 → 日程卡片，幂等）
 

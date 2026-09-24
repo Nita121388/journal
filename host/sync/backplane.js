@@ -11,8 +11,11 @@
  * 只用 node 内置（fs / fetch / Buffer），fetch 可注入以便测试。
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
+import { hostname } from 'node:os';
+
+import { serializeAll, parseAll, INBOX_FILE } from './mdformat.js';
 
 /* ─── 快照工具 ───────────────────────────────────────── */
 
@@ -61,6 +64,80 @@ export class LocalFolderBackplane {
   async test() {
     mkdirSync(this.dir, { recursive: true });
     return { ok: true, provider: 'local', dir: this.dir };
+  }
+}
+
+/**
+ * Markdown / Obsidian Backplane —— 把 journal 数据同步到**人类可读可编辑**的 md 文件。
+ *
+ * 与 LocalFolderBackplane（单文件 JSON）不同，这里**一天一个 md 文件**：
+ *   journal/2026-09-24.md   含 frontmatter 属性 + 内联属性的卡片
+ *   journal/inbox.md        卡片池（未安排）
+ *
+ * 用途：在 Obsidian 里直接看/改日志；改动经 `pull()` 回流参与 LWW 合并。
+ * 注意：目录下**非日期命名**的 .md（用户自己的笔记）不会被解析，避免误吞。
+ */
+export class MarkdownBackplane {
+  constructor({ dir } = {}) {
+    if (!dir) throw new Error('MarkdownBackplane: dir required（在设置里配置 md 目录）');
+    this.name = 'markdown';
+    this.dir = dir;
+  }
+
+  /** 列出目录里所有 journal md 文件（日期文件 + inbox） */
+  _journalFiles() {
+    if (!existsSync(this.dir)) return [];
+    return readdirSync(this.dir)
+      .filter(n => n.endsWith('.md'))
+      .filter(n => n === INBOX_FILE || /^\d{4}-\d{2}-\d{2}\.md$/.test(n));
+  }
+
+  async pull() {
+    const names = this._journalFiles();
+    if (!names.length) return null;
+    const files = {};
+    for (const n of names) {
+      try {
+        const p = join(this.dir, n);
+        files[n] = {
+          text: readFileSync(p, 'utf-8'),
+          mtimeIso: statSync(p).mtime.toISOString(),
+        };
+      } catch { /* 跳过读不了的文件 */ }
+    }
+    const cards = parseAll(files);
+    return { schemaVersion: SNAPSHOT_SCHEMA_VERSION, deviceId: null, generatedAt: null, cards };
+  }
+
+  async push(snapshot) {
+    mkdirSync(this.dir, { recursive: true });
+    // 文件级属性：device = 本机；project = 当天卡片的创建项目（取首个非空，当天多个项目时取第一个）
+    const host = hostname();
+    const cards = snapshot?.cards ?? [];
+    const projByDay = {};
+    for (const c of cards) {
+      if (!c.assignedDate) continue;
+      const p = c.meta?.createdBy?.project ?? c.meta?.updatedBy?.project;
+      if (p && !projByDay[c.assignedDate]) projByDay[c.assignedDate] = p;
+    }
+    const files = serializeAll(cards, { device: host });
+    // 重新序列化以注入 project（serializeAll 不重复调用，直接在文件头注入）
+    for (const [name, text] of Object.entries(files)) {
+      const day = name.replace(/\.md$/, '');
+      const proj = projByDay[day];
+      let finalText = text;
+      if (proj && !/^project:/m.test(text)) {
+        // 在 `date: ...` 后插一行 project
+        finalText = text.replace(/^(date: .*)$/m, '$1\nproject: ' + proj);
+      }
+      writeFileSync(join(this.dir, name), finalText, 'utf-8');
+    }
+    return { ok: true, ref: this.dir, files: Object.keys(files).length };
+  }
+
+  async test() {
+    mkdirSync(this.dir, { recursive: true });
+    return { ok: true, provider: 'markdown', dir: this.dir };
   }
 }
 
@@ -239,6 +316,11 @@ export function createBackplane(sync = {}, opts = {}) {
     }
     case 'webdav':
       return new WebDAVBackplane({ ...sync.webdav, fetchImpl: opts.fetchImpl });
+    case 'markdown': {
+      const dir = sync.markdown?.dir;
+      if (!dir) throw new Error('sync.markdown.dir 未配置（md 目录）');
+      return new MarkdownBackplane({ dir });
+    }
     case 'github':
       return new GitHubBackplane({ ...sync.github, fetchImpl: opts.fetchImpl });
     default:

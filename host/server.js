@@ -205,7 +205,9 @@ function provenanceForUpdate(existingMeta = null, ctx = {}, fallbackProject = nu
   const ev = provenanceEvent(ctx);
   if (!ev.project && fallbackProject) ev.project = fallbackProject;
   return {
-    createdBy: existingMeta?.createdBy ?? null,
+    // 老卡（从未写过 meta）首次写入时，createdBy 用当次 ctx 初始化（不留 null）；
+    // 已有 createdBy 的卡不会被后续更新覆盖 —— 保护「谁创建」
+    createdBy: existingMeta?.createdBy ?? ev,
     updatedBy: ev,
   };
 }
@@ -221,7 +223,7 @@ function maskSyncConfig(cfg = {}) {
 /** 合并配置：密钥留空表示「不修改」 */
 function mergeSyncConfig(existing = {}, patch = {}) {
   const next = { ...existing, ...patch };
-  for (const p of ['local', 'webdav', 'github']) {
+  for (const p of ['local', 'webdav', 'github', 'markdown']) {
     if (patch[p]) next[p] = { ...(existing[p] || {}), ...patch[p] };
   }
   if (next.github && (!patch.github || !patch.github.token)) next.github.token = existing.github?.token ?? '';
@@ -250,7 +252,9 @@ export async function createApp(store, { logger } = {}) {
     try {
       backplane = createBackplane(sync);
     } catch (e) {
-      return { ok: false, code: 'SYNC_CONFIG', status: 400, message: e.message };
+      // 配置缺失时给出可执行指引（去哪配），而不是只抛字段名
+      const hint = '请到扩展选项页 → 数据同步 配置后重试（或 node cli.mjs sync config 查看）';
+      return { ok: false, code: 'SYNC_CONFIG', status: 400, message: `${e.message}。${hint}` };
     }
     if (syncInFlight) return syncInFlight;
     syncInFlight = (async () => {

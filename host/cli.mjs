@@ -225,6 +225,12 @@ async function cmdSync() {
     requireHostOnline(res);
     return out(res);
   }
+  if (sub === 'config') {
+    // 查看当前同步配置（已脱敏）
+    const res = await request('GET', '/api/sync/config');
+    requireHostOnline(res);
+    return out(res);
+  }
   const direction = ['push', 'pull', 'auto'].includes(sub) ? sub : 'auto';
   const res = await request('POST', '/api/sync/now', { direction });
   requireHostOnline(res);

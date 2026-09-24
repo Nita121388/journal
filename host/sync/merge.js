@@ -102,9 +102,21 @@ export function mergeCardSets(localCards = [], remoteCards = []) {
   for (const id of ids) {
     const local = localMap.get(id) ?? null;
     const remote = remoteMap.get(id) ?? null;
-    const winner = pickWinner(local, remote);
+    let winner = pickWinner(local, remote);
     if (!winner) continue;
 
+    // meta/createdAt 保护：md 是「给人看/人改」的投影，不是 meta 与创建时间的权威源。
+    // md 解析回的卡缺 meta（或缺 createdAt），此时保留本地权威值，
+    // 避免一次 md 同步就把「谁创建/谁修改」与创建时间洗成空/新时间。
+    // 内容/tags/时间仍按 LWW 正常合并。
+    if (local && !remote) {
+      winner = { ...winner, meta: local.meta ?? null, createdAt: local.createdAt ?? winner.createdAt };
+    } else if (local?.meta && !remote?.meta) {
+      winner = { ...winner, meta: local.meta };
+    }
+    if (local?.createdAt && !remote?.createdAt) {
+      winner = { ...winner, createdAt: local.createdAt };
+    }
     if (!local) {
       stats.added++;
     } else if (!remote) {
