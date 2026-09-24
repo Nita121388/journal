@@ -12,7 +12,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, basename } from 'node:path';
+import { dirname, join } from 'node:path';
 import { hostname } from 'node:os';
 
 import { serializeAll, parseAll, INBOX_FILE } from './mdformat.js';
