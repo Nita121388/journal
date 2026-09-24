@@ -10,6 +10,7 @@ import { createServer } from 'node:http';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { hostname, platform, release } from 'node:os';
 
 import { createStore } from './lib/storage.js';
 import { createLogger } from './lib/logger.js';
@@ -163,6 +164,52 @@ function checkSkillStatus() {
 
 /* ─── 同步配置（脱敏） ──────────────────────────────────── */
 
+/* ─── 来源元数据（provenance） ───────────────────────────── */
+
+const ORIGINS = ['human', 'agent-assisted', 'agent-auto'];
+
+/** 电脑信息（只算一次） */
+function deviceInfo() {
+  return { hostname: hostname(), platform: platform(), release: release() };
+}
+
+/**
+ * 从请求 body 封装来源事件。
+ * 调用方传 `{ origin, agent?, model?, project? }`，host 补 device/at。
+ * 缺省 origin → human（本地直连默认人为）。
+ * @param {object|undefined} ctx
+ * @returns {{origin:string, agent?:string, model?:string, project?:string, device:object, at:string}}
+ */
+function provenanceEvent(ctx = {}) {
+  const origin = ORIGINS.includes(ctx.origin) ? ctx.origin : 'human';
+  const ev = { origin, device: deviceInfo(), at: new Date().toISOString() };
+  if (typeof ctx.agent === 'string' && ctx.agent) ev.agent = ctx.agent;
+  if (typeof ctx.model === 'string' && ctx.model) ev.model = ctx.model;
+  if (typeof ctx.project === 'string' && ctx.project) ev.project = ctx.project;
+  return ev;
+}
+
+/** 创建时的 meta：createdBy = updatedBy = 同一事件 */
+function provenanceForCreate(ctx) {
+  const ev = provenanceEvent(ctx);
+  return { createdBy: ev, updatedBy: ev };
+}
+
+/**
+ * 更新时的 meta：createdBy 保留原值（仅首次创建时写），updatedBy 覆盖。
+ * @param {object|undefined} existingMeta — 卡片当前 meta
+ * @param {object} ctx — 本次请求的来源
+ * @param {string} [fallbackProject] — 本次未带 project 时沿用旧 project
+ */
+function provenanceForUpdate(existingMeta = null, ctx = {}, fallbackProject = null) {
+  const ev = provenanceEvent(ctx);
+  if (!ev.project && fallbackProject) ev.project = fallbackProject;
+  return {
+    createdBy: existingMeta?.createdBy ?? null,
+    updatedBy: ev,
+  };
+}
+
 /** 对外返回时隐藏密钥，只给「是否已设置」标记 */
 function maskSyncConfig(cfg = {}) {
   const out = structuredClone(cfg ?? {});
@@ -255,11 +302,18 @@ export async function createApp(store, { logger } = {}) {
           endTime: body.endTime,
           priority: body.priority,
           tags: body.tags,
+          meta: provenanceForCreate(body.provenance),
         });
         return ok(res, card);
       }
       if (cardMatch && method === 'PUT') {
-        const card = await store.updateCard(cardMatch[1], body ?? {});
+        const existing = await store.getCard(cardMatch[1]);
+        const patch = { ...(body ?? {}) };
+        // meta 不接受外部直接写：由 host 按 provenance 封装，保护 createdBy
+        delete patch.meta;
+        const fallbackProject = existing?.meta?.updatedBy?.project ?? existing?.meta?.createdBy?.project ?? null;
+        patch.meta = provenanceForUpdate(existing?.meta ?? null, body?.provenance, fallbackProject);
+        const card = await store.updateCard(cardMatch[1], patch);
         if (!card) return err(res, 404, 'NOT_FOUND', `Card ${cardMatch[1]} not found`);
         return ok(res, card);
       }
@@ -314,6 +368,7 @@ export async function createApp(store, { logger } = {}) {
           startTime: hhmm,
           endTime: hhmm ? addMinutes(hhmm, 30) : null,
           priority: body.priority,
+          meta: provenanceForCreate(body.provenance),
         }, { idPrefix: 'c_mt_' });
         return ok(res, cardToTodo(card));
       }
@@ -329,6 +384,9 @@ export async function createApp(store, { logger } = {}) {
           patch.startTime = hhmm;
           patch.endTime = hhmm ? addMinutes(hhmm, 30) : null;
         }
+        const existingTodo = await store.getCard(todoMatch[1]);
+        const fallbackProject = existingTodo?.meta?.updatedBy?.project ?? existingTodo?.meta?.createdBy?.project ?? null;
+        patch.meta = provenanceForUpdate(existingTodo?.meta ?? null, body?.provenance, fallbackProject);
         const card = await store.updateCard(todoMatch[1], patch);
         if (!card) return err(res, 404, 'NOT_FOUND', `TODO ${todoMatch[1]} not found`);
         return ok(res, cardToTodo(card));

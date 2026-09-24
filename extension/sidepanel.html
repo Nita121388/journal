@@ -34,30 +34,6 @@
           <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
         </section>
 
-        <!-- 日历 -->
-        <section id="calendar-section">
-          <label class="section-label">📅 日历</label>
-          <div class="calendar-header">
-            <button id="cal-prev" class="cal-nav-btn" aria-label="上一月">‹</button>
-            <span id="cal-month-label" class="cal-month-label"></span>
-            <button id="cal-next" class="cal-nav-btn" aria-label="下一月">›</button>
-            <button id="cal-today" class="cal-today-btn" title="回到今天">今天</button>
-          </div>
-          <div class="calendar-weekdays" aria-hidden="true">
-            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
-          </div>
-          <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="日历"></div>
-        </section>
-
-        <!-- 热力图 -->
-        <section id="heatmap-section">
-          <div class="section-header">
-            <span class="section-label">🔥 打卡</span>
-            <span id="heatmap-streak" class="section-badge"></span>
-          </div>
-          <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
-        </section>
-
         <!-- 待办（显示未安排的 task 卡片） -->
         <section id="todo-section">
           <div class="section-header">
@@ -95,6 +71,30 @@
           <ul id="todo-list"></ul>
         </section>
 
+        <!-- 日历 -->
+        <section id="calendar-section">
+          <label class="section-label">📅 日历</label>
+          <div class="calendar-header">
+            <button id="cal-prev" class="cal-nav-btn" aria-label="上一月">‹</button>
+            <span id="cal-month-label" class="cal-month-label"></span>
+            <button id="cal-next" class="cal-nav-btn" aria-label="下一月">›</button>
+            <button id="cal-today" class="cal-today-btn" title="回到今天">今天</button>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid" role="grid" aria-label="日历"></div>
+        </section>
+
+        <!-- 热力图 -->
+        <section id="heatmap-section">
+          <div class="section-header">
+            <span class="section-label">🔥 打卡</span>
+            <span id="heatmap-streak" class="section-badge"></span>
+          </div>
+          <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
+        </section>
+
         <!-- 本机 Skills（快速复制给 AI） -->
         <section id="skills-section">
           <div class="section-header">
@@ -119,10 +119,13 @@
             <button id="view-next" class="cal-nav-btn" aria-label="下一页">›</button>
             <button id="view-today" class="cal-today-btn" title="回到今天">今天</button>
           </div>
-          <div class="view-modes">
-            <button id="view-mode-month" class="view-mode-btn" data-mode="month" title="月历">📅</button>
-            <button id="view-mode-week" class="view-mode-btn" data-mode="week" title="周历">📆</button>
-            <button id="view-mode-timeline" class="view-mode-btn" data-mode="timeline" title="日程">⏱</button>
+          <div class="view-tools">
+            <button id="btn-span" class="view-span-btn" title="切换时间线范围（08-22 / 24 小时）">08–22</button>
+            <div class="view-modes">
+              <button id="view-mode-month" class="view-mode-btn" data-mode="month" title="月历">📅</button>
+              <button id="view-mode-week" class="view-mode-btn" data-mode="week" title="周历">📆</button>
+              <button id="view-mode-timeline" class="view-mode-btn" data-mode="timeline" title="日程">⏱</button>
+            </div>
           </div>
         </div>
         <div id="timeline-container">
@@ -156,6 +159,13 @@
       <div class="card-editor-tags">
         <div id="card-editor-tag-chips" class="tag-chips"></div>
         <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />
+      </div>
+      <div class="card-editor-project">
+        <label class="field">项目目录
+          <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/projects/journal" aria-label="项目目录" />
+          <datalist id="project-suggest"></datalist>
+        </label>
+        <div id="card-editor-meta" class="card-editor-meta"></div>
       </div>
       <div class="card-editor-footer">
         <button id="card-editor-cancel" class="btn-secondary">取消</button>

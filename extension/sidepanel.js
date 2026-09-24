@@ -74,6 +74,8 @@ let switchSeq = 0;
 let viewMode = localStorage.getItem('journal.viewMode') || 'timeline';
 /** 周历的基准日期（该周的某一天） */
 let weekAnchor = selectedDate;
+/** @type {'default'|'full'} 时间线展示范围：默认 08-22，full=24 小时 */
+let timelineSpan = localStorage.getItem('journal.timelineSpan') || 'default';
 
 /** @type {'active'|'all'|'done'} */
 let todoFilter = 'active';
@@ -93,6 +95,9 @@ const editorSave = document.getElementById('card-editor-save');
 const editorCancel = document.getElementById('card-editor-cancel');
 const editorClose = document.getElementById('card-editor-close');
 const editorTagInput = document.getElementById('card-editor-tag-input');
+const editorProjectInput = document.getElementById('card-editor-project');
+const editorMetaEl = document.getElementById('card-editor-meta');
+const projectSuggest = document.getElementById('project-suggest');
 editorTagInput?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
@@ -139,6 +144,45 @@ function addEditorTag(raw) {
   renderEditorTags();
 }
 
+const ORIGIN_LABEL = {
+  human: '👤 人类',
+  'agent-assisted': '🤖 人类驱动 agent',
+  'agent-auto': '⚙️ 自动',
+};
+
+/** 来源事件 → 展示文案 */
+function formatProvenance(ev, fallback = '—') {
+  if (!ev) return fallback;
+  const label = ORIGIN_LABEL[ev.origin] ?? '👤 人类';
+  const parts = [label];
+  if (ev.agent) parts.push(ev.agent);
+  if (ev.model) parts.push(ev.model);
+  if (ev.project) parts.push(ev.project);
+  if (ev.device?.hostname) parts.push(ev.device.hostname);
+  if (ev.at) parts.push(new Date(ev.at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+  return parts.join(' · ');
+}
+
+/** 历史项目目录（用于 datalist 建议） */
+function collectProjects() {
+  const set = new Set();
+  for (const c of allCardsCache ?? []) {
+    const p = c.meta?.createdBy?.project ?? c.meta?.updatedBy?.project;
+    if (p) set.add(p);
+  }
+  return [...set].sort();
+}
+
+function renderProjectSuggest() {
+  if (!projectSuggest) return;
+  projectSuggest.replaceChildren();
+  for (const p of collectProjects()) {
+    const o = document.createElement('option');
+    o.value = p;
+    projectSuggest.append(o);
+  }
+}
+
 function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
   editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
@@ -159,6 +203,23 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editorTime.textContent = date ?? (assignedDate === null ? '未安排' : selectedDate);
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
+
+  // 项目：已有卡片取现有值，否则取上次用过的
+  const lastProject = localStorage.getItem('journal.lastProject') ?? '';
+  const cardProject = (editingCardId ? (allCardsCache.find(c => c.id === editingCardId)?.meta?.updatedBy ?? null) : null)
+    ?.project ?? (editingCardId ? allCardsCache.find(c => c.id === editingCardId)?.meta?.createdBy?.project ?? null : null);
+  if (editorProjectInput) editorProjectInput.value = cardProject ?? lastProject ?? '';
+  renderProjectSuggest();
+
+  // 来源：仅编辑已有卡片时展示
+  if (editorMetaEl) {
+    const existing = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+    const m = existing?.meta ?? null;
+    editorMetaEl.textContent = m
+      ? `创建：${formatProvenance(m.createdBy)}　修改：${formatProvenance(m.updatedBy)}`
+      : '';
+  }
+
   editorOverlay.classList.remove('hidden');
   editorContent.focus();
 }
@@ -185,6 +246,7 @@ function closeEditor() {
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
+  if (editorMetaEl) editorMetaEl.textContent = '';
 }
 
 async function saveEditor() {
@@ -199,8 +261,13 @@ async function saveEditor() {
   if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
 
   try {
+    // 项目目录：本次填写的（记住供下次预填）
+    const project = editorProjectInput?.value?.trim() ?? '';
+    if (project) localStorage.setItem('journal.lastProject', project);
+    const provenance = { origin: 'human', project };
+
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end, tags: editorTags });
+      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end, tags: editorTags, provenance });
     } else {
       await createCardEntry({
         content,
@@ -210,6 +277,7 @@ async function saveEditor() {
         startTime: start,
         endTime: end,
         tags: editorTags,
+        provenance,
       });
     }
     closeEditor();
@@ -255,6 +323,7 @@ const els = {
   viewNext: document.getElementById('view-next'),
   viewToday: document.getElementById('view-today'),
   viewModeBtns: document.querySelectorAll('.view-mode-btn'),
+  btnSpan: document.getElementById('btn-span'),
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
@@ -512,9 +581,9 @@ async function renderTimeline() {
 
   const timedCards = dayCards.filter(c => getCardStartTime(c));
 
-  // 视图边界：默认 08:00–22:30，数据超出时自动扩展，避免卡片被 canvas overflow 裁掉
-  viewStartMin = DAY_START_MIN;
-  viewEndMin = DAY_END_MIN;
+  // 视图边界：默认 08:00–22:30，timelineSpan='full' 时 00:00–24:00；数据超出时自动扩展
+  viewStartMin = timelineSpan === 'full' ? 0 : DAY_START_MIN;
+  viewEndMin = timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
   for (const c of timedCards) {
     const s = timeToMinutes(getCardStartTime(c));
     const e = timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15));
@@ -558,6 +627,86 @@ async function renderTimeline() {
     const snapped = snapToQuarter(minutesToTime(mins));
     openEditor(null, snapped, date);
   });
+
+  // ── 框选创建时间范围：空白区 mousedown → 拖动 → mouseup ──
+  // 拖动后选区代表一个时间段，松手弹编辑器预填起止时间；纯点击保持单格创建
+  let sel = null; // { startMin, overlay }
+  let suppressCanvasClick = false; // 框选后抑制 canvas 的 click（避免二次创建）
+  const removeSel = () => {
+    if (sel?.overlay) sel.overlay.remove();
+    sel = null;
+  };
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // 仅左键
+    // 在卡片/marker/网格标签上按下不框选（网格线单击创建走原有逻辑）
+    if (e.target.closest('.timeline-card, .timeline-now-marker, .schedule-grid-label, .card-add-btn')) return;
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMin = viewStartMin + (y / SLOT_HEIGHT) * 15;
+    // 钳制到视图范围内
+    const startM = Math.max(viewStartMin, Math.min(viewEndMin, startMin));
+    const overlay = document.createElement('div');
+    overlay.className = 'selection-overlay';
+    overlay.style.top = `${scheduleHeight(Math.floor(startM / 15) * 15)}px`;
+    overlay.style.height = '0px';
+    canvas.append(overlay);
+    sel = { startM, overlay, dragging: false };
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!sel) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const endMin = viewStartMin + (y / SLOT_HEIGHT) * 15;
+    const endM = Math.max(viewStartMin, Math.min(viewEndMin, endMin));
+    // 拖动超过 3px 才视为框选（否则是单击）
+    const delta = endM - sel.startM;
+    if (Math.abs(delta) * (SLOT_HEIGHT / 15) < 3) return;
+    sel.dragging = true;
+    // 选区：起点到终点的 15 分钟网格范围
+    const s = Math.min(sel.startM, endM);
+    const e2 = Math.max(sel.startM, endM);
+    const sSlot = Math.floor(s / 15) * 15;
+    const eSlot = Math.ceil(e2 / 15) * 15;
+    sel.overlay.style.top = `${scheduleHeight(sSlot)}px`;
+    sel.overlay.style.height = `${scheduleHeight(eSlot) - scheduleHeight(sSlot)}px`;
+    sel.endM = endM;
+  });
+
+  canvas.addEventListener('mouseup', async (e) => {
+    if (!sel) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const endMin = viewStartMin + (y / SLOT_HEIGHT) * 15;
+    const endM = Math.max(viewStartMin, Math.min(viewEndMin, endMin));
+    const { startM, dragging } = sel;
+    removeSel();
+
+    if (!dragging) return; // 纯点击 → 走 canvas click（单格创建）
+    suppressCanvasClick = true;
+
+    // 起止时间：向上取整/向下取整到 15 分钟，保证最小 15 分钟
+    const s = Math.floor(Math.min(startM, endM) / 15) * 15;
+    const e2 = Math.max(startM, endM);
+    let eSlot = Math.ceil(e2 / 15) * 15;
+    if (eSlot - s < 15) eSlot = s + 15;
+    eSlot = Math.min(viewEndMin, eSlot);
+    if (eSlot - s < 15) s = Math.max(viewStartMin, eSlot - 15);
+
+    const startTime = minutesToTime(s);
+    openEditor(null, startTime, date);
+    // 编辑器预填结束时间（openEditor 自动算 end = start + 15，需覆盖为选区时长）
+    const endEl = document.getElementById('card-editor-end');
+    if (endEl) endEl.value = minutesToTime(eSlot);
+  });
+
+  // 框选后抑制一次 canvas click（mouseup 已触发编辑器，避免 click 再开一个）
+  canvas.addEventListener('click', (e) => {
+    if (suppressCanvasClick) { suppressCanvasClick = false; e.stopPropagation(); }
+  }, true); // capture：抢在原有 click 之前
 
   // ── 拖拽来自卡片池的卡片：根据 Y 坐标设置时间槽 ──
   canvas.addEventListener('dragover', (e) => {
@@ -1391,6 +1540,18 @@ async function init() {
       markViewMode();
       await renderRightView();
     });
+  });
+
+  // 24h / 08-22 时间线范围切换
+  const updateSpanBtn = () => {
+    if (els.btnSpan) els.btnSpan.textContent = timelineSpan === 'full' ? '24h' : '08–22';
+  };
+  updateSpanBtn();
+  els.btnSpan?.addEventListener('click', async () => {
+    timelineSpan = timelineSpan === 'full' ? 'default' : 'full';
+    localStorage.setItem('journal.timelineSpan', timelineSpan);
+    updateSpanBtn();
+    if (viewMode === 'timeline') await renderRightView();
   });
 
   // 今日当前时间 marker 每分钟更新

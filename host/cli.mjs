@@ -23,7 +23,7 @@ const BASE = process.env.JOURNAL_HOST || 'http://127.0.0.1:8765';
 async function request(method, path, body = null) {
   const url = `${BASE}${path}`;
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body !== null) opts.body = JSON.stringify(body);
+  if (body !== null) opts.body = JSON.stringify(withProvenance(method, body));
   try {
     const res = await fetch(url, opts);
     const json = await res.json();
@@ -43,6 +43,43 @@ function fail(msg, code = 'CLI_ERROR') { out({ ok: false, error: { code, message
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * 探测调用方来源上下文（provenance）。
+ * - 在 Pi 会话内运行时：PI_CODING_AGENT / PI_MODEL / PI_PROVIDER 等环境变量由宿主注入 → agent-assisted
+ * - 否则视为人类在终端直接执行 → human
+ * 可用 --origin / --agent / --model / --project 显式覆盖。
+ */
+function detectProvenance() {
+  const ctx = {
+    origin: 'human',
+    project: process.cwd(),
+  };
+  if (process.env.PI_CODING_AGENT) {
+    ctx.origin = 'agent-assisted';
+    ctx.agent = 'pi';
+    ctx.model = process.env.PI_MODEL ?? null;
+  } else if (process.env.CLAUDECODE) {
+    ctx.origin = 'agent-assisted';
+    ctx.agent = 'claude';
+    ctx.model = process.env.ANTHROPIC_MODEL ?? null;
+  }
+  // 显式覆盖
+  if (flags.origin) ctx.origin = flags.origin;
+  if (flags.agent) ctx.agent = flags.agent;
+  if (flags.model) ctx.model = flags.model;
+  if (flags.project) ctx.project = flags.project;
+  return ctx;
+}
+
+/**
+ * 为写请求注入 provenance 上下文（GET/DELETE 不带）。
+ */
+function withProvenance(method, body) {
+  if (!body || method === 'GET' || method === 'DELETE') return body;
+  if (body.provenance) return body; // 已显式指定
+  return { ...body, provenance: detectProvenance() };
 }
 
 /* ─── 参数解析 ────────────────────────────────────────── */

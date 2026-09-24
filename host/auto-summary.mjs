@@ -95,15 +95,26 @@ function extractSessionMeta(obj) {
       return {
         id: obj.payload.match(/'id': '([^']+)'/)?.[1] ?? null,
         timestamp: obj.payload.match(/'timestamp': '([^']+)'/)?.[1] ?? null,
+        cwd: obj.payload.match(/'cwd': '([^']*)'/)?.[1] ?? null,
+        model: obj.payload.match(/'model': '([^']*)'/)?.[1] ?? null,
       };
     }
-    return { id: obj.payload.id ?? null, timestamp: obj.payload.timestamp ?? null };
+    return {
+      id: obj.payload.id ?? null,
+      timestamp: obj.payload.timestamp ?? null,
+      cwd: obj.payload.cwd ?? null,
+      model: obj.payload.model ?? null,
+    };
   }
-  // Pi: { type:'session', id, timestamp }
+  // Pi: { type:'session', id, timestamp, cwd }
   if (obj.type === 'session') {
-    return { id: obj.id ?? null, timestamp: obj.timestamp ?? null };
+    return { id: obj.id ?? null, timestamp: obj.timestamp ?? null, cwd: obj.cwd ?? null, model: null };
   }
-  return { id: null, timestamp: null };
+  // Pi: { type:'model_change', modelId, provider }
+  if (obj.type === 'model_change') {
+    return { id: null, timestamp: null, cwd: null, model: obj.modelId ?? null };
+  }
+  return { id: null, timestamp: null, cwd: null, model: null };
 }
 
 /** 从消息行取 role + 文本。兼容：
@@ -185,6 +196,8 @@ function parseSessionFile(file, targetDay) {
   const lines = fd.split('\n');
   let sessionId = null;
   let startTime = null; // Date
+  let project = null; // 会话 cwd
+  let model = null;
   const userMessages = [];
 
   for (const line of lines) {
@@ -194,6 +207,10 @@ function parseSessionFile(file, targetDay) {
     const meta = extractSessionMeta(parsed);
     if (meta.id && !sessionId) sessionId = meta.id;
     if (meta.timestamp && !startTime) startTime = new Date(meta.timestamp);
+    if (meta.cwd && !project) project = meta.cwd;
+    // 取会话中最后一次 model_change（会话中途可能换模型）
+    if (meta.model && !meta.timestamp) model = meta.model;
+    if (meta.model && meta.timestamp && !model) model = meta.model;
     const msg = extractMessage(parsed);
     if (msg && msg.role === 'user' && msg.text) userMessages.push(msg.text);
   }
@@ -206,7 +223,7 @@ function parseSessionFile(file, targetDay) {
   const taskTitle = pickTaskTitle(userMessages);
   if (!taskTitle) return null;
 
-  return { sessionId, startTime, taskTitle };
+  return { sessionId, startTime, taskTitle, project, model };
 }
 
 /* ─── 幂等写入 ────────────────────────────────────────── */
@@ -283,6 +300,13 @@ async function main() {
       startTime: start,
       endTime: add30(start),
       tags: [tag],
+      // 来源：定时任务无人驱动；agent=来源会话所属 agent，model=会话模型，project=会话工作目录
+      provenance: {
+        origin: 'agent-auto',
+        agent: agentFilter,
+        model: c.model ?? null,
+        project: c.project ?? null,
+      },
     };
     if (dryRun) {
       added.push({ ...card, _dryRun: true });

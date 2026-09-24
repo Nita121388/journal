@@ -681,6 +681,27 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.view-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.view-span-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+.view-span-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
 .view-modes {
   display: flex;
   gap: 2px;
@@ -987,6 +1008,7 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
   display: flex;
   flex-direction: column;
   min-width: 120px;
+  max-width: 260px;
   width: var(--lane-w, 100%);
   border: 1px solid var(--color-card-border);
   border-left: 3px solid var(--color-accent);
@@ -1137,6 +1159,18 @@ body.is-dragging {
   line-height: 1.4;
   max-height: none;
 }
+/* 拖拽创建时间范围：蓝色半透明选区 */
+.selection-overlay {
+  position: absolute;
+  left: 0; right: 0;
+  background: rgba(66, 165, 245, 0.15);
+  border: 1.5px solid rgba(66, 165, 245, 0.55);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 5;
+  transition: none;
+}
+
 /* 拖拽移动/缩放 resize 时禁用过渡，避免实时拖动滞后。
    注意：body.is-dragging 选择器需要高于 .is-short 的特异性（0,3,1）才能压过其 transition。 */
 body.is-resizing .timeline-card.is-short,
@@ -1347,6 +1381,41 @@ body.is-dragging .timeline-card.is-short {
   min-height: 80px;
 }
 #card-editor-content:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+
+/* 编辑器：项目目录 + 来源展示 */
+.card-editor-project {
+  margin: 8px 0;
+}
+.card-editor-project .field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+#card-editor-project {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+#card-editor-project:focus { border-color: var(--color-accent); }
+
+.card-editor-meta {
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  word-break: break-all;
+}
+.card-editor-meta:empty { display: none; }
 
 .card-editor-footer {
   display: flex;

@@ -8,8 +8,24 @@
 
 /** 会被同步的卡片业务字段 */
 export const CARD_FIELDS = Object.freeze([
-  'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags',
+  'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags', 'meta',
 ]);
+
+function normalizeMeta(input) {
+  if (!input || typeof input !== 'object') return null;
+  const out = {};
+  for (const k of ['createdBy', 'updatedBy']) {
+    const v = input[k];
+    if (v && typeof v === 'object') {
+      const ev = {};
+      for (const kk of ['origin', 'agent', 'model', 'project', 'device', 'at']) {
+        if (v[kk] !== undefined && v[kk] !== null) ev[kk] = v[kk];
+      }
+      out[k] = ev;
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 function normalizeTags(input) {
   if (!Array.isArray(input)) return [];
@@ -42,6 +58,7 @@ export function normalizeCard(card = {}) {
     endTime: str(card.endTime),
     priority: PRIORITIES.includes(card.priority) ? card.priority : 'medium',
     tags: normalizeTags(card.tags),
+    meta: normalizeMeta(card.meta),
     createdAt: str(card.createdAt),
     updatedAt: str(card.updatedAt),
     deleted: Boolean(card.deleted),
@@ -129,6 +146,9 @@ export function cardsEqual(a, b) {
     const bv = nb[f];
     if (Array.isArray(av) || Array.isArray(bv)) {
       return Array.isArray(av) && Array.isArray(bv) && av.length === bv.length && av.every((v, i) => v === bv[i]);
+    }
+    if (f === 'meta') {
+      return JSON.stringify(av ?? null) === JSON.stringify(bv ?? null);
     }
     return av === bv;
   });

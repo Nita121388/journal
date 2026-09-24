@@ -113,6 +113,7 @@ export async function createCardEntry(patch = {}) {
     startTime: card.startTime ?? null,
     endTime: card.endTime ?? null,
     priority: card.priority,
+    provenance: patch.provenance,
   });
   if (!ok) throw new Error('createCard failed');
   await addCardToCache(saved);
@@ -133,7 +134,7 @@ async function addCardToCache(card) {
  * @returns {Promise<Card>}
  */
 export async function updateCardEntry(id, patch) {
-  const { ok, card } = await updateCardToHost(id, patch);
+  const { ok, card } = await updateCardToHost(id, { ...patch, provenance: patch.provenance });
   if (!ok) throw new Error('updateCard failed');
   // 兜底：若 host 返回的卡片缺少本次 patch 字段（如旧版本 host 忽略 endTime），
   // 将 patch 合并回缓存，避免界面/缓存丢失已保存的字段（防拖拽时长回弹）。

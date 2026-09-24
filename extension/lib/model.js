@@ -50,6 +50,8 @@ export function createCard(patch = {}) {
     startTime: start,
     endTime: patch.endTime ?? null,
     priority: ['high', 'medium', 'low'].includes(patch.priority) ? patch.priority : 'medium',
+    tags: patch.tags ?? [],
+    meta: patch.meta ?? null,
     createdAt: now,
     updatedAt: now,
   };

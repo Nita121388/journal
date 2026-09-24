@@ -36,6 +36,58 @@ Journal 有**两套互不相通的数据结构**，注意区分：
 - 如果用户说"记录下来/显示一下"，**默认创建 cards**；只有在明确指"日志区/段落文本"或复查归档时才动 `journals`。
 - **修改 `cards` 时，时间要落在 30 分钟整/半点刻度附近**：界面时间线只有 8:00-22:00 的 `:00`/`:30` 刻度，卡片时间离最近刻度 ≤15 分钟才会显示（如 11:07 归 11:00）。建议直接用整点/半点（如 14:00）。
 
+## ⭐ 来源元数据（provenance）——每张卡片记录「谁创建 / 谁修改」
+
+每张卡片带 `meta` 字段，记录创建者与最后修改者，用于区分**人类 / agent / 自动**：
+
+```js
+meta: {
+  createdBy: { origin, agent?, model?, project?, device, at },  // 创建时写入，永不改
+  updatedBy: { origin, agent?, model?, project?, device, at },  // 每次修改覆盖
+}
+```
+
+### origin 三档（对应「谁做的」）
+
+| origin | 含义 | agent / model |
+|---|---|---|
+| `human` | **人类**直接在扩展 UI 操作 | 无 |
+| `agent-assisted` | **人类驱动 agent** 去做的（人在对话里让 agent 写） | 有 |
+| `agent-auto` | **自动**（定时任务 auto-summary.mjs，无人干预） | 有（来源会话的 agent + 模型） |
+
+- `agent`：`pi` / `codex` / `claude` —— 哪个 agent
+- `model`：模型 id（如 `deepseek-v4-pro`、`kimi-k3`）—— 哪个模型
+- `project`：项目目录（人类在编辑器里选；agent 自动取会话 `cwd`）
+- `device`：电脑信息 `{ hostname, platform, release }`（host 自动填，跨设备同步时能看出是哪台机器写的）
+- `at`：时间
+
+### 各调用方怎么被标记（**你无需手动填**）
+
+| 调用方 | 自动标记 |
+|---|---|
+| **扩展 UI**（编辑器 / 待办） | `human` + 编辑器里选的项目 |
+| **Pi 会话内跑 CLI**（`node cli.mjs ...`） | `agent-assisted` + `agent=pi` + `model=$PI_MODEL` + `project=cwd`（自动探测环境变量） |
+| **auto-summary.mjs** | `agent-auto` + 来源 agent + 会话模型 + 会话 cwd |
+| **跨设备同步** | meta 随卡片同步，LWW 新者胜 |
+
+### 显式覆盖（可选）
+
+CLI 支持 flag 覆盖自动探测：
+
+```bash
+$CLI todo add "写周报" --origin agent-assisted --agent pi --model deepseek-v4-pro --project E:/projects/foo
+```
+
+直接调 HTTP API 时在 body 里带 `provenance`：
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/json"   -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-24","time":"14:00",
+       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/projects/journal"}}'
+```
+
+> `meta` 由 **host 封装**（补 device/at、保护 createdBy），调用方只传上下文。
+> 界面：编辑器打开已有卡片时底部显示「创建：…　修改：…」。
+
 ## 快速开始
 
 ```bash

@@ -65,10 +65,27 @@ export function normalizeCard(card = {}) {
     endTime: asString(card.endTime),
     priority: PRIORITIES.includes(card.priority) ? card.priority : 'medium',
     tags: normalizeTags(card.tags),
+    meta: parseMetaCell(card.meta),
     createdAt: asString(card.createdAt) ?? nowIso(),
     updatedAt: asString(card.updatedAt) ?? nowIso(),
     deleted: Boolean(card.deleted),
   };
+}
+
+/** 解析 meta 单元格（JSON 字符串或对象） */
+export function parseMetaCell(raw) {
+  if (!raw || typeof raw === 'object') return raw ?? null;
+  if (typeof raw !== 'string') return null;
+  try {
+    const v = JSON.parse(raw);
+    return (v && typeof v === 'object') ? v : null;
+  } catch { return null; }
+}
+
+/** 序列化 meta（undefined/null → null 存储） */
+function metaToCell(meta) {
+  if (!meta) return null;
+  return JSON.stringify(meta);
 }
 
 /** 构造新卡片（生成 id + 时间戳），字段约束同 server 既有行为 */
@@ -86,6 +103,7 @@ export function buildCard(patch = {}, { idPrefix = 'c_' } = {}) {
     endTime: patch.endTime,
     priority: patch.priority,
     tags: patch.tags,
+    meta: patch.meta,
     createdAt: patch.createdAt ?? now,
     updatedAt: patch.updatedAt ?? now,
     deleted: patch.deleted,
@@ -104,6 +122,7 @@ export function applyCardPatch(card, patch = {}) {
   if (patch.endTime !== undefined) next.endTime = asString(patch.endTime);
   if (patch.priority !== undefined && PRIORITIES.includes(patch.priority)) next.priority = patch.priority;
   if (patch.tags !== undefined) next.tags = normalizeTags(patch.tags);
+  if (patch.meta !== undefined) next.meta = parseMetaCell(patch.meta);
   next.updatedAt = nowIso();
   return next;
 }
@@ -123,7 +142,7 @@ export function validHHMM(v) { return typeof v === 'string' && HHMM_RE.test(v); 
 
 const COLUMNS = [
   'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
-  'endTime', 'priority', 'tags', 'createdAt', 'updatedAt', 'deleted',
+  'endTime', 'priority', 'tags', 'meta', 'createdAt', 'updatedAt', 'deleted',
 ];
 
 function parseTagsCell(raw) {
@@ -144,6 +163,7 @@ function rowToCard(r) {
     endTime: r.endTime ?? null,
     priority: r.priority ?? 'medium',
     tags: parseTagsCell(r.tags),
+    meta: parseMetaCell(r.meta),
     createdAt: r.createdAt ?? null,
     updatedAt: r.updatedAt ?? null,
     deleted: Boolean(r.deleted),
@@ -156,11 +176,12 @@ function cardToValues(c) {
     c.assignedDate ?? null, c.time ?? null, c.startTime ?? null,
     c.endTime ?? null, c.priority ?? 'medium',
     JSON.stringify(normalizeTags(c.tags)),
+    metaToCell(c.meta),
     c.createdAt ?? null, c.updatedAt ?? null, c.deleted ? 1 : 0,
   ];
 }
 
-/** 除 tags 外逐字段比对用（历史数据零丢失校验） */
+/** 除 tags/meta 外逐字段比对用（历史数据零丢失校验） */
 const LOSS_FIELDS = [
   'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
   'endTime', 'priority', 'createdAt', 'updatedAt', 'deleted',
@@ -210,6 +231,7 @@ function createSqliteStore(DatabaseSync, file, log) {
       endTime TEXT,
       priority TEXT NOT NULL DEFAULT 'medium',
       tags TEXT,
+      meta TEXT,
       createdAt TEXT,
       updatedAt TEXT,
       deleted INTEGER NOT NULL DEFAULT 0
@@ -239,6 +261,22 @@ function createSqliteStore(DatabaseSync, file, log) {
         const check = verifyNoDataLoss(before, after);
         if (!check.ok) {
           log.error(`tags migration failed verification (${check.reason}); restoring backup`);
+          db.close();
+          copyFileSync(backup, file);
+          throw new Error('迁移未改动数据');
+        }
+      }
+      if (!cols.includes('meta')) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backup = `${file}.pre-meta-${stamp}.bak`;
+        db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
+        log.info(`meta migration backup: ${backup}`);
+        db.exec('ALTER TABLE cards ADD COLUMN meta TEXT');
+        const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
+        const before = after.map(c => ({ ...c, meta: null }));
+        const check = verifyNoDataLoss(before, after);
+        if (!check.ok) {
+          log.error(`meta migration failed verification (${check.reason}); restoring backup`);
           db.close();
           copyFileSync(backup, file);
           throw new Error('迁移未改动数据');
