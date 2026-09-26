@@ -85,7 +85,7 @@ let todosCache = [];
 /* ─── 卡片编辑器 ──────────────────────────────────────── */
 
 const editorOverlay = document.getElementById('card-editor-overlay');
-const editorTime = document.getElementById('card-editor-time');
+const editorDate = document.getElementById('card-editor-date');
 const editorType = document.getElementById('card-editor-type');
 const editorContent = document.getElementById('card-editor-content');
 const editorStart = document.getElementById('card-editor-start');
@@ -107,16 +107,13 @@ editorTagInput?.addEventListener('keydown', (e) => {
 
 /** 正在编辑的卡片 ID（null = 新建模式） */
 let editingCardId = null;
-/** 编辑器打开时的目标时间 */
-let editorTargetTime = null;
-/** 新建时的安排日期：undefined = 用 selectedDate，null = 未安排（卡片池） */
-let editorAssignDate;
 
 /**
  * 打开卡片编辑器
  * @param {object|null} card — null = 新建，否则编辑
- * @param {string} time — HH:MM（新建时作为开始时间的种子）
+ * @param {string|null} time — HH:MM（新建时作为开始时间的种子；null/空 = 不排具体时间）
  * @param {string|null} date — YYYY-MM-DD
+ * @param {string|null} [assignedDate] — 新建时指定安排日期；null = 未安排（卡片池）
  */
 let editorTags = [];
 
@@ -187,20 +184,26 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
   editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
   renderEditorTags();
-  editorAssignDate = assignedDate;
   let start, end;
   if (card) {
-    start = getCardStartTime(card) ?? snapToQuarter(currentTime());
-    end = getCardEndTime(card) ?? addMinutes(start, 15);
+    // 已有卡片：读其时间；全天卡片（无 startTime）保持时间框为空
+    start = getCardStartTime(card) ?? null;
+    end = getCardEndTime(card) ?? null;
   } else {
-    start = snapUpToQuarter(time ?? currentTime());
-    end = addMinutes(start, 15);
+    // 新建：有种子时间则预填，否则留空（= 不排具体时间，全天卡片）
+    start = time ? snapUpToQuarter(time) : null;
+    end = start ? addMinutes(start, 15) : null;
   }
-  editorTargetTime = start;
-  if (editorStart) editorStart.value = start;
-  if (editorEnd) editorEnd.value = end;
+  if (editorStart) editorStart.value = start ?? '';
+  if (editorEnd) editorEnd.value = end ?? '';
   updateEditorDuration();
-  editorTime.textContent = date ?? (assignedDate === null ? '未安排' : selectedDate);
+  // 日期：编辑时读卡片 assignedDate；新建时用传入日期/选中日期；未安排(卡片池)则留空
+  if (editorDate) {
+    const d = card ? card.assignedDate ?? '' : (assignedDate === null ? '' : (date ?? selectedDate));
+    editorDate.value = d ?? '';
+    // 未安排标记：卡片无日期时占位提示
+    editorDate.title = d ? '' : '未安排（保存在卡片池）';
+  }
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
 
@@ -237,12 +240,12 @@ function updateEditorDuration() {
 function closeEditor() {
   editorOverlay.classList.add('hidden');
   editingCardId = null;
-  editorAssignDate = undefined;
   editorContent.value = '';
   editorTags = [];
   renderEditorTags();
   const tagInput = document.getElementById('card-editor-tag-input');
   if (tagInput) tagInput.value = '';
+  if (editorDate) { editorDate.value = ''; editorDate.title = '未安排（保存在卡片池）'; }
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
@@ -256,9 +259,18 @@ async function saveEditor() {
   if (pendingTag) addEditorTag(pendingTag);
   if (!content && !editingCardId) { closeEditor(); return; }
 
-  let start = snapToQuarter(editorStart?.value || editorTargetTime || currentTime());
-  let end = snapToQuarter(editorEnd?.value || addMinutes(start, 15));
-  if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+  // 时间：开始时间为空 → 不排具体时间（全天卡片，startTime/endTime = null）
+  const startRaw = (editorStart?.value || '').trim();
+  const endRaw = (editorEnd?.value || '').trim();
+  let start = null, end = null;
+  if (startRaw) {
+    start = snapToQuarter(startRaw);
+    end = snapToQuarter(endRaw || addMinutes(start, 15));
+    if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+  }
+
+  // 日期：date input 的值；空 = 未安排（卡片池）
+  const assignedDate = editorDate?.value || null;
 
   try {
     // 项目目录：本次填写的（记住供下次预填）
@@ -267,12 +279,12 @@ async function saveEditor() {
     const provenance = { origin: 'human', project };
 
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end, tags: editorTags, provenance });
+      await updateCardEntry(editingCardId, { content, type, assignedDate, time: start, startTime: start, endTime: end, tags: editorTags, provenance });
     } else {
       await createCardEntry({
         content,
         type,
-        assignedDate: editorAssignDate === undefined ? selectedDate : editorAssignDate,
+        assignedDate,
         time: start,
         startTime: start,
         endTime: end,

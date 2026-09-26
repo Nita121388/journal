@@ -1339,9 +1339,13 @@ body.is-dragging .timeline-card.is-short {
   margin-bottom: 10px;
 }
 
-#card-editor-time {
-  font-size: 13px;
-  font-weight: 600;
+#card-editor-date {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-surface);
   color: var(--color-text);
 }
 
