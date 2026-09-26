@@ -860,8 +860,8 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 }
 .calview-summary:hover { background: var(--color-accent-light); }
 .calview-summary.type-task { border-left-color: #42a5f5; }
-.calview-summary.type-idea { border-left-color: #ab47bc; }
 .calview-summary.type-text { border-left-color: var(--color-accent); }
+.calview-summary.type-idea { border-left-color: var(--color-accent); } /* 存量 idea 并入文本显示 */
 .calview-summary.is-done { opacity: 0.55; }
 .calview-summary.is-done .calview-summary-text { text-decoration: line-through; }
 .calview-summary-time {

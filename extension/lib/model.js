@@ -285,14 +285,13 @@ export function countCardsByDay(cards) {
  * 获取某天的卡片类型分布
  * @param {Card[]} cards
  * @param {string} date
- * @returns {{text:number, task:number, idea:number}}
+ * @returns {{text:number, task:number}}
  */
 export function getCardTypeCounts(cards, date) {
   const dayCards = getCardsByDate(cards, date);
   return {
-    text: dayCards.filter(c => c.type === 'text').length,
+    text: dayCards.filter(c => c.type === 'text' || c.type === 'idea').length,
     task: dayCards.filter(c => c.type === 'task').length,
-    idea: dayCards.filter(c => c.type === 'idea').length,
   };
 }
 

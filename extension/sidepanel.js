@@ -59,7 +59,7 @@ function shortDate(dayKey) {
 
 /** 类型图标 */
 function typeIcon(type) {
-  return type === 'task' ? '☑️' : type === 'idea' ? '💡' : '📝';
+  return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
 }
 
 /* ─── 状态 ──────────────────────────────────────────── */
@@ -414,7 +414,6 @@ function viewHeaderLabel() {
   const parts = [];
   if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
   if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
   const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
   return `📅 ${formatDateLabel(date)}${countStr}`;
 }
@@ -571,7 +570,6 @@ async function renderTimeline() {
     const parts = [];
     if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
     if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-    if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
     const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
     els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
   }
@@ -1054,7 +1052,7 @@ function buildCardFooter(card) {
   typeBtn.title = '切换类型';
   typeBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const next = card.type === 'text' ? 'task' : card.type === 'task' ? 'idea' : 'text';
+    const next = card.type === 'text' || card.type === 'idea' ? 'task' : 'text';
     await updateCardEntry(card.id, { type: next });
     await refreshAll();
   });
@@ -1132,6 +1130,31 @@ function startNowMarkerTimer() {
 /* ─── 渲染：卡片池 ──────────────────────────────────────── */
 
 let poolTagFilter = '';
+let poolTypeFilter = ''; // '' | 'text' | 'task'（'' = 全部；text 含存量 idea）
+
+/** 卡片池类型筛选条：全部 / 文本 / 任务(待办) */
+function renderPoolTypeFilters() {
+  const bar = document.createElement('li');
+  bar.className = 'cardpool-tag-filters';
+  const opts = [
+    { value: '', label: '全部' },
+    { value: 'text', label: '📝 文本' },
+    { value: 'task', label: '☑️ 任务（待办）' },
+  ];
+  for (const { value, label } of opts) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-chip' + (poolTypeFilter === value ? ' is-active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      poolTypeFilter = value;
+      renderCardPool();
+    });
+    bar.append(btn);
+  }
+  els.cardpoolList.append(bar);
+}
 
 function renderPoolTagFilters(pool) {
   const names = [...new Set(pool.flatMap(c => c.tags ?? []))];
@@ -1157,15 +1180,22 @@ function renderPoolTagFilters(pool) {
 
 async function renderCardPool() {
   const allPool = await getPoolCards();
-  const pool = poolTagFilter ? allPool.filter(c => (c.tags ?? []).includes(poolTagFilter)) : allPool;
+  const pool = allPool.filter(c => {
+    const typeOk = !poolTypeFilter || c.type === poolTypeFilter ||
+      (poolTypeFilter === 'text' && c.type === 'idea'); // idea 归入文本
+    const tagOk = !poolTagFilter || (c.tags ?? []).includes(poolTagFilter);
+    return typeOk && tagOk;
+  });
   els.cardpoolCount.textContent = allPool.length;
   els.cardpoolList.replaceChildren();
+  renderPoolTypeFilters();
   renderPoolTagFilters(allPool);
 
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    li.textContent = poolTagFilter ? '没有这个标签的卡片' : '没有未安排的卡片';
+    li.textContent = poolTagFilter ? '没有这个标签的卡片'
+      : poolTypeFilter ? '没有这个类型的卡片' : '没有未安排的卡片';
     els.cardpoolList.append(li);
     return;
   }
