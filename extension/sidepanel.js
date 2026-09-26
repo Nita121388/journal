@@ -324,6 +324,7 @@ const els = {
   viewToday: document.getElementById('view-today'),
   viewModeBtns: document.querySelectorAll('.view-mode-btn'),
   btnSpan: document.getElementById('btn-span'),
+  btnWide: document.getElementById('btn-wide-mode'),
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
@@ -1465,6 +1466,34 @@ function renderSkillStatus() {
 
 /* ─── 初始化 ────────────────────────────────────────── */
 
+const WIDE_QUERY = matchMedia('(min-width: 1100px)');
+const WIDE_STATE_KEY = 'journal.wideMode'; // 'auto' | 'on' | 'off'（缺失视为 auto）
+
+/** 当前生效的宽屏状态：手动 on/off 优先，否则跟随视口宽度 */
+function widePreference() {
+  return localStorage.getItem(WIDE_STATE_KEY); // null | 'on' | 'off' | 'auto'
+}
+function computeWide() {
+  const p = widePreference();
+  if (p === 'on') return true;
+  if (p === 'off') return false;
+  return WIDE_QUERY.matches; // auto
+}
+function applyWide() {
+  document.documentElement.classList.toggle('wide-mode', computeWide());
+  updateWideButton();
+}
+function updateWideButton() {
+  if (!els.btnWide) return;
+  const p = widePreference();
+  const isOn = computeWide();
+  els.btnWide.classList.toggle('is-on', p === 'on');
+  els.btnWide.classList.toggle('is-off', p === 'off');
+  els.btnWide.title = isOn
+    ? '宽屏布局已开启' + (p === 'on' ? '（手动）' : '（自动跟随窗口）')
+    : '宽屏布局未开启（点击切换：自动/强制宽屏/强制窄屏）';
+}
+
 async function init() {
   // 主题
   const settings = await getSettings();
@@ -1472,6 +1501,14 @@ async function init() {
       (settings.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.dataset.theme = 'dark';
   }
+
+  // 宽屏模式（初始 + 视口变化时跟随）
+  applyWide();
+  WIDE_QUERY.addEventListener('change', () => {
+    // 非手动模式才需要跟随视口变化
+    const p = widePreference();
+    if (p !== 'on' && p !== 'off') applyWide();
+  });
 
   // 拉取 host 数据
   const pulled = await pullFromHost();
@@ -1562,6 +1599,16 @@ async function init() {
 
   // 今日当前时间 marker 每分钟更新
   startNowMarkerTimer();
+
+  // ── 宽屏模式：三态循环 auto → on → off → auto ──
+  els.btnWide?.addEventListener('click', () => {
+    const order = ['auto', 'on', 'off'];
+    const cur = widePreference() || 'auto';
+    const next = order[(order.indexOf(cur) + 1) % order.length] || 'auto';
+    if (next === 'auto') localStorage.removeItem(WIDE_STATE_KEY);
+    else localStorage.setItem(WIDE_STATE_KEY, next);
+    applyWide();
+  });
 
   // ── 编辑器事件 ──
   editorSave.addEventListener('click', saveEditor);

@@ -702,6 +702,30 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+.view-wide-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.view-wide-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.view-wide-btn.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+.view-wide-btn.is-off {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
 .view-modes {
   display: flex;
   gap: 2px;
@@ -1466,3 +1490,16 @@ body.is-dragging .timeline-card.is-short {
 .toast.toast-error { background: #d32f2f; color: #fff; }
 .toast.toast-success { background: var(--color-accent); color: #fff; }
 .toast.toast-warn { background: #ef6c00; color: #fff; }
+
+/* ─── 宽屏模式（宽标签页自动铺满全宽） ───────────────
+ * 由 sidepanel.js 根据视口宽度 / 手动选择给 <html> 加 wide-mode 类。
+ * 只做增量覆盖，不改任何现有规则；窄屏下该类不会加。 */
+html.wide-mode main { max-width: none; }
+
+/* 月历/周历格子随宽变大 */
+html.wide-mode .calview-day { min-height: 110px; }
+html.wide-mode .calview-week-col { min-height: 420px; }
+html.wide-mode .calview-summary { font-size: 11px; padding: 3px 5px; }
+
+/* 时间线卡片摘要随宽显示更多文字（现有 ellipsis 继续生效） */
+html.wide-mode .timeline-card { max-width: 300px; }
