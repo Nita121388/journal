@@ -1803,6 +1803,7 @@ const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
 const tplBuilderPicker = document.getElementById('tpl-builder-picker');
 const tplPropList = document.getElementById('tpl-prop-list');
 const tplNpKey = document.getElementById('tpl-np-key');
+const tplNpLabel = document.getElementById('tpl-np-label');
 const tplNpIcon = document.getElementById('tpl-np-icon');
 const tplNpType = document.getElementById('tpl-np-type');
 const tplNpOptions = document.getElementById('tpl-np-options');
@@ -2116,6 +2117,7 @@ function prefillTemplateFromCard() {
 /** 构建器内新建属性（打开表单） */
 function openTplNewPropForm() {
   tplEditKey = null;
+  if (tplNpLabel) tplNpLabel.value = '';
   if (tplNpKey) { tplNpKey.disabled = false; tplNpKey.value = ''; }
   if (tplNpIcon) tplNpIcon.value = '';
   if (tplNpType) tplNpType.value = 'text';
@@ -2131,7 +2133,9 @@ function openTplEditProp(key) {
   if (!entry) return;
   tplEditKey = key;
   const isBuiltin = !!BUILTIN_DEFS.find(d => d.key === key);
-  if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = isBuiltin; }
+  const disp = entry.def.label && entry.def.label !== key ? entry.def.label : '';
+  if (tplNpLabel) tplNpLabel.value = disp;
+  if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = true; tplNpKey.title = '属性键在编辑时不可改（避免破坏已有数据）'; }
   if (tplNpIcon) tplNpIcon.value = (entry.def.icon && entry.def.icon !== '•') ? entry.def.icon : '';
   if (tplNpType) tplNpType.value = entry.def.type || 'text';
   if (tplNpOptions) tplNpOptions.value = (entry.def.options || []).join(',');
@@ -2139,7 +2143,7 @@ function openTplEditProp(key) {
   if (wrap) wrap.classList.toggle('hidden', entry.def.type !== 'select' && entry.def.type !== 'multi');
   if (tplNpOk) tplNpOk.textContent = isBuiltin ? '保存（仅此模板）' : '保存到属性库';
   if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
-  tplNpKey?.focus();
+  tplNpLabel?.focus();
 }
 
 /** 新建/编辑属性提交 */
@@ -2147,7 +2151,7 @@ function onTplNewPropOk() {
   if (tplEditKey) {
     const key = tplEditKey;
     const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
-    const def = { key, label: key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
+    const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
     const entry = tplBuilderState.extra.find(x => x.key === key);
     if (entry) entry.def = def;
     if (!BUILTIN_DEFS.find(d => d.key === key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
@@ -2166,7 +2170,7 @@ function addTplNewProp() {
   if (!key) { showToast('属性名不能为空', 'error'); return; }
   if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
   const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
-  const def = { key, label: key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
+  const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
   propLibrary = { ...propLibrary, [key]: def };
   void savePropLibrary();
   if (!tplBuilderState.extra.some(x => x.key === key)) tplBuilderState.extra.push({ key, def });
