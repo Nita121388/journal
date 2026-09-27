@@ -2174,3 +2174,8 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 .tpl-builder-foot { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
 .tpl-builder-spacer { flex: 1; }
+
+/* 必备属性行：锁定样式 */
+.tpl-prop-row.is-locked { background: var(--color-cell-empty); }
+.tpl-prop-row.is-locked .tpl-prop-check { opacity: .55; cursor: default; }
+.tpl-prop-row.is-locked .tpl-prop-label { color: var(--color-text); font-weight: 600; }

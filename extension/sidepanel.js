@@ -1753,16 +1753,20 @@ function applyView(view) {
 
 /* ─── 模板构建器 ───────────────────────────────────── */
 
-const BUILTIN_DEFS = [
+const REQUIRED_DEFS = [
   { key: 'title', icon: '🏷', label: '标题', type: 'text' },
+  { key: 'content', icon: '📄', label: '内容', type: 'textarea' },
+  { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
+];
+const OPTIONAL_DEFS = [
   { key: 'status', icon: '📌', label: '状态', type: 'status', options: ['none', 'todo', 'doing', 'done'] },
   { key: 'progress', icon: '📊', label: '进度', type: 'number', min: 0, max: 100 },
   { key: 'priority', icon: '⭐', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
   { key: 'assignedDate', icon: '🗓', label: '日期', type: 'date' },
   { key: 'schedule', icon: '⏱', label: '起止时间/时长', type: 'schedule' },
   { key: 'project', icon: '📁', label: '项目', type: 'text' },
-  { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
 ];
+const BUILTIN_DEFS = [...REQUIRED_DEFS, ...OPTIONAL_DEFS];
 
 const tplBuilderName = document.getElementById('tpl-builder-name');
 const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
@@ -1782,19 +1786,33 @@ function findPropDef(key) {
   return c ? { key, icon: c.icon || '•', label: c.label || key, type: c.type || 'text', options: c.options } : null;
 }
 
-/** 模板 → 有序 fields（兼容旧扁平 propsDefaults 结构） */
+/** 模板 → 有序 fields（兼容旧扁平 propsDefaults 结构；确保必备三件套 title/content/tags 在最前） */
 function normalizeTemplateFields(tpl) {
-  if (Array.isArray(tpl?.fields)) return tpl.fields;
-  const out = [];
-  const push = (key, value) => { if (value !== undefined && value !== null && value !== '') out.push({ key, value }); };
-  push('title', tpl?.title);
-  push('status', tpl?.status);
-  push('progress', tpl?.progress);
-  push('duration', tpl?.duration);
-  push('project', tpl?.project);
-  if (Array.isArray(tpl?.tags) && tpl.tags.length) push('tags', tpl.tags);
-  for (const [k, v] of Object.entries(tpl?.propsDefaults ?? {})) push(k, v);
-  return out;
+  let fields;
+  if (Array.isArray(tpl?.fields)) {
+    fields = tpl.fields.filter(f => f && f.key).map(f => ({ key: f.key, value: f.value }));
+  } else {
+    const out = [];
+    const push = (key, value) => { if (value !== undefined && value !== null && value !== '') out.push({ key, value }); };
+    push('title', tpl?.title);
+    push('status', tpl?.status);
+    push('progress', tpl?.progress);
+    push('duration', tpl?.duration);
+    push('project', tpl?.project);
+    if (Array.isArray(tpl?.tags) && tpl.tags.length) push('tags', tpl.tags);
+    for (const [k, v] of Object.entries(tpl?.propsDefaults ?? {})) push(k, v);
+    fields = out;
+  }
+  // 必备三件套兜底
+  const have = new Set(fields.map(f => f.key));
+  for (const def of REQUIRED_DEFS) {
+    if (!have.has(def.key)) fields.push({ key: def.key, value: defaultTplValue(def) });
+  }
+  // 必备在前（按 REQUIRED_DEFS 顺序），其余保持原序
+  const reqOrder = REQUIRED_DEFS.map(d => d.key);
+  const reqFields = reqOrder.map(k => fields.find(f => f.key === k)).filter(Boolean);
+  const optFields = fields.filter(f => !reqOrder.includes(f.key));
+  return [...reqFields, ...optFields];
 }
 
 /** 打开模板构建器；existing 传人则编辑既有模板 */
@@ -1820,38 +1838,52 @@ function closeTemplateBuilder() {
   tplEditingId = null;
 }
 
-/** 渲染属性清单（内建 + 属性库） */
+/** 渲染属性清单（必备 + 额外 + 自定义） */
 function renderTemplateBuilder() {
   if (!tplPropList) return;
   tplPropList.replaceChildren();
   const custom = Object.entries(propLibrary).map(([key, def]) => ({ key, icon: def.icon || '•', label: def.label || key, type: def.type || 'text', options: def.options }));
-  const g1 = document.createElement('div'); g1.className = 'tpl-group';
-  const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '内建属性';
-  g1.append(h1);
-  for (const def of BUILTIN_DEFS) g1.append(buildTplRow(def));
-  tplPropList.append(g1);
+
+  const gReq = document.createElement('div'); gReq.className = 'tpl-group';
+  const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '必备（模板自动包含）';
+  gReq.append(h1);
+  for (const def of REQUIRED_DEFS) gReq.append(buildTplRow(def, true));
+  tplPropList.append(gReq);
+
+  if (OPTIONAL_DEFS.length) {
+    const gOpt = document.createElement('div'); gOpt.className = 'tpl-group';
+    const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '额外属性（可选）';
+    gOpt.append(h2);
+    for (const def of OPTIONAL_DEFS) gOpt.append(buildTplRow(def, false));
+    tplPropList.append(gOpt);
+  }
+
   if (custom.length) {
-    const g2 = document.createElement('div'); g2.className = 'tpl-group';
-    const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '自定义属性';
-    g2.append(h2);
-    for (const def of custom) g2.append(buildTplRow(def));
-    tplPropList.append(g2);
+    const gC = document.createElement('div'); gC.className = 'tpl-group';
+    const h3 = document.createElement('div'); h3.className = 'tpl-group-title'; h3.textContent = '自定义属性（可选）';
+    gC.append(h3);
+    for (const def of custom) gC.append(buildTplRow(def, false));
+    tplPropList.append(gC);
   }
 }
 
-function buildTplRow(def) {
-  const row = document.createElement('div'); row.className = 'tpl-prop-row';
+/** 属性行；locked=true 为必备（勾选锁定、恒显示默认值编辑器） */
+function buildTplRow(def, locked = false) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row' + (locked ? ' is-locked' : '');
   const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'tpl-prop-check';
-  ck.checked = !!tplBuilderState.chosen[def.key];
-  ck.addEventListener('change', () => {
-    if (ck.checked) tplBuilderState.chosen[def.key] = def;
-    else delete tplBuilderState.chosen[def.key];
-    renderTemplateBuilder();
-  });
+  ck.checked = locked || !!tplBuilderState.chosen[def.key];
+  ck.disabled = locked;
+  if (!locked) {
+    ck.addEventListener('change', () => {
+      if (ck.checked) tplBuilderState.chosen[def.key] = def;
+      else delete tplBuilderState.chosen[def.key];
+      renderTemplateBuilder();
+    });
+  }
   const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label';
   lbl.textContent = `${def.icon || ''} ${def.label || def.key}`;
   row.append(ck, lbl);
-  if (ck.checked) {
+  if (locked || ck.checked) {
     const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value';
     valWrap.append(buildTplDefaultEditor(def));
     row.append(valWrap);
@@ -1901,6 +1933,13 @@ function buildTplDefaultEditor(def) {
     inp.addEventListener('change', () => set(inp.value.trim() ? inp.value.split(/[,，]/).map(x => x.trim()).filter(Boolean) : []));
     return inp;
   }
+  if (def.type === 'textarea') {
+    const ta = document.createElement('textarea');
+    ta.className = 'prop-input'; ta.rows = 2;
+    ta.value = (cur === null || cur === undefined) ? '' : String(cur);
+    ta.addEventListener('change', () => set(ta.value));
+    return ta;
+  }
   const inp = document.createElement('input');
   inp.type = def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : def.type === 'time' ? 'time' : 'text';
   inp.className = 'prop-input';
@@ -1922,9 +1961,12 @@ function defaultTplValue(def) {
 async function saveTemplateBuilder() {
   const name = (tplBuilderName?.value || '').trim();
   if (!name) { showToast('模板名称不能为空', 'error'); return; }
-  const fields = Object.entries(tplBuilderState.chosen)
-    .filter(([key]) => key !== 'emoji')
+  // 必备三件套始终在最前，其后才是用户勾选的额外属性
+  const requiredFields = REQUIRED_DEFS.map(def => ({ key: def.key, value: tplBuilderState.values[def.key] ?? defaultTplValue(def) }));
+  const chosenFields = Object.entries(tplBuilderState.chosen)
+    .filter(([key]) => key !== 'emoji' && !REQUIRED_DEFS.some(d => d.key === key))
     .map(([key, def]) => ({ key, value: tplBuilderState.values[key] ?? defaultTplValue(def) }));
+  const fields = [...requiredFields, ...chosenFields];
   const tpl = { id: tplEditingId || ('t_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)), name, emoji: tplBuilderState.emoji, fields };
   const templates = (await getHostMeta('templates')) || [];
   const idx = templates.findIndex(t => t.id === tpl.id);
@@ -1939,21 +1981,25 @@ function prefillTemplateFromCard() {
   const card = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
   if (!card) { showToast('没有正在编辑的卡片', ''); return; }
   tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, chosen: {}, values: {} };
-  const put = (key, value) => {
+  const putReq = (key, value) => { if (value !== undefined && value !== null && value !== '') tplBuilderState.values[key] = value; };
+  const putOpt = (key, value) => {
     if (value !== undefined && value !== null && value !== '') {
       const def = findPropDef(key);
       if (def) { tplBuilderState.chosen[key] = def; tplBuilderState.values[key] = value; }
     }
   };
-  put('title', card.title);
-  put('status', card.status);
-  put('progress', card.progress);
-  put('priority', card.priority);
-  put('assignedDate', card.assignedDate);
-  if (card.startTime || card.endTime || card.duration) put('schedule', { start: card.startTime || '', end: card.endTime || '', duration: card.duration ?? null });
-  put('project', card.project);
-  if (card.tags?.length) put('tags', card.tags);
-  for (const [k, v] of Object.entries(card.props || {})) { const def = findPropDef(k); if (def) { tplBuilderState.chosen[k] = def; tplBuilderState.values[k] = v; } }
+  // 必备三件套
+  putReq('title', card.title);
+  putReq('content', card.content);
+  putReq('tags', (card.tags && card.tags.length) ? card.tags : []);
+  // 额外属性（仅非默认值才带入）
+  putOpt('status', card.status && card.status !== 'none' ? card.status : undefined);
+  putOpt('progress', card.progress);
+  putOpt('priority', card.priority && card.priority !== 'medium' ? card.priority : undefined);
+  putOpt('assignedDate', card.assignedDate);
+  if (card.startTime || card.endTime || card.duration) putOpt('schedule', { start: card.startTime || '', end: card.endTime || '', duration: card.duration ?? null });
+  putOpt('project', card.project);
+  for (const [k, v] of Object.entries(card.props || {})) putOpt(k, v);
   if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
   if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
   renderTemplateBuilder();
@@ -2012,6 +2058,7 @@ async function createFromTemplate(tpl) {
     const v = f?.value;
     switch (f?.key) {
       case 'title': patch.title = v ?? ''; break;
+      case 'content': patch.content = v ?? ''; break;
       case 'status': patch.status = v ?? 'none'; break;
       case 'progress': patch.progress = v ?? null; break;
       case 'priority': patch.priority = v ?? 'medium'; break;
