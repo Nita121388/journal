@@ -2241,3 +2241,65 @@ html.wide-mode .timeline-card { max-width: 300px; }
   box-shadow: 0 2px 6px rgba(0,0,0,.14);
 }
 .tpl-create-cta:hover { color: #fff; background: var(--color-accent); filter: brightness(1.05); }
+
+/* ── 模板构建器美化 ── */
+.template-builder { border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.24), 0 2px 12px rgba(0,0,0,.12); }
+
+.tpl-builder-header {
+  padding: 16px 18px 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 18px 18px 0 0;
+}
+.tpl-builder-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tpl-builder-heading { font-size: 12px; font-weight: 600; color: var(--color-muted); letter-spacing: .3px; }
+.tpl-builder-header .card-editor-title { font-size: 16px; }
+
+.tpl-builder-body { padding: 12px 16px 14px; gap: 10px; }
+
+.tpl-builder-hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-cell-empty);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpl-builder-hint::before { content: '💡'; }
+
+.tpl-group {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg);
+  padding: 10px 12px;
+}
+.tpl-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--color-border);
+}
+.tpl-group:first-of-type .tpl-group-title { color: var(--color-accent); }
+.tpl-group:first-of-type .tpl-group-title::before { content: '●'; font-size: 8px; color: var(--color-accent); }
+
+.tpl-prop-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; transition: background .12s; }
+.tpl-prop-row:hover { background: var(--color-cell-empty); }
+.tpl-prop-check { accent-color: var(--color-accent); }
+.tpl-prop-label { font-size: 13px; }
+.tpl-prop-value .prop-input { padding: 4px 8px; border-radius: 7px; }
+.tpl-prop-row.is-locked { background: rgba(0,0,0,0.02); }
+.tpl-prop-row.is-locked .tpl-prop-label { font-weight: 600; }
+
+.tpl-builder-foot { padding-top: 8px; border-top: 1px solid var(--color-border); }
+.tpl-builder-foot .btn-primary { padding: 8px 18px; }
+.tpl-builder-foot .btn-secondary { padding: 8px 16px; }
+
+/* 新建属性按钮：虚线全宽 */
+#tpl-newprop-btn { width: 100%; margin-top: 2px; padding: 7px; border-radius: 9px; border-style: dashed; }
