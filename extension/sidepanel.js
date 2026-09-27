@@ -391,8 +391,15 @@ async function savePropLibrary() { await setHostMeta('propertyLibrary', propLibr
 
 /** 渲染当前卡的属性行 */
 function renderEditorProps() {
-  if (!propsList) return;
-  propsList.replaceChildren();
+  if (propsList) propsList.replaceChildren();
+  const keys = Object.keys(editorProps);
+  if (!keys.length && propsList) {
+    const hint = document.createElement('div');
+    hint.className = 'props-empty';
+    hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」';
+    propsList.append(hint);
+    return;
+  }
   for (const [key, val] of Object.entries(editorProps)) {
     const def = propLibrary[key];
     const row = document.createElement('div');
