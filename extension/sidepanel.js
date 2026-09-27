@@ -154,9 +154,11 @@ document.getElementById('btn-clear-emoji')?.addEventListener('click', (e) => {
   e.stopPropagation();
   setEditorEmoji('');
 });
-// 点击外部关闭 picker
+// 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
+// 后被点击元素脱离文档导致 closest() 失效、误关 picker）
 editorOverlay?.addEventListener('click', (e) => {
-  if (e.target.closest('.card-editor-emoji')) return;
+  const path = e.composedPath ? e.composedPath() : [e.target];
+  if (path.some(el => el?.classList?.contains('card-editor-emoji'))) return;
   closeEmojiPicker();
 });
 
