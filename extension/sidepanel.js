@@ -2119,11 +2119,12 @@ function renderTemplateMenu(templates) {
   menu.id = 'template-menu';
   menu.className = 'template-menu';
 
-  const blank = document.createElement('button');
-  blank.type = 'button'; blank.className = 'tpl-item';
-  blank.textContent = '🆕 空白卡片';
-  blank.addEventListener('click', () => { closeTemplateMenu(); openEditor(null, currentTime(), null, null); });
-  menu.append(blank);
+  if (!templates.length) {
+    const hint = document.createElement('div');
+    hint.className = 'tpl-empty';
+    hint.textContent = '还没有模板，先创建一个';
+    menu.append(hint);
+  }
 
   for (const t of templates) {
     const it = document.createElement('button');
@@ -2148,6 +2149,12 @@ function renderTemplateMenu(templates) {
     it.addEventListener('click', () => { closeTemplateMenu(); createFromTemplate(t); });
     menu.append(it);
   }
+
+  const create = document.createElement('button');
+  create.type = 'button'; create.className = 'tpl-item tpl-create' + (!templates.length ? ' tpl-create-cta' : '');
+  create.textContent = '＋ 新建模板' + (templates.length ? '…' : '');
+  create.addEventListener('click', () => { closeTemplateMenu(); openTemplateBuilder(); });
+  menu.append(create);
 
   if (templates.length) {
     const mgmt = document.createElement('button');

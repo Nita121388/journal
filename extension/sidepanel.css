@@ -2226,3 +2226,18 @@ html.wide-mode .timeline-card { max-width: 300px; }
 /* 属性定义编辑按钮 */
 .prop-edit { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 2px; }
 .prop-edit:hover { color: var(--color-accent); }
+
+/* 模板下拉：空状态提示 + 新建模板主按钮 */
+.tpl-empty { font-size: 12px; color: var(--color-muted); padding: 6px 8px; }
+.tpl-create { color: var(--color-accent); }
+.tpl-create:hover { color: var(--color-accent); background: var(--color-accent-light, var(--color-cell-empty)); }
+.tpl-create-cta {
+  color: #fff;
+  background: var(--color-accent);
+  justify-content: center;
+  font-weight: 600;
+  margin: 2px 4px 4px;
+  padding: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.14);
+}
+.tpl-create-cta:hover { color: #fff; background: var(--color-accent); filter: brightness(1.05); }
