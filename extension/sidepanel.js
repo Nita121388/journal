@@ -1932,10 +1932,12 @@ function buildExtraRow(entry) {
   const del = document.createElement('button'); del.type = 'button'; del.className = 'tpl-row-act tpl-row-del'; del.textContent = '✕'; del.title = '从模板移出';
   del.addEventListener('click', (e) => { e.stopPropagation(); removeExtra(entry.key); });
   row.append(handle, lbl, valWrap, edit, del);
-  row.addEventListener('dragstart', (e) => { tplDragKey = entry.key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); });
-  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); });
-  row.addEventListener('dragover', (e) => { e.preventDefault(); });
-  row.addEventListener('drop', (e) => { e.preventDefault(); if (tplDragKey && tplDragKey !== entry.key) reorderExtra(tplDragKey, entry.key); });
+  const clearOver = () => { row.classList.remove('is-drag-over'); };
+  row.addEventListener('dragstart', (e) => { tplDragKey = entry.key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); document.body.classList.add('tpl-dragging'); });
+  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); document.body.classList.remove('tpl-dragging'); document.querySelectorAll('.tpl-extra-row').forEach(r => r.classList.remove('is-drag-over')); });
+  row.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('is-drag-over'); });
+  row.addEventListener('dragleave', clearOver);
+  row.addEventListener('drop', (e) => { e.preventDefault(); clearOver(); if (tplDragKey && tplDragKey !== entry.key) reorderExtra(tplDragKey, entry.key); });
   return row;
 }
 
@@ -2545,6 +2547,26 @@ async function init() {
   });
 
   // ── 编辑器事件 ──
+  // ── 键盘快捷键（Esc 关闭 / ⌘⏎ 保存） ──
+  document.addEventListener('keydown', (e) => {
+    const tplOv = document.getElementById('template-builder-overlay');
+    const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
+    const tplOpen = tplOv && !tplOv.classList.contains('hidden');
+    if (!cardOpen && !tplOpen) return;
+    // 模板构建器内属性表单开着时，Esc 先关表单
+    if (tplOpen && e.key === 'Escape' && tplNewPropForm && !tplNewPropForm.classList.contains('hidden')) {
+      e.preventDefault(); tplNewPropForm.classList.add('hidden'); tplEditKey = null; return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (tplOpen) closeTemplateBuilder(); else closeEditor();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (tplOpen) void saveTemplateBuilder(); else void saveEditor();
+    }
+  });
   editorSave.addEventListener('click', saveEditor);
   editorCancel.addEventListener('click', closeEditor);
   editorClose.addEventListener('click', closeEditor);
@@ -2670,7 +2692,6 @@ async function init() {
   document.getElementById('tpl-save')?.addEventListener('click', saveTemplateBuilder);
   document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
   document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
-  document.getElementById('tpl-newprop-btn')?.addEventListener('click', openTplNewPropForm);
   document.getElementById('tpl-np-ok')?.addEventListener('click', onTplNewPropOk);
   document.getElementById('tpl-np-cancel')?.addEventListener('click', () => { if (tplNewPropForm) tplNewPropForm.classList.add('hidden'); tplEditKey = null; });
   document.getElementById('tpl-np-type')?.addEventListener('change', () => {
