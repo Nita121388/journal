@@ -2423,3 +2423,9 @@ body.tpl-dragging { user-select: none; }
 .ce-section:focus-within { border-color: var(--color-accent); }
 .tpl-prop-row:focus-within { background: var(--color-cell-empty); }
 .prop-row:focus-within { background: var(--color-cell-empty); }
+
+/* 弹窗主体细滚动条 */
+.card-editor-body::-webkit-scrollbar, .tpl-builder-body::-webkit-scrollbar { width: 8px; }
+.card-editor-body::-webkit-scrollbar-thumb, .tpl-builder-body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+.card-editor-body::-webkit-scrollbar-thumb:hover, .tpl-builder-body::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
+.card-editor-body::-webkit-scrollbar-track, .tpl-builder-body::-webkit-scrollbar-track { background: transparent; }

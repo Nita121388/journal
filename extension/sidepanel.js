@@ -1884,6 +1884,8 @@ function openTemplateBuilder(existing = null) {
   if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
   renderTemplateBuilder();
   document.getElementById('template-builder-overlay').classList.remove('hidden');
+  tplBuilderName?.focus();
+  tplBuilderName?.select();
 }
 function closeTemplateBuilder() {
   document.getElementById('template-builder-overlay').classList.add('hidden');
