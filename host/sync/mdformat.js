@@ -140,6 +140,7 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
       const p = inlineProps({
         id: c.id,
         type: c.type,
+        emoji: c.emoji,
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
         model: c.meta?.createdBy?.model,
         project: c.meta?.createdBy?.project,
@@ -161,6 +162,7 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
       const p = inlineProps({
         id: c.id,
         type: c.type,
+        emoji: c.emoji,
         end: c.endTime,
         tags: (c.tags ?? []).join(','),
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
@@ -180,6 +182,7 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
       const p = inlineProps({
         id: c.id,
         type: c.type,
+        emoji: c.emoji,
         tags: (c.tags ?? []).join(','),
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
       });
@@ -207,7 +210,7 @@ export function serializeInbox(cards = []) {
     '',
   ];
   for (const c of cards) {
-    const p = inlineProps({ id: c.id, type: c.type, tags: (c.tags ?? []).join(',') });
+    const p = inlineProps({ id: c.id, type: c.type, emoji: c.emoji, tags: (c.tags ?? []).join(',') });
     if (c.type === 'task') {
       out.push(`- ${c.done ? '[x]' : '[ ]'} ${(c.content ?? '').replace(/\n/g, ' ')}`);
     } else {
@@ -291,6 +294,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         endTime: current.end ?? null,
         priority: current.priority ?? 'medium',
         tags: current.tags ?? [],
+        emoji: current.emoji ?? '',
         updatedAt: current.at ?? mtimeIso ?? null,
         deleted: false,
       };
@@ -329,6 +333,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
       if (props.id && !current.id) current.id = props.id.trim();
       if (props.type && !current.type) current.type = props.type;
       if (props.tags) current.tags = props.tags.split(',').map(s => s.trim()).filter(Boolean);
+      if (props.emoji && !current.emoji) current.emoji = props.emoji;
       if (props.end && !current.end) current.end = props.end;
       if (props.at && !current.at) current.at = props.at;
       continue;
@@ -345,6 +350,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         type: props.type ?? 'task',
         done: /^\s*-\s+\[[xX]\]/.test(line),
         tags: props.tags ? props.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
       continue;
@@ -357,6 +363,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         Object.assign(current, {
           id: props.id,
           type: props.type ?? 'text',
+          emoji: props.emoji ?? current.emoji ?? '',
           at: props.at ?? null,
         });
         continue;
@@ -376,6 +383,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
           id: current.id ?? props.id,
           end: props.end ?? current.end,
           tags: props.tags ? props.tags.split(',').map(s => s.trim()).filter(Boolean) : (current.tags ?? []),
+          emoji: props.emoji ?? current.emoji ?? '',
           at: props.at ?? current.at,
         });
         continue;
@@ -398,6 +406,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         type: props.type ?? 'text',
         assignedDate: null,
         tags: props.tags ? props.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
     }
@@ -425,6 +434,7 @@ export function parseInbox(text, mtimeIso = null) {
         done: current.done ?? false,
         assignedDate: null,
         tags: current.tags ?? [],
+        emoji: current.emoji ?? '',
         updatedAt: current.at ?? mtimeIso ?? null,
         deleted: false,
       });
@@ -440,6 +450,7 @@ export function parseInbox(text, mtimeIso = null) {
       if (props.id && !current.id) current.id = props.id.trim();
       if (props.type && !current.type) current.type = props.type;
       if (props.tags) current.tags = props.tags.split(',').map(s => s.trim()).filter(Boolean);
+      if (props.emoji && !current.emoji) current.emoji = props.emoji;
       if (props.at && !current.at) current.at = props.at;
       continue;
     }
@@ -453,6 +464,7 @@ export function parseInbox(text, mtimeIso = null) {
         type: props.type ?? (/^\s*-\s+\[[ xX]\]/.test(line) ? 'task' : 'text'),
         done: /^\s*-\s+\[[xX]\]/.test(line),
         tags: props.tags ? props.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+        emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
       continue;

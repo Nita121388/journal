@@ -65,6 +65,7 @@ export function normalizeCard(card = {}) {
     endTime: asString(card.endTime),
     priority: PRIORITIES.includes(card.priority) ? card.priority : 'medium',
     tags: normalizeTags(card.tags),
+    emoji: typeof card.emoji === 'string' && card.emoji ? card.emoji : '',
     meta: parseMetaCell(card.meta),
     createdAt: asString(card.createdAt) ?? nowIso(),
     updatedAt: asString(card.updatedAt) ?? nowIso(),
@@ -103,6 +104,7 @@ export function buildCard(patch = {}, { idPrefix = 'c_' } = {}) {
     endTime: patch.endTime,
     priority: patch.priority,
     tags: patch.tags,
+    emoji: patch.emoji,
     meta: patch.meta,
     createdAt: patch.createdAt ?? now,
     updatedAt: patch.updatedAt ?? now,
@@ -122,6 +124,7 @@ export function applyCardPatch(card, patch = {}) {
   if (patch.endTime !== undefined) next.endTime = asString(patch.endTime);
   if (patch.priority !== undefined && PRIORITIES.includes(patch.priority)) next.priority = patch.priority;
   if (patch.tags !== undefined) next.tags = normalizeTags(patch.tags);
+  if (patch.emoji !== undefined) next.emoji = typeof patch.emoji === 'string' ? patch.emoji : '';
   if (patch.meta !== undefined) next.meta = parseMetaCell(patch.meta);
   next.updatedAt = nowIso();
   return next;
@@ -142,7 +145,7 @@ export function validHHMM(v) { return typeof v === 'string' && HHMM_RE.test(v); 
 
 const COLUMNS = [
   'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
-  'endTime', 'priority', 'tags', 'meta', 'createdAt', 'updatedAt', 'deleted',
+  'endTime', 'priority', 'tags', 'emoji', 'meta', 'createdAt', 'updatedAt', 'deleted',
 ];
 
 function parseTagsCell(raw) {
@@ -163,6 +166,7 @@ function rowToCard(r) {
     endTime: r.endTime ?? null,
     priority: r.priority ?? 'medium',
     tags: parseTagsCell(r.tags),
+    emoji: typeof r.emoji === 'string' && r.emoji ? r.emoji : '',
     meta: parseMetaCell(r.meta),
     createdAt: r.createdAt ?? null,
     updatedAt: r.updatedAt ?? null,
@@ -176,6 +180,7 @@ function cardToValues(c) {
     c.assignedDate ?? null, c.time ?? null, c.startTime ?? null,
     c.endTime ?? null, c.priority ?? 'medium',
     JSON.stringify(normalizeTags(c.tags)),
+    typeof c.emoji === 'string' && c.emoji ? c.emoji : '',
     metaToCell(c.meta),
     c.createdAt ?? null, c.updatedAt ?? null, c.deleted ? 1 : 0,
   ];
@@ -277,6 +282,22 @@ function createSqliteStore(DatabaseSync, file, log) {
         const check = verifyNoDataLoss(before, after);
         if (!check.ok) {
           log.error(`meta migration failed verification (${check.reason}); restoring backup`);
+          db.close();
+          copyFileSync(backup, file);
+          throw new Error('迁移未改动数据');
+        }
+      }
+      if (!cols.includes('emoji')) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backup = `${file}.pre-emoji-${stamp}.bak`;
+        db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
+        log.info(`emoji migration backup: ${backup}`);
+        db.exec('ALTER TABLE cards ADD COLUMN emoji TEXT');
+        const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
+        const before = after.map(c => ({ ...c, emoji: '' }));
+        const check = verifyNoDataLoss(before, after);
+        if (!check.ok) {
+          log.error(`emoji migration failed verification (${check.reason}); restoring backup`);
           db.close();
           copyFileSync(backup, file);
           throw new Error('迁移未改动数据');

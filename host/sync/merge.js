@@ -58,6 +58,7 @@ export function normalizeCard(card = {}) {
     endTime: str(card.endTime),
     priority: PRIORITIES.includes(card.priority) ? card.priority : 'medium',
     tags: normalizeTags(card.tags),
+    emoji: str(card.emoji) ?? '',
     meta: normalizeMeta(card.meta),
     createdAt: str(card.createdAt),
     updatedAt: str(card.updatedAt),

@@ -546,6 +546,12 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 .todo-priority-dot.medium { background: #fdd835; }
 .todo-priority-dot.low { background: #4caf50; }
 
+.todo-emoji {
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
 .todo-check {
   width: 13px; height: 13px; flex-shrink: 0;
   accent-color: var(--color-accent); cursor: pointer;
@@ -809,7 +815,7 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
   background: var(--color-bg);
   display: flex;
   flex-direction: column;
-  min-height: 320px;
+  min-height: 380px;
   overflow: hidden;
   transition: border-color 0.15s;
 }
@@ -1400,6 +1406,142 @@ body.is-dragging .timeline-card.is-short {
   color: var(--color-accent);
 }
 
+/* 编辑器：emoji 图标选择行 */
+.card-editor-emoji {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.emoji-preview {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+.emoji-pick-btn {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.emoji-pick-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.emoji-free-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.emoji-clear-btn {
+  border: none;
+  background: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.emoji-clear-btn:hover { color: #e53935; background: rgba(229,57,53,0.08); }
+
+/* emoji picker 弹层 */
+.emoji-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  border-radius: 10px;
+}
+.emoji-picker.hidden { display: none; }
+.ep-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.ep-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.ep-search .mag { font-size: 12px; opacity: 0.6; }
+.ep-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  font-family: var(--font);
+  background: transparent;
+  color: var(--color-text);
+}
+.ep-body { max-height: 260px; overflow-y: auto; padding: 8px; }
+.ep-recent { margin-bottom: 8px; }
+.ep-recent-head {
+  font-size: 10px;
+  color: var(--color-muted);
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.ep-recent-grid { display: flex; flex-wrap: wrap; gap: 2px; }
+.ep-cats {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.ep-cat {
+  border: none;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.ep-cat.active { opacity: 1; background: var(--color-cell-empty); }
+.ep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 2px; }
+.ep-emoji {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, transform 0.1s;
+  font-family: inherit;
+}
+.ep-emoji:hover { background: var(--color-cell-empty); transform: scale(1.1); }
+.ep-emoji.selected { background: var(--color-accent-light); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.ep-empty { font-size: 12px; color: var(--color-muted); padding: 16px; text-align: center; }
+
 #card-editor-content {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -1502,7 +1644,7 @@ html.wide-mode main { max-width: none; }
 
 /* 月历/周历格子随宽变大 */
 html.wide-mode .calview-day { min-height: 110px; }
-html.wide-mode .calview-week-col { min-height: 420px; }
+html.wide-mode .calview-week-col { min-height: 480px; }
 html.wide-mode .calview-summary { font-size: 11px; padding: 3px 5px; }
 
 /* 时间线卡片摘要随宽显示更多文字（现有 ellipsis 继续生效） */

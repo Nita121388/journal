@@ -17,6 +17,7 @@ import {
   getTodos, saveTodos, getSettings,
 } from './lib/store.js';
 import { pullFromHost, startHostSync } from './lib/host-sync.js';
+import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -57,8 +58,9 @@ function shortDate(dayKey) {
   return dayKey;
 }
 
-/** 类型图标 */
-function typeIcon(type) {
+/** 类型图标：卡片有自定义 emoji 时优先用 emoji，否则用类型默认 */
+function typeIcon(type, emoji = '') {
+  if (emoji) return emoji;
   return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
 }
 
@@ -98,11 +100,64 @@ const editorTagInput = document.getElementById('card-editor-tag-input');
 const editorProjectInput = document.getElementById('card-editor-project');
 const editorMetaEl = document.getElementById('card-editor-meta');
 const projectSuggest = document.getElementById('project-suggest');
+const emojiPreview = document.getElementById('emoji-preview');
+const emojiPicker = document.getElementById('emoji-picker');
+const emojiFreeInput = document.getElementById('emoji-free-input');
 editorTagInput?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
   addEditorTag(editorTagInput.value);
   editorTagInput.value = '';
+});
+
+/** 编辑器当前选择的 emoji（'' = 用类型默认图标） */
+let editorEmoji = '';
+let emojiPickerCleanup = null;
+
+function setEditorEmoji(emoji) {
+  editorEmoji = emoji || '';
+  if (emojiPreview) emojiPreview.textContent = editorEmoji || typeIcon(editorType.value);
+  if (emojiFreeInput) emojiFreeInput.value = editorEmoji;
+}
+
+function openEmojiPicker() {
+  if (!emojiPicker) return;
+  emojiPicker.classList.remove('hidden');
+  emojiPickerCleanup?.();
+  emojiPickerCleanup = renderEmojiPicker(emojiPicker, (char) => {
+    setEditorEmoji(char);
+    recordRecentEmoji(char);
+    closeEmojiPicker();
+  }, { selected: editorEmoji });
+}
+
+function closeEmojiPicker() {
+  if (emojiPicker) emojiPicker.classList.add('hidden');
+  emojiPickerCleanup?.();
+  emojiPickerCleanup = null;
+}
+
+document.getElementById('btn-pick-emoji')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (emojiPicker?.classList.contains('hidden')) openEmojiPicker();
+  else closeEmojiPicker();
+});
+editorType?.addEventListener('change', () => {
+  // 未设置自定义 emoji 时，预览跟随类型默认图标
+  if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
+});
+emojiFreeInput?.addEventListener('input', () => {
+  const v = emojiFreeInput.value.trim();
+  if (v) { setEditorEmoji(v); recordRecentEmoji(v); }
+});
+document.getElementById('btn-clear-emoji')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setEditorEmoji('');
+});
+// 点击外部关闭 picker
+editorOverlay?.addEventListener('click', (e) => {
+  if (e.target.closest('.card-editor-emoji')) return;
+  closeEmojiPicker();
 });
 
 /** 正在编辑的卡片 ID（null = 新建模式） */
@@ -206,6 +261,8 @@ function openEditor(card, time, date, assignedDate = undefined) {
   }
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
+  setEditorEmoji(card?.emoji ?? '');
+  closeEmojiPicker();
 
   // 项目：已有卡片取现有值，否则取上次用过的
   const lastProject = localStorage.getItem('journal.lastProject') ?? '';
@@ -250,6 +307,8 @@ function closeEditor() {
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
   if (editorMetaEl) editorMetaEl.textContent = '';
+  setEditorEmoji('');
+  closeEmojiPicker();
 }
 
 async function saveEditor() {
@@ -279,7 +338,7 @@ async function saveEditor() {
     const provenance = { origin: 'human', project };
 
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, assignedDate, time: start, startTime: start, endTime: end, tags: editorTags, provenance });
+      await updateCardEntry(editingCardId, { content, type, assignedDate, time: start, startTime: start, endTime: end, tags: editorTags, emoji: editorEmoji, provenance });
     } else {
       await createCardEntry({
         content,
@@ -289,6 +348,7 @@ async function saveEditor() {
         startTime: start,
         endTime: end,
         tags: editorTags,
+        emoji: editorEmoji,
         provenance,
       });
     }
@@ -557,7 +617,7 @@ function buildCalSummary(card) {
   el.className = `calview-summary type-${card.type || 'text'}` + (card.type === 'task' && card.done ? ' is-done' : '');
   const start = getCardStartTime(card);
   const timeHtml = start ? `<span class="calview-summary-time">${start}</span>` : '';
-  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
+  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     openEditor(card, start ?? currentTime(), card.assignedDate ?? selectedDate);
@@ -872,7 +932,7 @@ function renderTimelineCard(card, lane = null, allday = false) {
   header.className = 'card-header';
   header.innerHTML = `
     ${originBadge}
-    <span class="card-type-icon">${typeIcon(card.type)}</span>
+    <span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span>
     <span class="card-time">${allday ? '全天' : isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
     <span class="card-meta">${!allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''}</span>
   `;
@@ -1234,7 +1294,7 @@ async function renderCardPool() {
 
     const icon = document.createElement('span');
     icon.className = 'cardpool-type-icon';
-    icon.textContent = typeIcon(card.type);
+    icon.textContent = typeIcon(card.type, card.emoji);
 
     const text = document.createElement('span');
     text.className = 'cardpool-text';
@@ -1388,6 +1448,11 @@ function renderTodoList() {
     const dot = document.createElement('span');
     dot.className = `todo-priority-dot ${t.priority}`;
 
+    // 自定义 emoji 图标（无则 ☑️）
+    const icon = document.createElement('span');
+    icon.className = 'todo-emoji';
+    icon.textContent = t.emoji || '☑️';
+
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.className = 'todo-check'; cb.checked = t.done;
 
@@ -1395,7 +1460,7 @@ function renderTodoList() {
     title.className = 'todo-title';
     title.textContent = t.title;
 
-    li.append(dot, cb, title);
+    li.append(dot, icon, cb, title);
 
     if (t.due) {
       const dueEl = document.createElement('span');

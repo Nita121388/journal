@@ -51,6 +51,7 @@ export function createCard(patch = {}) {
     endTime: patch.endTime ?? null,
     priority: ['high', 'medium', 'low'].includes(patch.priority) ? patch.priority : 'medium',
     tags: patch.tags ?? [],
+    emoji: typeof patch.emoji === 'string' ? patch.emoji : '',
     meta: patch.meta ?? null,
     createdAt: now,
     updatedAt: now,

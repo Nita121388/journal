@@ -22,7 +22,7 @@ const sample = () => ([
     type: 'text',
     assignedDate: '2026-09-24',
     time: '09:00', startTime: '09:00', endTime: '09:30',
-    priority: 'medium', tags: ['journal'], deleted: false,
+    priority: 'medium', tags: ['journal'], emoji: '🔧', deleted: false,
     meta: { createdBy: { origin: 'agent-assisted', agent: 'pi', model: 'deepseek-v4-pro', project: 'E:/projects/journal' } },
   },
   {
@@ -68,6 +68,7 @@ test('往返：id / 内容 / 时间 / tags 全部保留', () => {
   assert.equal(timeline.startTime, '09:00');
   assert.equal(timeline.endTime, '09:30');
   assert.deepEqual(timeline.tags, ['journal']);
+  assert.equal(timeline.emoji, '🔧'); // emoji 往返保留
 
   const todo = byId.get('c_456');
   assert.equal(todo.type, 'task');
@@ -108,7 +109,7 @@ test('不同内容 → 不同 id（不误合并）', () => {
 
 test('inbox 往返：卡片池（无日期）', () => {
   const cards = [
-    { id: 'c_pool1', content: '未安排的想法', type: 'text', assignedDate: null, tags: ['idea'], priority: 'medium', deleted: false },
+    { id: 'c_pool1', content: '未安排的想法', type: 'text', assignedDate: null, tags: ['idea'], priority: 'medium', emoji: '💡', deleted: false },
     { id: 'c_pool2', content: '卡片池待办', type: 'task', done: true, assignedDate: null, tags: [], priority: 'low', deleted: false },
   ];
   const md = serializeInbox(cards);
@@ -117,6 +118,7 @@ test('inbox 往返：卡片池（无日期）', () => {
   const byId = new Map(parsed.map(c => [c.id, c]));
   assert.equal(byId.get('c_pool1').content, '未安排的想法');
   assert.equal(byId.get('c_pool1').assignedDate, null);
+  assert.equal(byId.get('c_pool1').emoji, '💡'); // emoji 往返保留
   assert.equal(byId.get('c_pool2').done, true);
 });
 

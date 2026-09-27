@@ -63,6 +63,39 @@ test('tags：规范化 + 旧库加列不丢历史数据', async () => {
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('emoji：旧库加列不丢历史数据 + CRUD 往返', async () => {
+  const dir = tmp();
+  const file = join(dir, 'old.db');
+  const raw = new DatabaseSync(file);
+  raw.exec(`CREATE TABLE cards (
+    id TEXT PRIMARY KEY, content TEXT, type TEXT, done INTEGER, assignedDate TEXT,
+    time TEXT, startTime TEXT, endTime TEXT, priority TEXT,
+    tags TEXT, meta TEXT, createdAt TEXT, updatedAt TEXT, deleted INTEGER
+  );
+  INSERT INTO cards (id, content, type, done, priority, deleted, createdAt, updatedAt)
+  VALUES ('c_old2', '历史内容', 'text', 0, 'high', 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');`);
+  raw.close();
+
+  const s = await createStore({ file });
+  try {
+    // 旧库无 emoji 列 → 自动加列，数据零丢失
+    const card = await s.getCard('c_old2');
+    assert.equal(card.content, '历史内容');
+    assert.equal(card.emoji, '');
+
+    // 设置 emoji 后持久化
+    const updated = await s.updateCard('c_old2', { emoji: '🚀' });
+    assert.equal(updated.emoji, '🚀');
+    const again = await createStore({ file });
+    assert.equal((await again.getCard('c_old2')).emoji, '🚀');
+    await again.close();
+
+    // 清空 emoji → 回默认 ''
+    const cleared = await s.updateCard('c_old2', { emoji: '' });
+    assert.equal(cleared.emoji, '');
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('verifyNoDataLoss：字段变化判失败', () => {
   const before = [{ id: 'a', content: 'x', type: 'text', done: false, assignedDate: null, time: null, startTime: null, endTime: null, priority: 'medium', createdAt: 't', updatedAt: 't', deleted: false }];
   const ok = verifyNoDataLoss(before, before.map(c => ({ ...c, tags: [] })));

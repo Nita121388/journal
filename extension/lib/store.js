@@ -207,6 +207,7 @@ export async function getTodos() {
       title: c.content,
       done: c.done,
       due: c.assignedDate,
+      emoji: typeof c.emoji === 'string' ? c.emoji : '',
       priority: ['high', 'medium', 'low'].includes(c.priority) ? c.priority : 'medium',
     }));
 }

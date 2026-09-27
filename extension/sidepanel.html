@@ -155,6 +155,13 @@
         <label>结束 <input type="time" id="card-editor-end" step="900" /></label>
         <span id="card-editor-duration" class="card-editor-duration"></span>
       </div>
+      <div class="card-editor-emoji">
+        <span id="emoji-preview" class="emoji-preview" title="卡片图标">📝</span>
+        <button id="btn-pick-emoji" type="button" class="emoji-pick-btn" title="选择图标 emoji">🎨 选图标</button>
+        <input type="text" id="emoji-free-input" class="emoji-free-input" maxlength="8" placeholder="或输入任意 emoji…" aria-label="自由输入 emoji" autocomplete="off" />
+        <button id="btn-clear-emoji" type="button" class="emoji-clear-btn" title="清除，恢复类型默认图标">✕</button>
+        <div id="emoji-picker" class="emoji-picker hidden"></div>
+      </div>
       <textarea id="card-editor-content" placeholder="写下你的想法..." rows="4"></textarea>
       <div class="card-editor-tags">
         <div id="card-editor-tag-chips" class="tag-chips"></div>
