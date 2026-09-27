@@ -113,6 +113,53 @@
   <!-- 操作提示 toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
+  <!-- 模板构建器弹窗 -->
+  <div id="template-builder-overlay" class="overlay hidden">
+    <div class="template-builder">
+      <div class="card-editor-accent"></div>
+      <div class="tpl-builder-header">
+        <div class="ce-tile-wrap">
+          <button id="tpl-builder-tile" type="button" class="ce-emoji-tile" title="模板默认图标"><span id="tpl-builder-emoji" class="emoji-preview">🗂</span></button>
+          <div id="tpl-builder-picker" class="emoji-picker hidden"></div>
+        </div>
+        <input id="tpl-builder-name" type="text" class="card-editor-title" placeholder="模板名称…" aria-label="模板名称" autocomplete="off" />
+        <button id="tpl-builder-close" class="card-editor-close-btn" aria-label="关闭">✕</button>
+      </div>
+      <div class="tpl-builder-body">
+        <div class="tpl-builder-hint">▍勾选要加入模板的属性（默认全空 = 空白模板），并可为每个属性设默认值</div>
+        <div id="tpl-prop-list" class="tpl-prop-list"></div>
+        <button id="tpl-newprop-btn" class="props-add-btn" type="button">＋ 新建属性…</button>
+        <div id="tpl-newprop-form" class="prop-form hidden">
+          <div class="prop-form-row">
+            <label>名称 <input id="tpl-np-key" type="text" placeholder="client" aria-label="属性名" /></label>
+            <label>图标 <input id="tpl-np-icon" type="text" maxlength="8" placeholder="🧑" aria-label="图标" /></label>
+            <label>类型
+              <select id="tpl-np-type" aria-label="属性类型">
+                <option value="text">文本</option>
+                <option value="number">数字</option>
+                <option value="select">选择</option>
+                <option value="multi">多选</option>
+                <option value="date">日期</option>
+                <option value="time">时间</option>
+                <option value="checkbox">勾选</option>
+              </select>
+            </label>
+          </div>
+          <div class="prop-form-actions">
+            <button id="tpl-np-ok" class="btn-primary" type="button">加入模板</button>
+            <button id="tpl-np-cancel" class="btn-secondary" type="button">取消</button>
+          </div>
+        </div>
+        <div class="tpl-builder-foot">
+          <button id="tpl-prefill" class="btn-secondary" type="button" title="以当前卡片为蓝本，自动勾选并填入已有值">从当前卡预填</button>
+          <span class="tpl-builder-spacer"></span>
+          <button id="tpl-cancel" class="btn-secondary" type="button">取消</button>
+          <button id="tpl-save" class="btn-primary" type="button">保存模板</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 卡片编辑弹窗 -->
   <div id="card-editor-overlay" class="overlay hidden">
     <div class="card-editor">

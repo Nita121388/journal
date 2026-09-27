@@ -1751,6 +1751,247 @@ function applyView(view) {
   renderCardPool();
 }
 
+/* ─── 模板构建器 ───────────────────────────────────── */
+
+const BUILTIN_DEFS = [
+  { key: 'title', icon: '🏷', label: '标题', type: 'text' },
+  { key: 'status', icon: '📌', label: '状态', type: 'status', options: ['none', 'todo', 'doing', 'done'] },
+  { key: 'progress', icon: '📊', label: '进度', type: 'number', min: 0, max: 100 },
+  { key: 'priority', icon: '⭐', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
+  { key: 'assignedDate', icon: '🗓', label: '日期', type: 'date' },
+  { key: 'schedule', icon: '⏱', label: '起止时间/时长', type: 'schedule' },
+  { key: 'project', icon: '📁', label: '项目', type: 'text' },
+  { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
+];
+
+const tplBuilderName = document.getElementById('tpl-builder-name');
+const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
+const tplBuilderPicker = document.getElementById('tpl-builder-picker');
+const tplPropList = document.getElementById('tpl-prop-list');
+const tplNewPropBtn = document.getElementById('tpl-newprop-btn');
+const tplNewPropForm = document.getElementById('tpl-newprop-form');
+let tplBuilderState = { name: '', emoji: '🗂', chosen: {}, values: {} };
+let tplBuilderCleanup = null;
+let tplEditingId = null; // 编辑既有模板时的 id
+
+/** 找属性定义：内建 或 属性库 */
+function findPropDef(key) {
+  const b = BUILTIN_DEFS.find(d => d.key === key);
+  if (b) return b;
+  const c = propLibrary[key];
+  return c ? { key, icon: c.icon || '•', label: c.label || key, type: c.type || 'text', options: c.options } : null;
+}
+
+/** 模板 → 有序 fields（兼容旧扁平 propsDefaults 结构） */
+function normalizeTemplateFields(tpl) {
+  if (Array.isArray(tpl?.fields)) return tpl.fields;
+  const out = [];
+  const push = (key, value) => { if (value !== undefined && value !== null && value !== '') out.push({ key, value }); };
+  push('title', tpl?.title);
+  push('status', tpl?.status);
+  push('progress', tpl?.progress);
+  push('duration', tpl?.duration);
+  push('project', tpl?.project);
+  if (Array.isArray(tpl?.tags) && tpl.tags.length) push('tags', tpl.tags);
+  for (const [k, v] of Object.entries(tpl?.propsDefaults ?? {})) push(k, v);
+  return out;
+}
+
+/** 打开模板构建器；existing 传人则编辑既有模板 */
+function openTemplateBuilder(existing = null) {
+  tplEditingId = existing?.id ?? null;
+  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂'), chosen: {}, values: {} };
+  if (existing) {
+    for (const f of normalizeTemplateFields(existing)) {
+      const def = findPropDef(f.key);
+      if (def) { tplBuilderState.chosen[f.key] = def; tplBuilderState.values[f.key] = f.value; }
+    }
+  }
+  if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
+  if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
+  renderTemplateBuilder();
+  document.getElementById('template-builder-overlay').classList.remove('hidden');
+}
+function closeTemplateBuilder() {
+  document.getElementById('template-builder-overlay').classList.add('hidden');
+  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
+  tplBuilderCleanup?.();
+  tplEditingId = null;
+}
+
+/** 渲染属性清单（内建 + 属性库） */
+function renderTemplateBuilder() {
+  if (!tplPropList) return;
+  tplPropList.replaceChildren();
+  const custom = Object.entries(propLibrary).map(([key, def]) => ({ key, icon: def.icon || '•', label: def.label || key, type: def.type || 'text', options: def.options }));
+  const g1 = document.createElement('div'); g1.className = 'tpl-group';
+  const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '内建属性';
+  g1.append(h1);
+  for (const def of BUILTIN_DEFS) g1.append(buildTplRow(def));
+  tplPropList.append(g1);
+  if (custom.length) {
+    const g2 = document.createElement('div'); g2.className = 'tpl-group';
+    const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '自定义属性';
+    g2.append(h2);
+    for (const def of custom) g2.append(buildTplRow(def));
+    tplPropList.append(g2);
+  }
+}
+
+function buildTplRow(def) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row';
+  const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'tpl-prop-check';
+  ck.checked = !!tplBuilderState.chosen[def.key];
+  ck.addEventListener('change', () => {
+    if (ck.checked) tplBuilderState.chosen[def.key] = def;
+    else delete tplBuilderState.chosen[def.key];
+    renderTemplateBuilder();
+  });
+  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label';
+  lbl.textContent = `${def.icon || ''} ${def.label || def.key}`;
+  row.append(ck, lbl);
+  if (ck.checked) {
+    const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value';
+    valWrap.append(buildTplDefaultEditor(def));
+    row.append(valWrap);
+  }
+  return row;
+}
+
+/** 按属性类型构建默认值编辑器，改动写入 tplBuilderState.values */
+function buildTplDefaultEditor(def) {
+  const key = def.key;
+  const set = (v) => { tplBuilderState.values[key] = v; };
+  const cur = tplBuilderState.values[key];
+  if (def.type === 'status' || def.type === 'select') {
+    const sel = document.createElement('select'); sel.className = 'prop-input';
+    sel.append(new Option('', ''));
+    for (const o of def.options || []) sel.append(new Option(o, o));
+    sel.value = cur ?? '';
+    sel.addEventListener('change', () => set(sel.value));
+    return sel;
+  }
+  if (def.type === 'multi') {
+    const sel = document.createElement('select'); sel.className = 'prop-input'; sel.multiple = true;
+    for (const o of def.options || []) sel.append(new Option(o, o));
+    if (Array.isArray(cur)) for (const op of sel.options) op.selected = cur.includes(op.value);
+    sel.addEventListener('change', () => set([...sel.selectedOptions].map(o => o.value)));
+    return sel;
+  }
+  if (def.type === 'checkbox') {
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'prop-input'; cb.checked = Boolean(cur);
+    cb.addEventListener('change', () => set(cb.checked));
+    return cb;
+  }
+  if (def.type === 'schedule') {
+    const v = cur && typeof cur === 'object' ? cur : {};
+    const w = document.createElement('div'); w.className = 'tpl-schedule';
+    const s = document.createElement('input'); s.type = 'time'; s.className = 'prop-input'; s.value = v.start || ''; s.title = '开始';
+    const e = document.createElement('input'); e.type = 'time'; e.className = 'prop-input'; e.value = v.end || ''; e.title = '结束';
+    const d = document.createElement('input'); d.type = 'number'; d.className = 'prop-input'; d.min = 0; d.value = v.duration ?? ''; d.title = '时长(分)';
+    const sync = () => set({ start: s.value, end: e.value, duration: d.value === '' ? null : Number(d.value) });
+    [s, e, d].forEach(x => x.addEventListener('change', sync));
+    w.append(s, e, d);
+    return w;
+  }
+  if (def.type === 'tags') {
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'prop-input'; inp.placeholder = '逗号分隔';
+    inp.value = Array.isArray(cur) ? cur.join(', ') : (cur ?? '');
+    inp.addEventListener('change', () => set(inp.value.trim() ? inp.value.split(/[,，]/).map(x => x.trim()).filter(Boolean) : []));
+    return inp;
+  }
+  const inp = document.createElement('input');
+  inp.type = def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : def.type === 'time' ? 'time' : 'text';
+  inp.className = 'prop-input';
+  inp.value = (cur === null || cur === undefined) ? '' : String(cur);
+  inp.addEventListener('change', () => set(inp.type === 'number' ? Number(inp.value) : inp.value));
+  return inp;
+}
+
+/** 默认值兜底 */
+function defaultTplValue(def) {
+  if (def.type === 'status' || def.type === 'select') return '';
+  if (def.type === 'checkbox') return false;
+  if (def.type === 'tags') return [];
+  if (def.type === 'schedule') return null;
+  return '';
+}
+
+/** 保存 / 更新模板 */
+async function saveTemplateBuilder() {
+  const name = (tplBuilderName?.value || '').trim();
+  if (!name) { showToast('模板名称不能为空', 'error'); return; }
+  const fields = Object.entries(tplBuilderState.chosen)
+    .filter(([key]) => key !== 'emoji')
+    .map(([key, def]) => ({ key, value: tplBuilderState.values[key] ?? defaultTplValue(def) }));
+  const tpl = { id: tplEditingId || ('t_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)), name, emoji: tplBuilderState.emoji, fields };
+  const templates = (await getHostMeta('templates')) || [];
+  const idx = templates.findIndex(t => t.id === tpl.id);
+  const next = idx === -1 ? [...templates, tpl] : templates.map(t => (t.id === tpl.id ? tpl : t));
+  await setHostMeta('templates', next);
+  closeTemplateBuilder();
+  showToast(idx === -1 ? '✅ 已保存模板：' + name : '✅ 已更新模板：' + name, 'success');
+}
+
+/** 以当前卡片为蓝本预填构建器 */
+function prefillTemplateFromCard() {
+  const card = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+  if (!card) { showToast('没有正在编辑的卡片', ''); return; }
+  tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, chosen: {}, values: {} };
+  const put = (key, value) => {
+    if (value !== undefined && value !== null && value !== '') {
+      const def = findPropDef(key);
+      if (def) { tplBuilderState.chosen[key] = def; tplBuilderState.values[key] = value; }
+    }
+  };
+  put('title', card.title);
+  put('status', card.status);
+  put('progress', card.progress);
+  put('priority', card.priority);
+  put('assignedDate', card.assignedDate);
+  if (card.startTime || card.endTime || card.duration) put('schedule', { start: card.startTime || '', end: card.endTime || '', duration: card.duration ?? null });
+  put('project', card.project);
+  if (card.tags?.length) put('tags', card.tags);
+  for (const [k, v] of Object.entries(card.props || {})) { const def = findPropDef(k); if (def) { tplBuilderState.chosen[k] = def; tplBuilderState.values[k] = v; } }
+  if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
+  if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
+  renderTemplateBuilder();
+}
+
+/** 构建器内新建属性 */
+function openTplNewPropForm() { if (tplNewPropForm) tplNewPropForm.classList.remove('hidden'); document.getElementById('tpl-np-key')?.focus(); }
+function addTplNewProp() {
+  const key = (document.getElementById('tpl-np-key').value || '').trim().replace(/\s+/g, '_');
+  if (!key) { showToast('属性名不能为空', 'error'); return; }
+  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
+  const type = document.getElementById('tpl-np-type').value;
+  const def = { key, label: key, icon: document.getElementById('tpl-np-icon').value || '•', type };
+  propLibrary = { ...propLibrary, [key]: def };
+  void savePropLibrary();
+  tplBuilderState.chosen[key] = findPropDef(key);
+  tplBuilderState.values[key] = '';
+  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  document.getElementById('tpl-np-key').value = '';
+  document.getElementById('tpl-np-icon').value = '';
+  renderTemplateBuilder();
+  showToast(`已新建属性「${key}」并加入模板`, 'success');
+}
+
+/** 构建器默认图标选择器 */
+function toggleTplBuilderPicker() {
+  if (!tplBuilderPicker) return;
+  if (!tplBuilderPicker.classList.contains('hidden')) { tplBuilderPicker.classList.add('hidden'); return; }
+  tplBuilderPicker.classList.remove('hidden');
+  tplBuilderCleanup?.();
+  tplBuilderCleanup = renderEmojiPicker(tplBuilderPicker, (char) => {
+    tplBuilderState.emoji = char;
+    if (tplBuilderEmoji) tplBuilderEmoji.textContent = char;
+    recordRecentEmoji(char);
+    tplBuilderPicker.classList.add('hidden');
+  }, { selected: tplBuilderState.emoji });
+}
+
 /* ─── 模板菜单（阶段 D 完善） ──────────────────────────── */
 
 async function openTemplateMenu() {
@@ -1763,20 +2004,31 @@ function closeTemplateMenu() {
   document.getElementById('template-menu')?.remove();
 }
 
-/** 用模板新建卡片 */
+/** 用模板新建卡片：按模板 fields（内建 key 映射到卡片字段，自定义 key → card.props） */
 async function createFromTemplate(tpl) {
-  const card = await createCardEntry({
-    content: '',
-    title: tpl.title ?? '',
-    emoji: tpl.emoji ?? '',
-    status: tpl.status ?? 'todo',
-    progress: tpl.progress ?? null,
-    duration: tpl.duration ?? null,
-    props: tpl.propsDefaults ?? {},
-    project: tpl.project ?? null,
-    tags: tpl.tags ?? [],
-    provenance: { origin: 'human' },
-  });
+  const fields = normalizeTemplateFields(tpl);
+  const patch = { content: '', emoji: tpl.emoji || '', props: {}, provenance: { origin: 'human' } };
+  for (const f of fields) {
+    const v = f?.value;
+    switch (f?.key) {
+      case 'title': patch.title = v ?? ''; break;
+      case 'status': patch.status = v ?? 'none'; break;
+      case 'progress': patch.progress = v ?? null; break;
+      case 'priority': patch.priority = v ?? 'medium'; break;
+      case 'assignedDate': patch.assignedDate = v ?? null; break;
+      case 'schedule':
+        if (v && typeof v === 'object') {
+          patch.startTime = v.start || null;
+          patch.endTime = v.end || null;
+          patch.duration = v.duration ?? null;
+        }
+        break;
+      case 'project': patch.project = v ?? null; break;
+      case 'tags': patch.tags = Array.isArray(v) ? v : []; break;
+      default: if (v !== undefined && v !== null && v !== '') patch.props[f.key] = v; break;
+    }
+  }
+  const card = await createCardEntry(patch);
   await refreshAll();
   openEditor(card, currentTime(), null, null);
 }
@@ -1804,10 +2056,16 @@ function renderTemplateMenu(templates) {
     const nm = document.createElement('span');
     nm.textContent = t.name;
     it.append(emoji, nm);
-    if (t.tags?.length) {
+    if (t.fields?.length || t.tags?.length) {
+      const tags = Array.isArray(t.fields)
+        ? t.fields.filter(f => f.key === 'tags' && Array.isArray(f.value)).flatMap(f => f.value)
+        : (t.tags ?? []);
+      const summary = t.fields?.length
+        ? `${t.fields.length} 属性` + (tags.length ? ' · #' + tags.join(' #') : '')
+        : (tags.length ? '#' + tags.join(' #') : '');
       const chips = document.createElement('span');
       chips.className = 'tpl-chips';
-      chips.textContent = '#' + t.tags.join(' #');
+      chips.textContent = summary;
       it.append(chips);
     }
     it.addEventListener('click', () => { closeTemplateMenu(); createFromTemplate(t); });
@@ -1849,7 +2107,8 @@ async function manageTemplates(templates) {
     const nn = (prompt('新名称：', tpl.name) || '').trim();
     if (nn) list[i] = { ...tpl, name: nn };
   } else if (action === '3') {
-    showToast('编辑请在卡片编辑器中修改后重新「保存为模板」', '');
+    closeTemplateMenu();
+    openTemplateBuilder(tpl);
     return;
   } else {
     return;
@@ -1858,26 +2117,9 @@ async function manageTemplates(templates) {
   showToast('✅ 模板已更新', 'success');
 }
 
-/** 保存当前编辑器状态为命名模板（阶段 D 完善） */
-async function saveEditorAsTemplate() {
-  const editing = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
-  const name = (prompt('模板名称：', editing?.title || '').trim());
-  if (!name) return;
-  const tpl = {
-    id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-    name,
-    title: editorTitle?.value?.trim() ?? '',
-    emoji: editorEmoji,
-    status: editorStatus?.value ?? 'none',
-    progress: Number(editorProgress?.value || 0),
-    duration: (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null,
-    propsDefaults: editorProps,
-    project: editorProjectInput?.value?.trim() ?? null,
-    tags: [...editorTags],
-  };
-  const templates = (await getHostMeta('templates')) || [];
-  await setHostMeta('templates', [...templates, tpl]);
-  showToast('✅ 已保存模板：' + name, 'success');
+/** 保存当前卡片为模板 → 打开模板构建器（默认空白，可挑属性/新建属性） */
+function saveEditorAsTemplate() {
+  openTemplateBuilder();
 }
 
 /* ─── 本机 Skills ────────────────────────────────────── */
@@ -2205,6 +2447,22 @@ async function init() {
 
   // ── 卡片池：模板（阶段 D） ──
   els.btnTemplate?.addEventListener('click', openTemplateMenu);
+
+  // ── 模板构建器事件 ──
+  document.getElementById('tpl-builder-close')?.addEventListener('click', closeTemplateBuilder);
+  document.getElementById('tpl-cancel')?.addEventListener('click', closeTemplateBuilder);
+  document.getElementById('tpl-save')?.addEventListener('click', saveTemplateBuilder);
+  document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
+  document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
+  document.getElementById('tpl-newprop-btn')?.addEventListener('click', openTplNewPropForm);
+  document.getElementById('tpl-np-ok')?.addEventListener('click', addTplNewProp);
+  document.getElementById('tpl-np-cancel')?.addEventListener('click', () => tplNewPropForm?.classList.add('hidden'));
+  document.getElementById('template-builder-overlay')?.addEventListener('click', (e) => {
+    // 点击外部关闭；点击瓦片容器内的 emoji picker 不关
+    const path = e.composedPath ? e.composedPath() : [e.target];
+    if (path.some(el => el?.classList?.contains('ce-tile-wrap') || el?.classList?.contains('template-builder'))) return;
+    closeTemplateBuilder();
+  });
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
