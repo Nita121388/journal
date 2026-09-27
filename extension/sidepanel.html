@@ -119,9 +119,12 @@
       <div class="card-editor-accent"></div>
 
       <div class="card-editor-header">
-        <button id="btn-emoji-tile" type="button" class="ce-emoji-tile" title="点选图标">
-          <span id="emoji-preview" class="emoji-preview" title="卡片图标">📝</span>
-        </button>
+        <div class="ce-tile-wrap">
+          <button id="btn-emoji-tile" type="button" class="ce-emoji-tile" title="点选图标">
+            <span id="emoji-preview" class="emoji-preview" title="卡片图标">📝</span>
+          </button>
+          <div id="emoji-picker" class="emoji-picker hidden"></div>
+        </div>
         <div class="ce-head-fields">
           <input id="card-editor-title" type="text" class="card-editor-title" placeholder="标题…" aria-label="标题" autocomplete="off" />
           <div class="ce-head-subrow">
@@ -170,15 +173,9 @@
           <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4"></textarea>
         </section>
 
-        <!-- 图标 + 标签 -->
+        <!-- 标签（图标选择已由头部瓦片负责） -->
         <section class="ce-section">
-          <div class="ce-section-label">✏️ 图标与标签</div>
-          <div class="card-editor-emoji">
-            <button id="btn-pick-emoji" type="button" class="emoji-pick-btn" title="选择图标 emoji">🎨 选图标</button>
-            <input type="text" id="emoji-free-input" class="emoji-free-input" maxlength="8" placeholder="或输入任意 emoji…" aria-label="自由输入 emoji" autocomplete="off" />
-            <button id="btn-clear-emoji" type="button" class="emoji-clear-btn" title="清除，恢复类型默认图标">✕</button>
-            <div id="emoji-picker" class="emoji-picker hidden"></div>
-          </div>
+          <div class="ce-section-label"># 标签</div>
           <div class="card-editor-tags">
             <div id="card-editor-tag-chips" class="tag-chips"></div>
             <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />

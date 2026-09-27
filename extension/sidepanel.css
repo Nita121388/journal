@@ -2117,3 +2117,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   transition: border-color .12s, color .12s;
 }
 .card-editor-footer .btn-secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* 图标瓦片容器：让 emoji 选择器定位在其正下方 */
+.ce-tile-wrap { position: relative; flex-shrink: 0; }
+.ce-tile-wrap .emoji-picker { top: calc(100% + 8px); left: 0; }

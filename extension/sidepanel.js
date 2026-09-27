@@ -128,7 +128,7 @@ const editorMetaEl = document.getElementById('card-editor-meta');
 const projectSuggest = document.getElementById('project-suggest');
 const emojiPreview = document.getElementById('emoji-preview');
 const emojiPicker = document.getElementById('emoji-picker');
-const emojiFreeInput = document.getElementById('emoji-free-input');
+const emojiFreeInput = null; // 已移除自由输入框（图标选择由头部瓦片负责），保留占位兼容 setEditorEmoji
 editorTagInput?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
@@ -171,28 +171,15 @@ function closeEmojiPicker() {
   emojiPickerCleanup = null;
 }
 
-document.getElementById('btn-pick-emoji')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (emojiPicker?.classList.contains('hidden')) openEmojiPicker();
-  else closeEmojiPicker();
-});
 editorType?.addEventListener('change', () => {
   // 未设置自定义 emoji 时，预览跟随类型默认图标
   if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
-});
-emojiFreeInput?.addEventListener('input', () => {
-  const v = emojiFreeInput.value.trim();
-  if (v) { setEditorEmoji(v); recordRecentEmoji(v); }
-});
-document.getElementById('btn-clear-emoji')?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  setEditorEmoji('');
 });
 // 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
 // 后被点击元素脱离文档导致 closest() 失效、误关 picker）
 editorOverlay?.addEventListener('click', (e) => {
   const path = e.composedPath ? e.composedPath() : [e.target];
-  if (path.some(el => el?.classList?.contains('card-editor-emoji'))) return;
+  if (path.some(el => el?.classList?.contains('ce-tile-wrap'))) return;
   closeEmojiPicker();
 });
 
