@@ -116,91 +116,125 @@
   <!-- 卡片编辑弹窗 -->
   <div id="card-editor-overlay" class="overlay hidden">
     <div class="card-editor">
+      <div class="card-editor-accent"></div>
+
       <div class="card-editor-header">
-        <input type="date" id="card-editor-date" class="card-editor-date" aria-label="日期" />
-        <select id="card-editor-type" aria-label="类型">
-          <option value="text">📝 文本</option>
-          <option value="task">☑️ 任务</option>
-        </select>
-        <button id="card-editor-close" class="card-editor-close-btn">✕</button>
-      </div>
-      <input id="card-editor-title" type="text" class="card-editor-title" placeholder="标题（可选，留空则用正文）" aria-label="标题" autocomplete="off" />
-      <div class="card-editor-workflow">
-        <label class="field">状态
-          <select id="card-editor-status" aria-label="状态">
-            <option value="none">📝 纯记录</option>
-            <option value="todo">📌 待办</option>
-            <option value="doing">🔥 进行中</option>
-            <option value="done">✅ 已完成</option>
-          </select>
-        </label>
-        <label class="field prog">进度
-          <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
-          <span id="card-editor-progress-label" class="card-editor-progress-label">0%</span>
-        </label>
-      </div>
-      <div class="card-editor-times">
-        <label>开始 <input type="time" id="card-editor-start" step="900" /></label>
-        <label>结束 <input type="time" id="card-editor-end" step="900" /></label>
-        <label>时长(分) <input type="number" id="card-editor-duration-min" min="0" class="card-editor-duration-input" /></label>
-        <span id="card-editor-duration" class="card-editor-duration"></span>
-      </div>
-      <div class="card-editor-emoji">
-        <span id="emoji-preview" class="emoji-preview" title="卡片图标">📝</span>
-        <button id="btn-pick-emoji" type="button" class="emoji-pick-btn" title="选择图标 emoji">🎨 选图标</button>
-        <input type="text" id="emoji-free-input" class="emoji-free-input" maxlength="8" placeholder="或输入任意 emoji…" aria-label="自由输入 emoji" autocomplete="off" />
-        <button id="btn-clear-emoji" type="button" class="emoji-clear-btn" title="清除，恢复类型默认图标">✕</button>
-        <div id="emoji-picker" class="emoji-picker hidden"></div>
-      </div>
-      <textarea id="card-editor-content" placeholder="写下你的想法..." rows="4"></textarea>
-      <div class="card-editor-tags">
-        <div id="card-editor-tag-chips" class="tag-chips"></div>
-        <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />
-      </div>
-      <div class="card-editor-project">
-        <label class="field">项目目录
-          <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/projects/journal" aria-label="项目目录" />
-          <datalist id="project-suggest"></datalist>
-        </label>
-        <div id="card-editor-meta" class="card-editor-meta"></div>
-      </div>
-      <div class="card-editor-props">
-        <div class="props-header">
-          <span class="section-label">属性（自定义）</span>
-          <button id="btn-add-prop" type="button" class="props-add-btn" title="新增自定义属性">＋ 添加属性</button>
-          <button id="btn-prop-lib" type="button" class="props-add-btn" title="从属性库复用">🗂 属性库</button>
-        </div>
-        <div id="card-editor-props-list" class="props-list"></div>
-        <!-- 添加/编辑属性表单 -->
-        <div id="prop-form" class="prop-form hidden">
-          <div class="prop-form-row">
-            <label>名称 <input id="prop-key" type="text" placeholder="client" aria-label="属性名" /></label>
-            <label>图标 <input id="prop-icon" type="text" maxlength="8" placeholder="🧑" aria-label="图标" /></label>
+        <button id="btn-emoji-tile" type="button" class="ce-emoji-tile" title="点选图标">
+          <span id="emoji-preview" class="emoji-preview" title="卡片图标">📝</span>
+        </button>
+        <div class="ce-head-fields">
+          <input id="card-editor-title" type="text" class="card-editor-title" placeholder="标题…" aria-label="标题" autocomplete="off" />
+          <div class="ce-head-subrow">
+            <input type="date" id="card-editor-date" class="card-editor-date" aria-label="日期" />
+            <select id="card-editor-type" aria-label="类型">
+              <option value="text">📝 文本</option>
+              <option value="task">☑️ 任务</option>
+            </select>
           </div>
-          <div class="prop-form-row">
-            <label>类型
-              <select id="prop-type" aria-label="属性类型">
-                <option value="text">文本</option>
-                <option value="number">数字</option>
-                <option value="select">选择</option>
-                <option value="multi">多选</option>
-                <option value="date">日期</option>
-                <option value="time">时间</option>
-                <option value="checkbox">勾选</option>
-              </select>
+        </div>
+        <button id="card-editor-close" class="card-editor-close-btn" aria-label="关闭">✕</button>
+      </div>
+
+      <div class="card-editor-body">
+        <!-- 工作流：状态（分段）+ 进度 -->
+        <section class="ce-section">
+          <div class="ce-section-label">⚙️ 状态</div>
+          <input type="hidden" id="card-editor-status" value="none" />
+          <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
+            <button type="button" class="seg is-active" data-status="none">📝 纯记录</button>
+            <button type="button" class="seg" data-status="todo">📌 待办</button>
+            <button type="button" class="seg" data-status="doing">🔥 进行中</button>
+            <button type="button" class="seg" data-status="done">✅ 已完成</button>
+          </div>
+          <div class="ce-progress-row">
+            <span class="ce-progress-caption">进度</span>
+            <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
+            <span id="card-editor-progress-label" class="card-editor-progress-label">0%</span>
+          </div>
+        </section>
+
+        <!-- 排程：起止 + 时长 -->
+        <section class="ce-section">
+          <div class="ce-section-label">📅 排程</div>
+          <div class="card-editor-times">
+            <label>开始 <input type="time" id="card-editor-start" step="900" /></label>
+            <label>结束 <input type="time" id="card-editor-end" step="900" /></label>
+            <label>时长(分) <input type="number" id="card-editor-duration-min" min="0" class="card-editor-duration-input" /></label>
+            <span id="card-editor-duration" class="card-editor-duration"></span>
+          </div>
+        </section>
+
+        <!-- 内容 -->
+        <section class="ce-section">
+          <div class="ce-section-label">📝 内容</div>
+          <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4"></textarea>
+        </section>
+
+        <!-- 图标 + 标签 -->
+        <section class="ce-section">
+          <div class="ce-section-label">✏️ 图标与标签</div>
+          <div class="card-editor-emoji">
+            <button id="btn-pick-emoji" type="button" class="emoji-pick-btn" title="选择图标 emoji">🎨 选图标</button>
+            <input type="text" id="emoji-free-input" class="emoji-free-input" maxlength="8" placeholder="或输入任意 emoji…" aria-label="自由输入 emoji" autocomplete="off" />
+            <button id="btn-clear-emoji" type="button" class="emoji-clear-btn" title="清除，恢复类型默认图标">✕</button>
+            <div id="emoji-picker" class="emoji-picker hidden"></div>
+          </div>
+          <div class="card-editor-tags">
+            <div id="card-editor-tag-chips" class="tag-chips"></div>
+            <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />
+          </div>
+        </section>
+
+        <!-- 更多：项目 / 属性 / 模板 -->
+        <details class="ce-more">
+          <summary>📁 更多属性</summary>
+          <div class="card-editor-project">
+            <label class="field">项目目录
+              <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/projects/journal" aria-label="项目目录" />
+              <datalist id="project-suggest"></datalist>
             </label>
-            <label class="prop-options-wrap hidden">选项(,分隔) <input id="prop-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
+            <div id="card-editor-meta" class="card-editor-meta"></div>
           </div>
-          <div class="prop-form-actions">
-            <label class="prop-lib-check"><input id="prop-to-lib" type="checkbox" checked /> 加入属性库</label>
-            <button id="prop-form-ok" type="button" class="btn-primary">添加</button>
-            <button id="prop-form-cancel" type="button" class="btn-secondary">取消</button>
+          <div class="card-editor-props">
+            <div class="props-header">
+              <span class="section-label">属性（自定义）</span>
+              <button id="btn-add-prop" type="button" class="props-add-btn" title="新增自定义属性">＋ 添加属性</button>
+              <button id="btn-prop-lib" type="button" class="props-add-btn" title="从属性库复用">🗂 属性库</button>
+            </div>
+            <div id="card-editor-props-list" class="props-list"></div>
+            <div id="prop-form" class="prop-form hidden">
+              <div class="prop-form-row">
+                <label>名称 <input id="prop-key" type="text" placeholder="client" aria-label="属性名" /></label>
+                <label>图标 <input id="prop-icon" type="text" maxlength="8" placeholder="🧑" aria-label="图标" /></label>
+              </div>
+              <div class="prop-form-row">
+                <label>类型
+                  <select id="prop-type" aria-label="属性类型">
+                    <option value="text">文本</option>
+                    <option value="number">数字</option>
+                    <option value="select">选择</option>
+                    <option value="multi">多选</option>
+                    <option value="date">日期</option>
+                    <option value="time">时间</option>
+                    <option value="checkbox">勾选</option>
+                  </select>
+                </label>
+                <label class="prop-options-wrap hidden">选项(,分隔) <input id="prop-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
+              </div>
+              <div class="prop-form-actions">
+                <label class="prop-lib-check"><input id="prop-to-lib" type="checkbox" checked /> 加入属性库</label>
+                <button id="prop-form-ok" type="button" class="btn-primary">添加</button>
+                <button id="prop-form-cancel" type="button" class="btn-secondary">取消</button>
+              </div>
+            </div>
           </div>
+        </details>
+
+        <div class="card-editor-tools">
+          <button id="card-editor-save-template" type="button" class="btn-secondary" title="把当前卡片保存为命名模板">🗂 保存为模板</button>
         </div>
       </div>
-      <div class="card-editor-tools">
-        <button id="card-editor-save-template" type="button" class="btn-secondary" title="把当前卡片保存为命名模板">🗂 保存为模板</button>
-      </div>
+
       <div class="card-editor-footer">
         <button id="card-editor-cancel" class="btn-secondary">取消</button>
         <button id="card-editor-save" class="btn-primary">保存</button>

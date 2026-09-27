@@ -299,7 +299,7 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editorContent.value = card?.content ?? '';
   // 阶段 C：标题 / 状态 / 进度 / 时长 / 自定义属性
   if (editorTitle) editorTitle.value = card?.title ?? '';
-  if (editorStatus) editorStatus.value = card?.status ?? 'none';
+  if (editorStatus) updateStatusSeg(card?.status ?? 'none');
   if (editorProgress) editorProgress.value = card?.progress ?? 0;
   if (editorDurationMin) editorDurationMin.value = card?.duration ?? '';
   updateEditorProgressLabel();
@@ -360,18 +360,35 @@ function onEditorStatusChange() {
   updateEditorProgressLabel();
 }
 
+/** 同步分段状态胶囊 UI 到 hidden input */
+function updateStatusSeg(value) {
+  value = ['none', 'todo', 'doing', 'done'].includes(value) ? value : 'none';
+  if (editorStatus) editorStatus.value = value;
+  const seg = document.getElementById('card-editor-status-seg');
+  if (seg) {
+    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === value);
+  }
+}
+
+/** 点击分段胶囊：设状态 + 进度联动 */
+function onStatusClicked(value) {
+  updateStatusSeg(value);
+  onEditorStatusChange();
+}
+
 /** 进度 → 状态 联动：拖到 100% ⇒ 完成；回退 ⇒ 进行中/待办 */
 function onEditorProgressChange() {
   const val = Number(editorProgress?.value ?? 0);
   updateEditorProgressLabel();
   if (editorStatus) {
-    if (val >= 100 && editorStatus.value !== 'done') editorStatus.value = 'done';
-    else if (val < 100 && editorStatus.value === 'done') editorStatus.value = val > 0 ? 'doing' : 'todo';
+    if (val >= 100 && editorStatus.value !== 'done') { editorStatus.value = 'done'; updateStatusSeg('done'); }
+    else if (val < 100 && editorStatus.value === 'done') { editorStatus.value = val > 0 ? 'doing' : 'todo'; updateStatusSeg(editorStatus.value); }
   }
 }
 
 function updateEditorProgressLabel() {
   if (editorProgressLabel) editorProgressLabel.textContent = (editorProgress?.value ?? 0) + '%';
+  if (editorProgress) editorProgress.style.setProperty('--ce-prog', (Number(editorProgress.value) || 0) + '%');
 }
 
 /* ─── 自定义属性（编辑器） ───────────────────────────────── */
@@ -495,7 +512,7 @@ function closeEditor() {
   if (editorDuration) editorDuration.textContent = '';
   if (editorDurationMin) editorDurationMin.value = '';
   if (editorTitle) editorTitle.value = '';
-  if (editorStatus) editorStatus.value = 'none';
+  if (editorStatus) updateStatusSeg('none');
   if (editorProgress) { editorProgress.value = 0; }
   updateEditorProgressLabel();
   if (editorMetaEl) editorMetaEl.textContent = '';
@@ -2102,6 +2119,13 @@ async function init() {
   editorEnd?.addEventListener('change', updateEditorDuration);
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
   editorStatus?.addEventListener('change', onEditorStatusChange);
+  // 分段状态胶囊
+  document.getElementById('card-editor-status-seg')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg');
+    if (btn?.dataset.status) onStatusClicked(btn.dataset.status);
+  });
+  // 点击头部图标瓦片打开 emoji picker
+  document.getElementById('btn-emoji-tile')?.addEventListener('click', openEmojiPicker);
   editorProgress?.addEventListener('change', onEditorProgressChange);
   editorProgress?.addEventListener('input', onEditorProgressChange);
   btnAddProp?.addEventListener('click', openPropForm);
