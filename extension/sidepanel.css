@@ -1966,6 +1966,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .card-editor-body {
   padding: 4px 16px 8px;
   max-height: calc(90vh - 120px);
+  min-height: 0; /* flex 子项默认 min-height:auto 会阻止滚动，必须显式放开 */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
