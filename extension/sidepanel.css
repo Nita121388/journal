@@ -2303,3 +2303,37 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* 新建属性按钮：虚线全宽 */
 #tpl-newprop-btn { width: 100%; margin-top: 2px; padding: 7px; border-radius: 9px; border-style: dashed; }
+
+/* 额外属性可编辑列表 */
+.tpl-extra-empty { font-size: 12px; color: var(--color-muted); padding: 4px 6px; }
+.tpl-extra-row { cursor: grab; }
+.tpl-extra-row.is-dragging { opacity: .5; }
+.tpl-drag { cursor: grab; color: var(--color-muted); padding: 0 2px; user-select: none; }
+.tpl-row-act { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 3px; flex-shrink: 0; }
+.tpl-row-act:hover { color: var(--color-accent); }
+.tpl-row-del:hover { color: #e53935; }
+
+/* 添加属性面板 */
+.tpl-add-btn {
+  margin-top: 8px; padding: 7px; width: 100%;
+  border-radius: 9px;
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-accent);
+  font-family: var(--font); font-size: 12px;
+  cursor: pointer;
+}
+.tpl-add-btn:hover { border-color: var(--color-accent); }
+.tpl-add-panel { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.tpl-add-panel.hidden { display: none; }
+.tpl-add-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.tpl-add-item {
+  font-family: var(--font); font-size: 12px;
+  padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg); color: var(--color-text);
+  cursor: pointer;
+}
+.tpl-add-item:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.tpl-add-new { border-style: dashed; color: var(--color-accent); }
+.tpl-add-none { font-size: 12px; color: var(--color-muted); padding: 4px; }

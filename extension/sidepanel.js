@@ -1802,11 +1802,19 @@ const tplBuilderName = document.getElementById('tpl-builder-name');
 const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
 const tplBuilderPicker = document.getElementById('tpl-builder-picker');
 const tplPropList = document.getElementById('tpl-prop-list');
-const tplNewPropBtn = document.getElementById('tpl-newprop-btn');
+const tplNpKey = document.getElementById('tpl-np-key');
+const tplNpIcon = document.getElementById('tpl-np-icon');
+const tplNpType = document.getElementById('tpl-np-type');
+const tplNpOptions = document.getElementById('tpl-np-options');
+const tplNpOk = document.getElementById('tpl-np-ok');
+const tplNpCancel = document.getElementById('tpl-np-cancel');
 const tplNewPropForm = document.getElementById('tpl-newprop-form');
-let tplBuilderState = { name: '', emoji: '🗂', chosen: {}, values: {} };
+/** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
+let tplBuilderState = { name: '', emoji: '🗂', extra: [], values: {} };
 let tplBuilderCleanup = null;
-let tplEditingId = null; // 编辑既有模板时的 id
+let tplEditingId = null;   // 编辑既有模板时的 id
+let tplEditKey = null;     // 编辑属性定义时的 key
+let tplDragKey = null;     // 排序拖拽中的 key
 
 /** 找属性定义：内建 或 属性库 */
 function findPropDef(key) {
@@ -1820,7 +1828,7 @@ function findPropDef(key) {
 function normalizeTemplateFields(tpl) {
   let fields;
   if (Array.isArray(tpl?.fields)) {
-    fields = tpl.fields.filter(f => f && f.key).map(f => ({ key: f.key, value: f.value }));
+    fields = tpl.fields.filter(f => f && f.key).map(f => ({ ...f }));
   } else {
     const out = [];
     const push = (key, value) => { if (value !== undefined && value !== null && value !== '') out.push({ key, value }); };
@@ -1833,12 +1841,10 @@ function normalizeTemplateFields(tpl) {
     for (const [k, v] of Object.entries(tpl?.propsDefaults ?? {})) push(k, v);
     fields = out;
   }
-  // 必备三件套兜底
   const have = new Set(fields.map(f => f.key));
   for (const def of REQUIRED_DEFS) {
     if (!have.has(def.key)) fields.push({ key: def.key, value: defaultTplValue(def) });
   }
-  // 必备在前（按 REQUIRED_DEFS 顺序），其余保持原序
   const reqOrder = REQUIRED_DEFS.map(d => d.key);
   const reqFields = reqOrder.map(k => fields.find(f => f.key === k)).filter(Boolean);
   const optFields = fields.filter(f => !reqOrder.includes(f.key));
@@ -1848,11 +1854,22 @@ function normalizeTemplateFields(tpl) {
 /** 打开模板构建器；existing 传人则编辑既有模板 */
 function openTemplateBuilder(existing = null) {
   tplEditingId = existing?.id ?? null;
-  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂'), chosen: {}, values: {} };
+  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂'), extra: [], values: {} };
   if (existing) {
     for (const f of normalizeTemplateFields(existing)) {
-      const def = findPropDef(f.key);
-      if (def) { tplBuilderState.chosen[f.key] = def; tplBuilderState.values[f.key] = f.value; }
+      if (REQUIRED_DEFS.some(d => d.key === f.key)) { tplBuilderState.values[f.key] = f.value; continue; }
+      const base = findPropDef(f.key);
+      tplBuilderState.extra.push({
+        key: f.key,
+        def: {
+          key: f.key,
+          label: f.label ?? base?.label ?? f.key,
+          icon: f.icon ?? base?.icon ?? '•',
+          type: f.type ?? base?.type ?? 'text',
+          ...(f.options ? { options: f.options } : (base?.options ? { options: base.options } : {})),
+        },
+      });
+      tplBuilderState.values[f.key] = f.value;
     }
   }
   if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
@@ -1862,63 +1879,118 @@ function openTemplateBuilder(existing = null) {
 }
 function closeTemplateBuilder() {
   document.getElementById('template-builder-overlay').classList.add('hidden');
+  document.getElementById('tpl-add-panel')?.classList.add('hidden');
   if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
   if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
   tplBuilderCleanup?.();
   tplEditingId = null;
+  tplEditKey = null;
 }
 
-/** 渲染属性清单（必备 + 额外 + 自定义） */
+/** 渲染构建器：必备（锁定） + 额外（可编辑列表） */
 function renderTemplateBuilder() {
   if (!tplPropList) return;
   tplPropList.replaceChildren();
-  const custom = Object.entries(propLibrary).map(([key, def]) => ({ key, icon: def.icon || '•', label: def.label || key, type: def.type || 'text', options: def.options }));
-
+  // 必备
   const gReq = document.createElement('div'); gReq.className = 'tpl-group';
   const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '必备（模板自动包含）';
   gReq.append(h1);
-  for (const def of REQUIRED_DEFS) gReq.append(buildTplRow(def, true));
+  for (const def of REQUIRED_DEFS) gReq.append(buildReqRow(def));
   tplPropList.append(gReq);
-
-  if (OPTIONAL_DEFS.length) {
-    const gOpt = document.createElement('div'); gOpt.className = 'tpl-group';
-    const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '额外属性（可选）';
-    gOpt.append(h2);
-    for (const def of OPTIONAL_DEFS) gOpt.append(buildTplRow(def, false));
-    tplPropList.append(gOpt);
+  // 额外
+  const gOpt = document.createElement('div'); gOpt.className = 'tpl-group';
+  const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '额外属性（可选 · 可增删改排序）';
+  gOpt.append(h2);
+  if (!tplBuilderState.extra.length) {
+    const hint = document.createElement('div'); hint.className = 'tpl-extra-empty';
+    hint.textContent = '尚未添加额外属性，点下方「＋ 添加属性」';
+    gOpt.append(hint);
   }
-
-  if (custom.length) {
-    const gC = document.createElement('div'); gC.className = 'tpl-group';
-    const h3 = document.createElement('div'); h3.className = 'tpl-group-title'; h3.textContent = '自定义属性（可选）';
-    gC.append(h3);
-    for (const def of custom) gC.append(buildTplRow(def, false));
-    tplPropList.append(gC);
-  }
+  for (const entry of tplBuilderState.extra) gOpt.append(buildExtraRow(entry));
+  gOpt.append(buildAddPanel());
+  tplPropList.append(gOpt);
 }
 
-/** 属性行；locked=true 为必备（勾选锁定、恒显示默认值编辑器） */
-function buildTplRow(def, locked = false) {
-  const row = document.createElement('div'); row.className = 'tpl-prop-row' + (locked ? ' is-locked' : '');
-  const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'tpl-prop-check';
-  ck.checked = locked || !!tplBuilderState.chosen[def.key];
-  ck.disabled = locked;
-  if (!locked) {
-    ck.addEventListener('change', () => {
-      if (ck.checked) tplBuilderState.chosen[def.key] = def;
-      else delete tplBuilderState.chosen[def.key];
-      renderTemplateBuilder();
-    });
-  }
-  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label';
-  lbl.textContent = `${def.icon || ''} ${def.label || def.key}`;
-  row.append(ck, lbl);
-  if (locked || ck.checked) {
-    const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value';
-    valWrap.append(buildTplDefaultEditor(def));
-    row.append(valWrap);
-  }
+/** 必备行（锁定 + 恒显默认值编辑器） */
+function buildReqRow(def) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row is-locked';
+  const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'tpl-prop-check'; ck.checked = true; ck.disabled = true;
+  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label'; lbl.textContent = `${def.icon} ${def.label}`;
+  const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value'; valWrap.append(buildTplDefaultEditor(def));
+  row.append(ck, lbl, valWrap);
   return row;
+}
+
+/** 可选属性行：排序柄 + 默认值 + 编辑定义 + 移出 */
+function buildExtraRow(entry) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row tpl-extra-row'; row.dataset.key = entry.key; row.draggable = true;
+  const handle = document.createElement('span'); handle.className = 'tpl-drag'; handle.textContent = '⋮'; handle.title = '拖拽排序';
+  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label'; lbl.textContent = `${entry.def.icon || '•'} ${entry.def.label || entry.key}`;
+  const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value'; valWrap.append(buildTplDefaultEditor(entry.def));
+  const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'tpl-row-act'; edit.textContent = '✎'; edit.title = '编辑属性定义';
+  edit.addEventListener('click', (e) => { e.stopPropagation(); openTplEditProp(entry.key); });
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'tpl-row-act tpl-row-del'; del.textContent = '✕'; del.title = '从模板移出';
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeExtra(entry.key); });
+  row.append(handle, lbl, valWrap, edit, del);
+  row.addEventListener('dragstart', (e) => { tplDragKey = entry.key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); });
+  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); });
+  row.addEventListener('dragover', (e) => { e.preventDefault(); });
+  row.addEventListener('drop', (e) => { e.preventDefault(); if (tplDragKey && tplDragKey !== entry.key) reorderExtra(tplDragKey, entry.key); });
+  return row;
+}
+
+function reorderExtra(from, to) {
+  const arr = tplBuilderState.extra;
+  const i = arr.findIndex(x => x.key === from);
+  const j = arr.findIndex(x => x.key === to);
+  if (i < 0 || j < 0) return;
+  const [it] = arr.splice(i, 1);
+  arr.splice(j, 0, it);
+  renderTemplateBuilder();
+}
+function removeExtra(key) {
+  tplBuilderState.extra = tplBuilderState.extra.filter(x => x.key !== key);
+  delete tplBuilderState.values[key];
+  renderTemplateBuilder();
+}
+
+/** 「＋ 添加属性」面板：内建可选（未加入）+ 属性库（未加入）+ 新建 */
+function buildAddPanel() {
+  const panel = document.createElement('div'); panel.id = 'tpl-add-panel'; panel.className = 'tpl-add-panel hidden';
+  const addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.className = 'tpl-add-btn';
+  addBtn.textContent = '＋ 添加属性';
+  addBtn.addEventListener('click', () => panel.classList.toggle('hidden'));
+  const inExtra = new Set(tplBuilderState.extra.map(x => x.key));
+  const available = [
+    ...OPTIONAL_DEFS.filter(d => !inExtra.has(d.key)).map(d => ({ key: d.key, icon: d.icon, label: d.label, kind: '内建' })),
+    ...Object.entries(propLibrary).filter(([k]) => !inExtra.has(k)).map(([k, d]) => ({ key: k, icon: d.icon || '•', label: d.label || k, kind: '自定义' })),
+  ];
+  const list = document.createElement('div'); list.className = 'tpl-add-list';
+  if (!available.length) {
+    const none = document.createElement('div'); none.className = 'tpl-add-none'; none.textContent = '可选属性都已加入';
+    list.append(none);
+  }
+  for (const a of available) {
+    const it = document.createElement('button'); it.type = 'button'; it.className = 'tpl-add-item'; it.title = a.kind;
+    it.textContent = `${a.icon} ${a.label}`;
+    it.addEventListener('click', () => addPropToExtra(a.key));
+    list.append(it);
+  }
+  const newBtn = document.createElement('button'); newBtn.type = 'button'; newBtn.className = 'tpl-add-item tpl-add-new';
+  newBtn.textContent = '＋ 新建属性…';
+  newBtn.addEventListener('click', () => { openTplNewPropForm(); });
+  list.append(newBtn);
+  panel.append(addBtn, list);
+  return panel;
+}
+
+function addPropToExtra(key) {
+  const def = findPropDef(key);
+  if (!def || tplBuilderState.extra.some(x => x.key === key)) return;
+  tplBuilderState.extra.push({ key, def });
+  if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
+  document.getElementById('tpl-add-panel')?.classList.add('hidden');
+  renderTemplateBuilder();
 }
 
 /** 按属性类型构建默认值编辑器，改动写入 tplBuilderState.values */
@@ -1991,12 +2063,18 @@ function defaultTplValue(def) {
 async function saveTemplateBuilder() {
   const name = (tplBuilderName?.value || '').trim();
   if (!name) { showToast('模板名称不能为空', 'error'); return; }
-  // 必备三件套始终在最前，其后才是用户勾选的额外属性
   const requiredFields = REQUIRED_DEFS.map(def => ({ key: def.key, value: tplBuilderState.values[def.key] ?? defaultTplValue(def) }));
-  const chosenFields = Object.entries(tplBuilderState.chosen)
-    .filter(([key]) => key !== 'emoji' && !REQUIRED_DEFS.some(d => d.key === key))
-    .map(([key, def]) => ({ key, value: tplBuilderState.values[key] ?? defaultTplValue(def) }));
-  const fields = [...requiredFields, ...chosenFields];
+  const extraFields = tplBuilderState.extra.map(e => {
+    const f = { key: e.key, value: tplBuilderState.values[e.key] ?? defaultTplValue(e.def) };
+    const base = findPropDef(e.key);
+    const ov = {};
+    if (e.def.label && e.def.label !== e.key && e.def.label !== base?.label) ov.label = e.def.label;
+    if (e.def.icon && e.def.icon !== '•' && e.def.icon !== base?.icon) ov.icon = e.def.icon;
+    if (e.def.type && e.def.type !== base?.type) ov.type = e.def.type;
+    if (e.def.options && JSON.stringify(e.def.options) !== JSON.stringify(base?.options ?? [])) ov.options = e.def.options;
+    return Object.assign(f, ov);
+  });
+  const fields = [...requiredFields, ...extraFields];
   const tpl = { id: tplEditingId || ('t_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)), name, emoji: tplBuilderState.emoji, fields };
   const templates = (await getHostMeta('templates')) || [];
   const idx = templates.findIndex(t => t.id === tpl.id);
@@ -2010,19 +2088,17 @@ async function saveTemplateBuilder() {
 function prefillTemplateFromCard() {
   const card = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
   if (!card) { showToast('没有正在编辑的卡片', ''); return; }
-  tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, chosen: {}, values: {} };
+  tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, extra: [], values: {} };
   const putReq = (key, value) => { if (value !== undefined && value !== null && value !== '') tplBuilderState.values[key] = value; };
   const putOpt = (key, value) => {
-    if (value !== undefined && value !== null && value !== '') {
+    if (value !== undefined && value !== null && value !== '' && !tplBuilderState.extra.some(x => x.key === key)) {
       const def = findPropDef(key);
-      if (def) { tplBuilderState.chosen[key] = def; tplBuilderState.values[key] = value; }
+      if (def) { tplBuilderState.extra.push({ key, def }); tplBuilderState.values[key] = value; }
     }
   };
-  // 必备三件套
   putReq('title', card.title);
   putReq('content', card.content);
   putReq('tags', (card.tags && card.tags.length) ? card.tags : []);
-  // 额外属性（仅非默认值才带入）
   putOpt('status', card.status && card.status !== 'none' ? card.status : undefined);
   putOpt('progress', card.progress);
   putOpt('priority', card.priority && card.priority !== 'medium' ? card.priority : undefined);
@@ -2035,21 +2111,65 @@ function prefillTemplateFromCard() {
   renderTemplateBuilder();
 }
 
-/** 构建器内新建属性 */
-function openTplNewPropForm() { if (tplNewPropForm) tplNewPropForm.classList.remove('hidden'); document.getElementById('tpl-np-key')?.focus(); }
+/** 构建器内新建属性（打开表单） */
+function openTplNewPropForm() {
+  tplEditKey = null;
+  if (tplNpKey) { tplNpKey.disabled = false; tplNpKey.value = ''; }
+  if (tplNpIcon) tplNpIcon.value = '';
+  if (tplNpType) tplNpType.value = 'text';
+  if (tplNpOptions) tplNpOptions.value = '';
+  if (tplNpOk) tplNpOk.textContent = '加入模板';
+  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  tplNpKey?.focus();
+}
+
+/** 编辑可选属性的定义（内建=仅此模板覆盖；自定义=写回属性库） */
+function openTplEditProp(key) {
+  const entry = tplBuilderState.extra.find(x => x.key === key);
+  if (!entry) return;
+  tplEditKey = key;
+  const isBuiltin = !!BUILTIN_DEFS.find(d => d.key === key);
+  if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = isBuiltin; }
+  if (tplNpIcon) tplNpIcon.value = (entry.def.icon && entry.def.icon !== '•') ? entry.def.icon : '';
+  if (tplNpType) tplNpType.value = entry.def.type || 'text';
+  if (tplNpOptions) tplNpOptions.value = (entry.def.options || []).join(',');
+  const wrap = tplNpOptions?.closest('.prop-options-wrap');
+  if (wrap) wrap.classList.toggle('hidden', entry.def.type !== 'select' && entry.def.type !== 'multi');
+  if (tplNpOk) tplNpOk.textContent = isBuiltin ? '保存（仅此模板）' : '保存到属性库';
+  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  tplNpKey?.focus();
+}
+
+/** 新建/编辑属性提交 */
+function onTplNewPropOk() {
+  if (tplEditKey) {
+    const key = tplEditKey;
+    const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+    const def = { key, label: key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
+    const entry = tplBuilderState.extra.find(x => x.key === key);
+    if (entry) entry.def = def;
+    if (!BUILTIN_DEFS.find(d => d.key === key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+    tplEditKey = null;
+    if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+    renderTemplateBuilder();
+    showToast(`已更新属性「${key}」`, 'success');
+    return;
+  }
+  addTplNewProp();
+}
+
+/** 新建属性：造定义 → 入库 + 加入模板 */
 function addTplNewProp() {
-  const key = (document.getElementById('tpl-np-key').value || '').trim().replace(/\s+/g, '_');
+  const key = (tplNpKey?.value || '').trim().replace(/\s+/g, '_');
   if (!key) { showToast('属性名不能为空', 'error'); return; }
   if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
-  const type = document.getElementById('tpl-np-type').value;
-  const def = { key, label: key, icon: document.getElementById('tpl-np-icon').value || '•', type };
+  const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+  const def = { key, label: key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
   propLibrary = { ...propLibrary, [key]: def };
   void savePropLibrary();
-  tplBuilderState.chosen[key] = findPropDef(key);
-  tplBuilderState.values[key] = '';
+  if (!tplBuilderState.extra.some(x => x.key === key)) tplBuilderState.extra.push({ key, def });
+  if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
   if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
-  document.getElementById('tpl-np-key').value = '';
-  document.getElementById('tpl-np-icon').value = '';
   renderTemplateBuilder();
   showToast(`已新建属性「${key}」并加入模板`, 'success');
 }
@@ -2551,8 +2671,12 @@ async function init() {
   document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
   document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
   document.getElementById('tpl-newprop-btn')?.addEventListener('click', openTplNewPropForm);
-  document.getElementById('tpl-np-ok')?.addEventListener('click', addTplNewProp);
-  document.getElementById('tpl-np-cancel')?.addEventListener('click', () => tplNewPropForm?.classList.add('hidden'));
+  document.getElementById('tpl-np-ok')?.addEventListener('click', onTplNewPropOk);
+  document.getElementById('tpl-np-cancel')?.addEventListener('click', () => { if (tplNewPropForm) tplNewPropForm.classList.add('hidden'); tplEditKey = null; });
+  document.getElementById('tpl-np-type')?.addEventListener('change', () => {
+    const wrap = tplNpOptions?.closest('.prop-options-wrap');
+    if (wrap) wrap.classList.toggle('hidden', tplNpType.value !== 'select' && tplNpType.value !== 'multi');
+  });
   document.getElementById('template-builder-overlay')?.addEventListener('click', (e) => {
     // 点击外部关闭；点击瓦片容器内的 emoji picker 不关
     const path = e.composedPath ? e.composedPath() : [e.target];
