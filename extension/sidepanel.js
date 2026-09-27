@@ -10,6 +10,7 @@ import {
   todoSummary, dateRange, getMonthMatrix, toDayKey,
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
+  RESERVED_PROPS, normalizeProgress,
 } from './lib/model.js';
 import {
   getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
@@ -101,6 +102,23 @@ const editorContent = document.getElementById('card-editor-content');
 const editorStart = document.getElementById('card-editor-start');
 const editorEnd = document.getElementById('card-editor-end');
 const editorDuration = document.getElementById('card-editor-duration');
+const editorTitle = document.getElementById('card-editor-title');
+const editorStatus = document.getElementById('card-editor-status');
+const editorProgress = document.getElementById('card-editor-progress');
+const editorProgressLabel = document.getElementById('card-editor-progress-label');
+const editorDurationMin = document.getElementById('card-editor-duration-min');
+const propsList = document.getElementById('card-editor-props-list');
+const btnAddProp = document.getElementById('btn-add-prop');
+const btnPropLib = document.getElementById('btn-prop-lib');
+const propForm = document.getElementById('prop-form');
+const propKey = document.getElementById('prop-key');
+const propIcon = document.getElementById('prop-icon');
+const propType = document.getElementById('prop-type');
+const propOptions = document.getElementById('prop-options');
+const propToLib = document.getElementById('prop-to-lib');
+const propFormOk = document.getElementById('prop-form-ok');
+const propFormCancel = document.getElementById('prop-form-cancel');
+const saveTemplateBtn = document.getElementById('card-editor-save-template');
 const editorSave = document.getElementById('card-editor-save');
 const editorCancel = document.getElementById('card-editor-cancel');
 const editorClose = document.getElementById('card-editor-close');
@@ -121,6 +139,14 @@ editorTagInput?.addEventListener('keydown', (e) => {
 /** 编辑器当前选择的 emoji（'' = 用类型默认图标） */
 let editorEmoji = '';
 let emojiPickerCleanup = null;
+
+/** 编辑器自定义属性：key → 值 */
+let editorProps = {};
+/** 属性定义库（host meta）缓存 */
+let propLibrary = {};
+/** 卡片编辑器：勾选完成 ⇒ 进度100 联动开关 */
+let editorStatusValue = 'none';
+let editorProgressValue = 0;
 
 function setEditorEmoji(emoji) {
   editorEmoji = emoji || '';
@@ -271,6 +297,14 @@ function openEditor(card, time, date, assignedDate = undefined) {
   }
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
+  // 阶段 C：标题 / 状态 / 进度 / 时长 / 自定义属性
+  if (editorTitle) editorTitle.value = card?.title ?? '';
+  if (editorStatus) editorStatus.value = card?.status ?? 'none';
+  if (editorProgress) editorProgress.value = card?.progress ?? 0;
+  if (editorDurationMin) editorDurationMin.value = card?.duration ?? '';
+  updateEditorProgressLabel();
+  editorProps = { ...(card?.props ?? {}) };
+  renderEditorProps();
   setEditorEmoji(card?.emoji ?? '');
   closeEmojiPicker();
 
@@ -294,14 +328,157 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editorContent.focus();
 }
 
-/** 编辑器持续时长显示 */
+/** 编辑器持续时长显示（起止 → 时长 双向） */
 function updateEditorDuration() {
-  if (!editorDuration) return;
   const s = editorStart?.value;
   const e = editorEnd?.value;
-  if (!s || !e) { editorDuration.textContent = ''; return; }
+  if (!s || !e) {
+    if (editorDuration) editorDuration.textContent = '';
+    if (editorDurationMin) editorDurationMin.value = '';
+    return;
+  }
   const dur = Math.max(0, timeToMinutes(e) - timeToMinutes(s));
-  editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+  if (editorDuration) editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+  if (editorDurationMin) editorDurationMin.value = dur > 0 ? dur : '';
+}
+
+/** 时长输入 → 反推结束时间（起止 ↔ 时长 双向） */
+function onEditorDurationInput() {
+  const s = editorStart?.value;
+  const dur = Number(editorDurationMin?.value || 0);
+  if (s && editorEnd && Number.isFinite(dur) && dur >= 0) {
+    editorEnd.value = addMinutes(s, dur);
+    if (editorDuration) editorDuration.textContent = `${dur} 分钟`;
+  }
+}
+
+/** 状态 → 进度 联动：勾选完成 ⇒ 进度100 */
+function onEditorStatusChange() {
+  const s = editorStatus?.value ?? 'none';
+  if (s === 'done' && editorProgress && editorProgress.value !== '100') editorProgress.value = 100;
+  if (s === 'none' && editorProgress && editorProgress.value === '100') editorProgress.value = 0;
+  updateEditorProgressLabel();
+}
+
+/** 进度 → 状态 联动：拖到 100% ⇒ 完成；回退 ⇒ 进行中/待办 */
+function onEditorProgressChange() {
+  const val = Number(editorProgress?.value ?? 0);
+  updateEditorProgressLabel();
+  if (editorStatus) {
+    if (val >= 100 && editorStatus.value !== 'done') editorStatus.value = 'done';
+    else if (val < 100 && editorStatus.value === 'done') editorStatus.value = val > 0 ? 'doing' : 'todo';
+  }
+}
+
+function updateEditorProgressLabel() {
+  if (editorProgressLabel) editorProgressLabel.textContent = (editorProgress?.value ?? 0) + '%';
+}
+
+/* ─── 自定义属性（编辑器） ───────────────────────────────── */
+
+async function loadPropLibrary() { propLibrary = (await getHostMeta('propertyLibrary')) || {}; }
+async function savePropLibrary() { await setHostMeta('propertyLibrary', propLibrary); }
+
+/** 渲染当前卡的属性行 */
+function renderEditorProps() {
+  if (!propsList) return;
+  propsList.replaceChildren();
+  for (const [key, val] of Object.entries(editorProps)) {
+    const def = propLibrary[key];
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    row.dataset.key = key;
+    const label = document.createElement('span');
+    label.className = 'prop-label';
+    label.textContent = (def?.icon ? def.icon + ' ' : '') + (def?.label || key);
+    label.title = key;
+    const ctrl = buildPropControl(key, def, val);
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
+    del.title = '删除该属性';
+    del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
+    row.append(label, ctrl, del);
+    propsList.append(row);
+  }
+}
+
+/** 按属性类型构建编辑控件，改动即写回 editorProps */
+function buildPropControl(key, def, val) {
+  const type = def?.type ?? 'text';
+  if (type === 'checkbox') {
+    const input = document.createElement('input');
+    input.type = 'checkbox'; input.className = 'prop-input';
+    input.checked = Boolean(val);
+    input.addEventListener('change', () => { editorProps[key] = input.checked; });
+    return input;
+  }
+  if (type === 'select' || type === 'multi') {
+    const sel = document.createElement('select');
+    sel.className = 'prop-input';
+    const opts = def?.options ?? [];
+    if (!opts.length) sel.append(new Option('', ''));
+    for (const o of opts) sel.append(new Option(o, o));
+    if (type === 'multi') sel.multiple = true;
+    if (type === 'select') sel.value = (val === null || val === undefined) ? '' : String(val);
+    if (type === 'multi' && Array.isArray(val)) {
+      for (const opt of sel.options) opt.selected = val.includes(opt.value);
+    }
+    sel.addEventListener('change', () => {
+      editorProps[key] = type === 'multi'
+        ? [...sel.selectedOptions].map(o => o.value)
+        : sel.value;
+    });
+    return sel;
+  }
+  const input = document.createElement('input');
+  input.className = 'prop-input';
+  if (type === 'number') input.type = 'number';
+  else if (type === 'date') input.type = 'date';
+  else if (type === 'time') input.type = 'time';
+  else input.type = 'text';
+  input.value = (val === null || val === undefined) ? '' : String(val);
+  input.addEventListener('change', () => {
+    editorProps[key] = input.type === 'number' ? Number(input.value) : input.value;
+  });
+  return input;
+}
+
+function openPropForm() {
+  if (!propForm) return;
+  propForm.classList.remove('hidden');
+  propKey?.focus();
+}
+function closePropForm() { if (propForm) propForm.classList.add('hidden'); }
+
+/** 添加属性：校验保留字 → 加入当前卡（+ 属性库） */
+function onPropFormOk() {
+  const key = (propKey.value || '').trim().replace(/\s+/g, '_');
+  if (!key) { showToast('属性名不能为空', 'error'); return; }
+  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能作为属性名`, 'error'); return; }
+  const opts = propOptions.value ? propOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+  const def = {
+    key, label: key, icon: propIcon.value || '•', type: propType.value,
+    ...(opts.length ? { options: opts } : {}),
+  };
+  if (!(key in editorProps)) editorProps[key] = '';
+  if (propToLib.checked) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+  renderEditorProps();
+  closePropForm();
+  propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
+  showToast(`已添加属性「${key}」`, 'success');
+}
+
+/** 从属性库复用属性到当前卡 */
+function openPropLibrary() {
+  const keys = Object.keys(propLibrary);
+  if (!keys.length) { showToast('属性库为空', ''); return; }
+  const lines = keys.map((k, i) => `${i}. ${propLibrary[k].icon || ''} ${propLibrary[k].label || k}`).join('\n');
+  const pick = prompt('从属性库选择（多个用逗号分隔）：\n' + lines, '0');
+  if (pick === null) return;
+  const idxs = pick.split(/[,，\s]+/).map(s => parseInt(s, 10))
+    .filter(n => !Number.isNaN(n) && n >= 0 && n < keys.length);
+  for (const i of idxs) { const k = keys[i]; if (!(k in editorProps)) editorProps[k] = ''; }
+  renderEditorProps();
 }
 
 function closeEditor() {
@@ -316,7 +493,15 @@ function closeEditor() {
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
+  if (editorDurationMin) editorDurationMin.value = '';
+  if (editorTitle) editorTitle.value = '';
+  if (editorStatus) editorStatus.value = 'none';
+  if (editorProgress) { editorProgress.value = 0; }
+  updateEditorProgressLabel();
   if (editorMetaEl) editorMetaEl.textContent = '';
+  editorProps = {};
+  renderEditorProps();
+  closePropForm();
   setEditorEmoji('');
   closeEmojiPicker();
 }
@@ -347,20 +532,22 @@ async function saveEditor() {
     if (project) localStorage.setItem('journal.lastProject', project);
     const provenance = { origin: 'human', project };
 
+    // 阶段 C：状态 / 进度 / 时长 / 标题 / 自定义属性
+    const status = editorStatus?.value ?? 'none';
+    const progress = status === 'done' ? 100 : Number(editorProgress?.value || 0);
+    const duration = (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null;
+    const title = editorTitle?.value?.trim() ?? '';
+    const props = editorProps;
+    const basePatch = {
+      content, type, title, status, progress, duration: duration ?? undefined, props,
+      assignedDate, time: start, startTime: start, endTime: end,
+      tags: editorTags, emoji: editorEmoji, provenance,
+    };
+
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, assignedDate, time: start, startTime: start, endTime: end, tags: editorTags, emoji: editorEmoji, provenance });
+      await updateCardEntry(editingCardId, basePatch);
     } else {
-      await createCardEntry({
-        content,
-        type,
-        assignedDate,
-        time: start,
-        startTime: start,
-        endTime: end,
-        tags: editorTags,
-        emoji: editorEmoji,
-        provenance,
-      });
+      await createCardEntry(basePatch);
     }
     closeEditor();
     await refreshAll();
@@ -1555,14 +1742,15 @@ function applyView(view) {
 
 async function openTemplateMenu() {
   const templates = (await getHostMeta('templates')) || [];
-  if (!templates.length) {
-    showToast('暂无模板 —— 在卡片编辑器里可「保存为模板」', '');
-    return;
-  }
   renderTemplateMenu(templates);
 }
 
-/** 用模板新建卡片（阶段 D 升级为下拉面板） */
+/** 关闭模板下拉 */
+function closeTemplateMenu() {
+  document.getElementById('template-menu')?.remove();
+}
+
+/** 用模板新建卡片 */
 async function createFromTemplate(tpl) {
   const card = await createCardEntry({
     content: '',
@@ -1580,14 +1768,103 @@ async function createFromTemplate(tpl) {
   openEditor(card, currentTime(), null, null);
 }
 
-/** 模板下拉（阶段 D 实现） */
+/** 渲染模板下拉菜单（空白 + 模板 + 管理） */
 function renderTemplateMenu(templates) {
-  const names = ['空白卡片', ...templates.map(t => t.name)];
-  const pick = prompt('选择模板：\n' + names.map((n, i) => `${i}. ${n}`).join('\n'), '0');
-  const idx = pick === null ? -1 : parseInt(pick, 10);
-  if (idx < 0 || idx >= names.length) return;
-  if (idx === 0) { openEditor(null, currentTime(), null, null); return; }
-  createFromTemplate(templates[idx - 1]);
+  closeTemplateMenu();
+  const btn = els.btnTemplate;
+  if (!btn) return;
+  const menu = document.createElement('div');
+  menu.id = 'template-menu';
+  menu.className = 'template-menu';
+
+  const blank = document.createElement('button');
+  blank.type = 'button'; blank.className = 'tpl-item';
+  blank.textContent = '🆕 空白卡片';
+  blank.addEventListener('click', () => { closeTemplateMenu(); openEditor(null, currentTime(), null, null); });
+  menu.append(blank);
+
+  for (const t of templates) {
+    const it = document.createElement('button');
+    it.type = 'button'; it.className = 'tpl-item';
+    const emoji = document.createElement('span');
+    emoji.textContent = t.emoji || '🗂';
+    const nm = document.createElement('span');
+    nm.textContent = t.name;
+    it.append(emoji, nm);
+    if (t.tags?.length) {
+      const chips = document.createElement('span');
+      chips.className = 'tpl-chips';
+      chips.textContent = '#' + t.tags.join(' #');
+      it.append(chips);
+    }
+    it.addEventListener('click', () => { closeTemplateMenu(); createFromTemplate(t); });
+    menu.append(it);
+  }
+
+  if (templates.length) {
+    const mgmt = document.createElement('button');
+    mgmt.type = 'button'; mgmt.className = 'tpl-item tpl-manage';
+    mgmt.textContent = '⚙️ 管理模板…';
+    mgmt.addEventListener('click', () => { closeTemplateMenu(); manageTemplates(templates); });
+    menu.append(mgmt);
+  }
+
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  document.body.append(menu);
+  setTimeout(() => {
+    const handler = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); } };
+    document.addEventListener('click', handler);
+  }, 0);
+}
+
+/** 模板管理：重命名 / 删除 / 编辑 */
+async function manageTemplates(templates) {
+  if (!templates.length) return;
+  const lines = templates.map((t, i) => `${i}. ${t.emoji || ''} ${t.name}`).join('\n');
+  const pick = prompt('选择要管理的模板（输入编号）：\n' + lines, '');
+  const i = pick === null ? -1 : parseInt(pick, 10);
+  if (i < 0 || i >= templates.length) return;
+  const action = prompt(`「${templates[i].name}」 — 输入操作：\n1 重命名  2 删除  3 编辑属性`, '1');
+  if (action === null) return;
+  let list = [...templates];
+  const tpl = list[i];
+  if (action === '2') {
+    if (confirm(`删除模板「${tpl.name}」？`)) list = list.filter(t => t.id !== tpl.id);
+  } else if (action === '1') {
+    const nn = (prompt('新名称：', tpl.name) || '').trim();
+    if (nn) list[i] = { ...tpl, name: nn };
+  } else if (action === '3') {
+    showToast('编辑请在卡片编辑器中修改后重新「保存为模板」', '');
+    return;
+  } else {
+    return;
+  }
+  await setHostMeta('templates', list);
+  showToast('✅ 模板已更新', 'success');
+}
+
+/** 保存当前编辑器状态为命名模板（阶段 D 完善） */
+async function saveEditorAsTemplate() {
+  const editing = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+  const name = (prompt('模板名称：', editing?.title || '').trim());
+  if (!name) return;
+  const tpl = {
+    id: 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    name,
+    title: editorTitle?.value?.trim() ?? '',
+    emoji: editorEmoji,
+    status: editorStatus?.value ?? 'none',
+    progress: Number(editorProgress?.value || 0),
+    duration: (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null,
+    propsDefaults: editorProps,
+    project: editorProjectInput?.value?.trim() ?? null,
+    tags: [...editorTags],
+  };
+  const templates = (await getHostMeta('templates')) || [];
+  await setHostMeta('templates', [...templates, tpl]);
+  showToast('✅ 已保存模板：' + name, 'success');
 }
 
 /* ─── 本机 Skills ────────────────────────────────────── */
@@ -1814,9 +2091,23 @@ async function init() {
   editorClose.addEventListener('click', closeEditor);
   editorStart?.addEventListener('change', updateEditorDuration);
   editorEnd?.addEventListener('change', updateEditorDuration);
+  editorDurationMin?.addEventListener('change', onEditorDurationInput);
+  editorStatus?.addEventListener('change', onEditorStatusChange);
+  editorProgress?.addEventListener('change', onEditorProgressChange);
+  editorProgress?.addEventListener('input', onEditorProgressChange);
+  btnAddProp?.addEventListener('click', openPropForm);
+  btnPropLib?.addEventListener('click', openPropLibrary);
+  propFormCancel?.addEventListener('click', closePropForm);
+  propFormOk?.addEventListener('click', onPropFormOk);
+  propType?.addEventListener('change', () => {
+    const wrap = propOptions?.closest('.prop-options-wrap');
+    if (wrap) wrap.classList.toggle('hidden', propType.value !== 'select' && propType.value !== 'multi');
+  });
+  saveTemplateBtn?.addEventListener('click', saveEditorAsTemplate);
   editorOverlay.addEventListener('click', (e) => {
     if (e.target === editorOverlay) saveEditor();
   });
+  await loadPropLibrary();
 
   // ── 卡片池新建 ──
   els.btnNewCard.addEventListener('click', () => {

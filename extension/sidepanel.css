@@ -1747,3 +1747,114 @@ html.wide-mode .timeline-card { max-width: 300px; }
 #cardpool-list.is-list .cardpool-item { flex-wrap: nowrap; padding: 3px 6px; }
 #cardpool-list.is-list .cardpool-item .cardpool-meta,
 #cardpool-list.is-list .cardpool-item .cardpool-chips { display: none; }
+
+/* ─── 属性编辑器（阶段 C） ───────────────────────────── */
+
+.card-editor-title {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.card-editor-title:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+
+.card-editor-workflow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.card-editor-workflow .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-muted); }
+.card-editor-workflow select {
+  font-family: var(--font); font-size: 12px;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-bg); color: var(--color-text); padding: 2px 4px;
+}
+.card-editor-workflow .prog { flex: 1; }
+.card-editor-workflow input[type=range] { flex: 1; }
+.card-editor-progress-label { font-size: 12px; color: var(--color-accent); min-width: 34px; text-align: right; }
+
+.card-editor-duration-input { width: 64px; }
+
+/* 自定义属性 */
+.card-editor-props { margin-top: 6px; }
+.props-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.props-header .section-label { font-weight: 600; }
+.props-add-btn {
+  font-family: var(--font); font-size: 11px;
+  padding: 1px 8px; border-radius: 10px;
+  border: 1px solid var(--color-border); background: var(--color-bg);
+  color: var(--color-muted); cursor: pointer;
+}
+.props-add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+.props-list { display: flex; flex-direction: column; gap: 4px; }
+.prop-row { display: flex; align-items: center; gap: 6px; }
+.prop-label { font-size: 12px; min-width: 64px; color: var(--color-text); }
+.prop-input {
+  flex: 1; font-family: var(--font); font-size: 12px;
+  border: 1px solid var(--color-border); border-radius: 4px;
+  padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
+}
+.prop-del { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; }
+.prop-del:hover { color: #e53935; }
+
+.prop-form {
+  margin-top: 6px; padding: 6px; border: 1px solid var(--color-border);
+  border-radius: 6px; background: var(--color-cell-empty);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.prop-form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.prop-form-row label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-muted); }
+.prop-form-row input, .prop-form-row select {
+  font-family: var(--font); font-size: 12px;
+  border: 1px solid var(--color-border); border-radius: 4px;
+  padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
+}
+.prop-options-wrap { flex: 1; }
+.prop-form-actions { display: flex; align-items: center; gap: 8px; }
+.prop-lib-check { font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 4px; margin-right: auto; }
+
+/* 保存为模板 */
+.card-editor-tools { margin-top: 8px; display: flex; justify-content: flex-end; }
+
+/* ─── 模板下拉（阶段 D） ─────────────────────────────── */
+
+.template-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  max-width: 240px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tpl-item {
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.tpl-item:hover { background: var(--color-cell-empty); color: var(--color-accent); }
+.tpl-chips { font-size: 10px; color: var(--color-muted); margin-left: auto; }
+.tpl-manage { color: var(--color-muted); border-top: 1px solid var(--color-border); margin-top: 2px; }
