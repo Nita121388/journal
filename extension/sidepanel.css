@@ -2386,3 +2386,18 @@ body.tpl-dragging { user-select: none; }
 /* 状态分段切换微动画 */
 .seg.is-active { transition: background .15s, transform .1s; }
 .seg:active { transform: scale(.96); }
+
+/* 新建卡片 CTA 层级：主按钮(实心) vs 模板(幽灵) */
+#btn-new-card {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  transition: filter .12s, box-shadow .12s, transform .1s;
+}
+#btn-new-card:hover { border-color: var(--color-accent); color: #fff; filter: brightness(1.06); box-shadow: 0 4px 10px rgba(0,0,0,.16); }
+#btn-new-card:active { transform: scale(.98); }
+#btn-template { background: var(--color-bg); border: 1px dashed var(--color-border); color: var(--color-muted); }
+#btn-template:hover { border-color: var(--color-accent); color: var(--color-accent); }
