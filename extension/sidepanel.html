@@ -196,10 +196,15 @@
             <button type="button" class="seg" data-status="doing">🔥 进行中</button>
             <button type="button" class="seg" data-status="done">✅ 已完成</button>
           </div>
+          <div class="ce-status-custom">
+            <span class="ce-status-custom-label">自定义状态</span>
+            <input id="card-editor-status-custom" type="text" maxlength="20" placeholder="如：等待反馈" aria-label="自定义状态" autocomplete="off" />
+          </div>
           <div class="ce-progress-row">
             <span class="ce-progress-caption">进度</span>
             <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
-            <span id="card-editor-progress-label" class="card-editor-progress-label">0%</span>
+            <input type="number" id="card-editor-progress-number" min="0" max="100" class="ce-progress-number" aria-label="进度数值" />
+            <span class="ce-progress-percent">%</span>
           </div>
         </section>
 
@@ -266,7 +271,6 @@
                 <label class="prop-options-wrap hidden">选项(,分隔) <input id="prop-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
               </div>
               <div class="prop-form-actions">
-                <label class="prop-lib-check"><input id="prop-to-lib" type="checkbox" checked /> 加入属性库</label>
                 <button id="prop-form-ok" type="button" class="btn-primary">添加</button>
                 <button id="prop-form-cancel" type="button" class="btn-secondary">取消</button>
               </div>

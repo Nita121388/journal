@@ -79,7 +79,7 @@ export function normalizeCard(card = {}) {
   const start = str(card.startTime) ?? str(card.time) ?? null;
   const type = TYPES.includes(card.type) ? card.type : 'text';
   const done = Boolean(card.done);
-  const status = STATUSES.includes(card.status) ? card.status : statusFromTypeDone(type, done);
+  const status = typeof card.status === 'string' && card.status.trim() ? card.status.trim() : statusFromTypeDone(type, done);
   return {
     id: card.id,
     content: typeof card.content === 'string' ? card.content : '',

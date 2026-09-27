@@ -2179,3 +2179,50 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-prop-row.is-locked { background: var(--color-cell-empty); }
 .tpl-prop-row.is-locked .tpl-prop-check { opacity: .55; cursor: default; }
 .tpl-prop-row.is-locked .tpl-prop-label { color: var(--color-text); font-weight: 600; }
+
+/* ── 去渐变 + 弹窗滚动加固 + 新控件样式 ── */
+
+/* 弹窗改为 flex 列布局，主体可可靠滚动（flex:1 + min-height:0 + overflow） */
+.card-editor { display: flex; flex-direction: column; }
+.card-editor-header { flex-shrink: 0; }
+.card-editor-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.card-editor-footer { flex-shrink: 0; }
+.tpl-builder-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* 去渐变：纯色 */
+.card-editor-accent { background: var(--color-accent); }
+.ce-emoji-tile { background: var(--color-accent); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.card-editor-footer .btn-primary { background: var(--color-accent); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.card-editor-footer .btn-primary:hover { box-shadow: 0 4px 10px rgba(0,0,0,.18); filter: brightness(1.04); }
+
+/* 自定义状态 */
+.ce-status-custom { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.ce-status-custom-label { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }
+#card-editor-status-custom {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+#card-editor-status-custom:focus { outline: none; border-color: var(--color-accent); }
+
+/* 进度：滑块 + 手输数值 */
+.ce-progress-number {
+  width: 56px;
+  font-family: var(--font);
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 3px 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.ce-progress-percent { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }
+
+/* 属性定义编辑按钮 */
+.prop-edit { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 2px; }
+.prop-edit:hover { color: var(--color-accent); }

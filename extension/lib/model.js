@@ -88,7 +88,7 @@ export function createCard(patch = {}) {
   const start = patch.startTime ?? patch.time ?? null;
   const type = ['text', 'task', 'idea'].includes(patch.type) ? patch.type : 'text';
   const done = Boolean(patch.done);
-  const status = STATUSES.includes(patch.status) ? patch.status : statusFromTypeDone(type, done);
+  const status = typeof patch.status === 'string' && patch.status.trim() ? patch.status.trim() : statusFromTypeDone(type, done);
   const progress = normalizeProgress(patch.progress, status);
   return {
     id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),

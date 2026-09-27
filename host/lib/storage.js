@@ -100,7 +100,7 @@ export function normalizeCard(card = {}) {
   const start = asString(card.startTime) ?? asString(card.time) ?? null;
   const type = CARD_TYPES.includes(card.type) ? card.type : 'text';
   const done = Boolean(card.done);
-  const status = STATUSES.includes(card.status) ? card.status : statusFromTypeDone(type, done);
+  const status = typeof card.status === 'string' && card.status.trim() ? card.status.trim() : statusFromTypeDone(type, done);
   const meta = parseMetaCell(card.meta);
   return {
     id: card.id,
@@ -180,8 +180,8 @@ export function applyCardPatch(card, patch = {}) {
   if (patch.done !== undefined) next.done = Boolean(patch.done);
   if (patch.title !== undefined) next.title = typeof patch.title === 'string' ? patch.title : '';
   // status：显式给则用；只改了 done/type 则按 type+done 重推导（兼容旧客户端）
-  if (patch.status !== undefined && STATUSES.includes(patch.status)) {
-    next.status = patch.status;
+  if (typeof patch.status === 'string' && patch.status.trim()) {
+    next.status = patch.status.trim();
   } else if (patch.done !== undefined || patch.type !== undefined) {
     next.status = statusFromTypeDone(next.type, next.done);
   }
@@ -236,7 +236,7 @@ function parsePropsCell(raw) {
 function rowToCard(r) {
   const type = r.type ?? 'text';
   const done = Boolean(r.done);
-  const status = STATUSES.includes(r.status) ? r.status : statusFromTypeDone(type, done);
+  const status = typeof r.status === 'string' && r.status.trim() ? r.status.trim() : statusFromTypeDone(type, done);
   const meta = parseMetaCell(r.meta);
   return {
     id: r.id,

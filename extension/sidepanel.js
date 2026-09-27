@@ -105,7 +105,8 @@ const editorDuration = document.getElementById('card-editor-duration');
 const editorTitle = document.getElementById('card-editor-title');
 const editorStatus = document.getElementById('card-editor-status');
 const editorProgress = document.getElementById('card-editor-progress');
-const editorProgressLabel = document.getElementById('card-editor-progress-label');
+const editorProgressNumber = document.getElementById('card-editor-progress-number');
+const editorStatusCustom = document.getElementById('card-editor-status-custom');
 const editorDurationMin = document.getElementById('card-editor-duration-min');
 const propsList = document.getElementById('card-editor-props-list');
 const btnAddProp = document.getElementById('btn-add-prop');
@@ -115,7 +116,6 @@ const propKey = document.getElementById('prop-key');
 const propIcon = document.getElementById('prop-icon');
 const propType = document.getElementById('prop-type');
 const propOptions = document.getElementById('prop-options');
-const propToLib = document.getElementById('prop-to-lib');
 const propFormOk = document.getElementById('prop-form-ok');
 const propFormCancel = document.getElementById('prop-form-cancel');
 const saveTemplateBtn = document.getElementById('card-editor-save-template');
@@ -347,13 +347,18 @@ function onEditorStatusChange() {
   updateEditorProgressLabel();
 }
 
-/** 同步分段状态胶囊 UI 到 hidden input */
+const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
+
+/** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
 function updateStatusSeg(value) {
-  value = ['none', 'todo', 'doing', 'done'].includes(value) ? value : 'none';
-  if (editorStatus) editorStatus.value = value;
+  const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
+  if (editorStatus) editorStatus.value = v;
   const seg = document.getElementById('card-editor-status-seg');
   if (seg) {
-    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === value);
+    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
+  }
+  if (editorStatusCustom) {
+    editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
   }
 }
 
@@ -374,8 +379,9 @@ function onEditorProgressChange() {
 }
 
 function updateEditorProgressLabel() {
-  if (editorProgressLabel) editorProgressLabel.textContent = (editorProgress?.value ?? 0) + '%';
-  if (editorProgress) editorProgress.style.setProperty('--ce-prog', (Number(editorProgress.value) || 0) + '%');
+  const p = Number(editorProgress?.value ?? 0);
+  if (editorProgressNumber && editorProgressNumber.value !== String(p)) editorProgressNumber.value = p;
+  if (editorProgress) editorProgress.style.setProperty('--ce-prog', p + '%');
 }
 
 /* ─── 自定义属性（编辑器） ───────────────────────────────── */
@@ -397,11 +403,15 @@ function renderEditorProps() {
     label.textContent = (def?.icon ? def.icon + ' ' : '') + (def?.label || key);
     label.title = key;
     const ctrl = buildPropControl(key, def, val);
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'prop-edit'; edit.textContent = '✎';
+    edit.title = '编辑属性定义（保存到属性库）';
+    edit.addEventListener('click', () => openPropForm(key));
     const del = document.createElement('button');
     del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
-    del.title = '删除该属性';
+    del.title = '从当前卡片删除该属性（保留属性库定义）';
     del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
-    row.append(label, ctrl, del);
+    row.append(label, ctrl, edit, del);
     propsList.append(row);
   }
 }
@@ -447,29 +457,49 @@ function buildPropControl(key, def, val) {
   return input;
 }
 
-function openPropForm() {
+let propEditKey = null;
+
+/** 打开属性表单；defKey 传人则编辑属性库中既有定义 */
+function openPropForm(defKey = null) {
   if (!propForm) return;
+  propEditKey = defKey;
+  const d = defKey ? propLibrary[defKey] : null;
+  if (propKey) propKey.value = d?.key ?? '';
+  if (propIcon) propIcon.value = d?.icon && d.icon !== '•' ? d.icon : '';
+  if (propType) propType.value = d?.type ?? 'text';
+  if (propOptions) propOptions.value = (d?.options || []).join(',');
+  const wrap = propOptions?.closest('.prop-options-wrap');
+  if (wrap) wrap.classList.toggle('hidden', d?.type !== 'select' && d?.type !== 'multi');
   propForm.classList.remove('hidden');
   propKey?.focus();
 }
-function closePropForm() { if (propForm) propForm.classList.add('hidden'); }
+function closePropForm() {
+  if (propForm) propForm.classList.add('hidden');
+  propEditKey = null;
+}
 
-/** 添加属性：校验保留字 → 加入当前卡（+ 属性库） */
+/** 添加/编辑属性：校验保留字 → 加入当前卡（自动保存到属性库，便于复用/编辑） */
 function onPropFormOk() {
   const key = (propKey.value || '').trim().replace(/\s+/g, '_');
   if (!key) { showToast('属性名不能为空', 'error'); return; }
-  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能作为属性名`, 'error'); return; }
+  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
   const opts = propOptions.value ? propOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
-  const def = {
-    key, label: key, icon: propIcon.value || '•', type: propType.value,
-    ...(opts.length ? { options: opts } : {}),
-  };
+  const def = { key, label: key, icon: propIcon.value || '•', type: propType.value, ...(opts.length ? { options: opts } : {}) };
+  if (propEditKey && propEditKey !== key) {
+    // 编辑且改名：迁移库定义 + 迁移当前卡值
+    const oldKey = propEditKey;
+    if (oldKey in editorProps) { editorProps[key] = editorProps[oldKey]; delete editorProps[oldKey]; }
+    propLibrary = { ...propLibrary };
+    delete propLibrary[oldKey];
+  }
   if (!(key in editorProps)) editorProps[key] = '';
-  if (propToLib.checked) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+  propLibrary = { ...propLibrary, [key]: def };
+  void savePropLibrary();
+  const wasEdit = propEditKey !== null;
   renderEditorProps();
   closePropForm();
   propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
-  showToast(`已添加属性「${key}」`, 'success');
+  showToast(wasEdit ? `已更新属性「${key}」` : `已添加属性「${key}」（已入库）`, 'success');
 }
 
 /** 从属性库复用属性到当前卡 */
@@ -1540,7 +1570,7 @@ async function renderCardPool() {
     // 状态 + 进度 + 优先级
     const metaRow = document.createElement('span');
     metaRow.className = 'cardpool-meta';
-    metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[card.status] || '纯记录'));
+    metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[card.status] || card.status || '纯记录'));
     if (card.priority && card.priority !== 'medium') metaRow.append(chipSpan('cardpool-prio', card.priority === 'high' ? '🔴' : '🟢'));
     if (card.progress != null) metaRow.append(chipSpan('cardpool-progress', `${card.progress}%`));
     li.append(metaRow);
@@ -2399,6 +2429,18 @@ async function init() {
   document.getElementById('card-editor-status-seg')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.seg');
     if (btn?.dataset.status) onStatusClicked(btn.dataset.status);
+  });
+  // 自定义状态：输入即设为自定义状态，清空回退纯记录
+  editorStatusCustom?.addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    if (v) { editorStatus.value = v; updateStatusSeg(v); onEditorStatusChange(); }
+    else { editorStatus.value = 'none'; updateStatusSeg('none'); onEditorStatusChange(); }
+  });
+  // 进度：手输数值（滑块/手输双向）
+  editorProgressNumber?.addEventListener('change', () => {
+    const p = Math.max(0, Math.min(100, Math.round(Number(editorProgressNumber.value) || 0)));
+    if (editorProgress) editorProgress.value = p;
+    onEditorProgressChange();
   });
   // 点击头部图标瓦片打开 emoji picker
   document.getElementById('btn-emoji-tile')?.addEventListener('click', openEmojiPicker);
