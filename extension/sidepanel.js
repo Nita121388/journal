@@ -1553,6 +1553,15 @@ async function renderCardPool() {
     }
     if (chips.childNodes.length) li.append(chips);
 
+    // 只读系统元数据：修改时间 + 来源（AI/人工）
+    const sysmeta = document.createElement('span');
+    sysmeta.className = 'cardpool-sysmeta';
+    const ub = card.meta?.updatedBy;
+    const origin = ub?.origin === 'human' ? '👤人工' : (ub?.agent || ub?.model) ? '🤖AI' : '';
+    const at = card.updatedAt ? shortDate(card.updatedAt.slice(0, 10)) : '';
+    sysmeta.textContent = [at, origin].filter(Boolean).join(' · ');
+    if (sysmeta.textContent) li.append(sysmeta);
+
     const schedBtn = document.createElement('button');
     schedBtn.className = 'cardpool-schedule-btn';
     schedBtn.textContent = '📅';
