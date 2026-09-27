@@ -13,10 +13,9 @@ import {
 } from './lib/model.js';
 import {
   getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
-  createCardEntry, updateCardEntry, deleteCardEntry,
-  getTodos, saveTodos, getSettings,
+  createCardEntry, updateCardEntry, deleteCardEntry, getSettings,
 } from './lib/store.js';
-import { pullFromHost, startHostSync } from './lib/host-sync.js';
+import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/host-sync.js';
 import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
@@ -79,10 +78,19 @@ let weekAnchor = selectedDate;
 /** @type {'default'|'full'} 时间线展示范围：默认 08-22，full=24 小时 */
 let timelineSpan = localStorage.getItem('journal.timelineSpan') || 'default';
 
-/** @type {'active'|'all'|'done'} */
-let todoFilter = 'active';
-/** @type {Array} */
-let todosCache = [];
+/** @type {'active'|'all'|'done'} 旧待办筛选（已并入卡片池状态筛选，保留变量兼容过渡期渲染） */
+/** 卡片池状态筛选：''全部 | 'active'待办(todo∪doing) | 'todo' | 'doing' | 'done' | 'none'纯文本 */
+let poolStatusFilter = '';
+/** 卡片池标签筛选 */
+let poolTagFilter = '';
+/** 卡片池项目筛选 */
+let poolProjectFilter = '';
+/** 卡片池布局：'card' 卡片视图 | 'list' 列表视图 */
+let poolLayout = localStorage.getItem('journal.poolLayout') || 'card';
+/** 命名视图清单 */
+let savedViews = [];
+/** 当前命名的视图 id（'' = 未命名/手动） */
+let activeViewId = '';
 
 /* ─── 卡片编辑器 ──────────────────────────────────────── */
 
@@ -380,12 +388,6 @@ const els = {
   todayDisplay: document.getElementById('today-display'),
   heatmap: document.getElementById('heatmap-container'),
   heatmapStreak: document.getElementById('heatmap-streak'),
-  todoInput: document.getElementById('todo-input'),
-  todoPriority: document.getElementById('todo-priority'),
-  todoDue: document.getElementById('todo-due'),
-  todoList: document.getElementById('todo-list'),
-  todoStats: document.getElementById('todo-stats'),
-  todoFilters: document.querySelectorAll('.todo-filter'),
   calPrev: document.getElementById('cal-prev'),
   calNext: document.getElementById('cal-next'),
   calToday: document.getElementById('cal-today'),
@@ -402,6 +404,11 @@ const els = {
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
+  btnTemplate: document.getElementById('btn-template'),
+  poolLayoutBtn: document.getElementById('btn-pool-layout'),
+  saveViewBtn: document.getElementById('btn-save-view'),
+  viewSelect: document.getElementById('pool-view-select'),
+  poolFilterRow: document.getElementById('pool-filter-row'),
 
   // skills
   skillsSection: document.getElementById('skills-section'),
@@ -1201,82 +1208,118 @@ function startNowMarkerTimer() {
   }, 60 * 1000);
 }
 
-/* ─── 渲染：卡片池 ──────────────────────────────────────── */
+/* ─── 渲染：统一卡片池（文本/待办统一，待办只是状态筛选） ─────── */
 
-let poolTagFilter = '';
-let poolTypeFilter = ''; // '' | 'text' | 'task'（'' = 全部；text 含存量 idea）
+const STATUS_OPTIONS = [
+  { value: '', label: '全部' },
+  { value: 'active', label: '⏳ 待办' },
+  { value: 'todo', label: '📌 未开始' },
+  { value: 'doing', label: '🔥 进行中' },
+  { value: 'done', label: '✅ 已完成' },
+  { value: 'none', label: '📝 纯记录' },
+];
+const STATUS_LABEL = { todo: '待办', doing: '进行中', done: '已完成', none: '纯记录' };
 
-/** 卡片池类型筛选条：全部 / 文本 / 任务(待办) */
-function renderPoolTypeFilters() {
-  const bar = document.createElement('li');
-  bar.className = 'cardpool-tag-filters';
-  const opts = [
-    { value: '', label: '全部' },
-    { value: 'text', label: '📝 文本' },
-    { value: 'task', label: '☑️ 任务（待办）' },
-  ];
-  for (const { value, label } of opts) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'tag-chip' + (poolTypeFilter === value ? ' is-active' : '');
-    btn.textContent = label;
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      poolTypeFilter = value;
-      renderCardPool();
-    });
-    bar.append(btn);
-  }
-  els.cardpoolList.append(bar);
+/** 状态匹配：active = todo ∪ doing（待办视图） */
+function statusMatches(card, f) {
+  if (!f) return true;
+  if (f === 'active') return card.status === 'todo' || card.status === 'doing';
+  return card.status === f;
 }
 
+/** 卡片池状态 + 项目 筛选条（渲染到 pool-filter-row） */
+function renderPoolFilters() {
+  const row = els.poolFilterRow;
+  if (!row) return;
+  row.replaceChildren();
+  for (const { value, label } of STATUS_OPTIONS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip' + (poolStatusFilter === value ? ' is-active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      poolStatusFilter = value;
+      activeViewId = '';
+      renderCardPool();
+    });
+    row.append(btn);
+  }
+  // 项目筛选
+  const projects = [...new Set((allCardsCache ?? []).map(c => c.project).filter(Boolean))];
+  if (projects.length) {
+    const sel = document.createElement('select');
+    sel.className = 'pool-project-select';
+    sel.title = '按项目筛选';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = '项目: 全部';
+    sel.append(none);
+    for (const p of projects) {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      sel.append(o);
+    }
+    sel.value = poolProjectFilter;
+    sel.addEventListener('change', () => { poolProjectFilter = sel.value; activeViewId = ''; renderCardPool(); });
+    row.append(sel);
+  }
+}
+
+/** 卡片池标签筛选（追加到筛选行） */
 function renderPoolTagFilters(pool) {
+  const row = els.poolFilterRow;
+  if (!row) return;
   const names = [...new Set(pool.flatMap(c => c.tags ?? []))];
-  if (!names.length && !poolTagFilter) return;
-  const bar = document.createElement('li');
-  bar.className = 'cardpool-tag-filters';
+  if (!names.length) return;
   const all = document.createElement('button');
   all.type = 'button';
-  all.className = 'tag-chip' + (poolTagFilter ? '' : ' is-active');
-  all.textContent = '全部';
-  all.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = ''; renderCardPool(); });
-  bar.append(all);
+  all.className = 'chip' + (poolTagFilter ? '' : ' is-active');
+  all.textContent = '# 全部';
+  all.addEventListener('click', () => { poolTagFilter = ''; activeViewId = ''; renderCardPool(); });
+  row.append(all);
   for (const name of names) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'tag-chip' + (poolTagFilter === name ? ' is-active' : '');
-    btn.textContent = name;
-    btn.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = name; renderCardPool(); });
-    bar.append(btn);
+    btn.className = 'chip' + (poolTagFilter === name ? ' is-active' : '');
+    btn.textContent = '#' + name;
+    btn.addEventListener('click', () => { poolTagFilter = name; activeViewId = ''; renderCardPool(); });
+    row.append(btn);
   }
-  els.cardpoolList.append(bar);
+}
+
+/** 小芯片（属性/日期展示） */
+function chipSpan(cls, text) {
+  const s = document.createElement('span');
+  s.className = cls;
+  s.textContent = text;
+  return s;
 }
 
 async function renderCardPool() {
-  const allPool = await getPoolCards();
-  const pool = allPool.filter(c => {
-    const typeOk = !poolTypeFilter || c.type === poolTypeFilter ||
-      (poolTypeFilter === 'text' && c.type === 'idea'); // idea 归入文本
+  const all = allCardsCache.filter(c => !c.deleted);
+  const pool = all.filter(c => {
+    const sOk = statusMatches(c, poolStatusFilter);
     const tagOk = !poolTagFilter || (c.tags ?? []).includes(poolTagFilter);
-    return typeOk && tagOk;
+    const projOk = !poolProjectFilter || (c.project ?? '') === poolProjectFilter;
+    return sOk && tagOk && projOk;
   });
-  els.cardpoolCount.textContent = allPool.length;
+  els.cardpoolCount.textContent = pool.length;
   els.cardpoolList.replaceChildren();
-  renderPoolTypeFilters();
-  renderPoolTagFilters(allPool);
+  els.cardpoolList.classList.toggle('is-list', poolLayout === 'list');
+  renderPoolFilters();
+  renderPoolTagFilters(all);
 
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    li.textContent = poolTagFilter ? '没有这个标签的卡片'
-      : poolTypeFilter ? '没有这个类型的卡片' : '没有未安排的卡片';
+    li.textContent = '没有符合条件的卡片';
     els.cardpoolList.append(li);
     return;
   }
 
   for (const card of pool) {
     const li = document.createElement('li');
-    li.className = 'cardpool-item';
+    li.className = 'cardpool-item status-' + (card.status || 'none');
+    if (card.status === 'done') li.classList.add('is-done');
     li.dataset.id = card.id;
     // 支持拖拽到今日时间线（HTML5 DnD）
     li.draggable = true;
@@ -1285,13 +1328,12 @@ async function renderCardPool() {
       e.dataTransfer.setData('text/plain', card.id);
       e.dataTransfer.effectAllowed = 'move';
       li.classList.add('is-dragging');
-      cardDragged = false; // 初始化，dragend 前不会触发 click
+      cardDragged = false;
     });
     li.addEventListener('dragend', () => {
       li.classList.remove('is-dragging');
-      // 标记已发生拖拽，后续 click 不打开编辑器
       cardDragged = true;
-      setTimeout(() => { cardDragged = false; }, 0); // 下一帧解除，只跳过一次
+      setTimeout(() => { cardDragged = false; }, 0);
     });
 
     const icon = document.createElement('span');
@@ -1300,7 +1342,29 @@ async function renderCardPool() {
 
     const text = document.createElement('span');
     text.className = 'cardpool-text';
-    text.textContent = card.content || '(空)';
+    text.textContent = (card.title || card.content || '(空)');
+
+    li.append(icon, text);
+
+    // 状态 + 进度 + 优先级
+    const metaRow = document.createElement('span');
+    metaRow.className = 'cardpool-meta';
+    metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[card.status] || '纯记录'));
+    if (card.priority && card.priority !== 'medium') metaRow.append(chipSpan('cardpool-prio', card.priority === 'high' ? '🔴' : '🟢'));
+    if (card.progress != null) metaRow.append(chipSpan('cardpool-progress', `${card.progress}%`));
+    li.append(metaRow);
+
+    // 日期 / 项目 / 自定义属性
+    const chips = document.createElement('span');
+    chips.className = 'cardpool-chips';
+    if (card.assignedDate) chips.append(chipSpan('cardpool-chip', shortDate(card.assignedDate)));
+    if (card.project) chips.append(chipSpan('cardpool-chip', '📁 ' + card.project));
+    if (card.duration != null && card.duration > 0) chips.append(chipSpan('cardpool-chip', `⏱ ${card.duration}分`));
+    for (const [k, v] of Object.entries(card.props ?? {})) {
+      if (v === null || v === undefined || v === '') continue;
+      chips.append(chipSpan('cardpool-chip', `•${k}: ${v}`));
+    }
+    if (chips.childNodes.length) li.append(chips);
 
     const schedBtn = document.createElement('button');
     schedBtn.className = 'cardpool-schedule-btn';
@@ -1308,7 +1372,6 @@ async function renderCardPool() {
     schedBtn.title = '安排到某天';
     schedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      // 直接安排到当天
       const st = snapUpToQuarter(currentTime());
       updateCardEntry(card.id, { assignedDate: selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
         .then(() => refreshAll())
@@ -1331,7 +1394,7 @@ async function renderCardPool() {
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
     li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
 
-    li.append(icon, text, schedBtn, delBtn);
+    li.append(schedBtn, delBtn);
     els.cardpoolList.append(li);
   }
 }
@@ -1428,66 +1491,6 @@ function updateHeaderDate() {
 
 /* ─── 渲染：TODO ──────────────────────────────────────── */
 
-function renderTodoList() {
-  const filtered = todosCache.filter(t =>
-    todoFilter === 'active' ? !t.done : todoFilter === 'done' ? t.done : true
-  );
-
-  els.todoList.replaceChildren();
-  if (!filtered.length) {
-    const li = document.createElement('li');
-    li.className = 'todo-empty';
-    li.textContent = todoFilter === 'done' ? '还没有已完成的待办' : '暂无待办';
-    els.todoList.append(li);
-    return;
-  }
-
-  for (const t of filtered) {
-    const li = document.createElement('li');
-    li.className = 'todo-item' + (t.done ? ' is-done' : '');
-    li.dataset.id = t.id;
-
-    const dot = document.createElement('span');
-    dot.className = `todo-priority-dot ${t.priority}`;
-
-    // 自定义 emoji 图标（无则 ☑️）
-    const icon = document.createElement('span');
-    icon.className = 'todo-emoji';
-    icon.textContent = t.emoji || '☑️';
-
-    const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.className = 'todo-check'; cb.checked = t.done;
-
-    const title = document.createElement('span');
-    title.className = 'todo-title';
-    title.textContent = t.title;
-
-    li.append(dot, icon, cb, title);
-
-    if (t.due) {
-      const dueEl = document.createElement('span');
-      dueEl.className = 'todo-due' + (isOverdue(t.due) && !t.done ? ' is-overdue' : '');
-      dueEl.textContent = t.due;
-      li.append(dueEl);
-    }
-
-    const del = document.createElement('button');
-    del.className = 'todo-delete';
-    del.textContent = '✕';
-    li.append(del);
-
-    els.todoList.append(li);
-  }
-
-  const s = todoSummary(todosCache);
-  els.todoStats.textContent = `${s.done}/${s.total}`;
-}
-
-async function persistTodos() {
-  await saveTodos(todosCache);
-  renderTodoList();
-}
-
 /* ─── 全局刷新 ────────────────────────────────────────── */
 
 async function refreshAll() {
@@ -1497,9 +1500,94 @@ async function refreshAll() {
   renderCalendarView();
   await renderRightView();
   await renderCardPool();
-  // 刷新 TODO（从 cards 中筛选 task）
-  todosCache = await getTodos();
-  renderTodoList();
+}
+
+/* ─── 命名视图 ────────────────────────────────────────── */
+
+/** 从 host 拉取命名视图并渲染到下拉 */
+async function loadPoolViews() {
+  savedViews = (await getHostMeta('savedViews')) || [];
+  const sel = els.viewSelect;
+  if (!sel) return;
+  sel.replaceChildren();
+  const optAll = document.createElement('option');
+  optAll.value = ''; optAll.textContent = '全部卡片';
+  sel.append(optAll);
+  for (const v of savedViews) {
+    const o = document.createElement('option');
+    o.value = v.id; o.textContent = v.name;
+    sel.append(o);
+  }
+  sel.value = activeViewId;
+}
+
+/** 把当前筛选 + 布局存成命名视图 */
+async function saveCurrentView() {
+  const name = (prompt('视图名称：', '我的视图') || '').trim();
+  if (!name) return;
+  const id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const view = {
+    id, name,
+    status: poolStatusFilter,
+    tag: poolTagFilter,
+    project: poolProjectFilter,
+    layout: poolLayout,
+  };
+  savedViews = [...savedViews, view];
+  await setHostMeta('savedViews', savedViews);
+  activeViewId = id;
+  await loadPoolViews();
+  showToast('✅ 已保存视图：' + name, 'success');
+}
+
+/** 应用一个命名视图 */
+function applyView(view) {
+  poolStatusFilter = view.status ?? '';
+  poolTagFilter = view.tag ?? '';
+  poolProjectFilter = view.project ?? '';
+  poolLayout = view.layout ?? 'card';
+  localStorage.setItem('journal.poolLayout', poolLayout);
+  activeViewId = view.id;
+  renderCardPool();
+}
+
+/* ─── 模板菜单（阶段 D 完善） ──────────────────────────── */
+
+async function openTemplateMenu() {
+  const templates = (await getHostMeta('templates')) || [];
+  if (!templates.length) {
+    showToast('暂无模板 —— 在卡片编辑器里可「保存为模板」', '');
+    return;
+  }
+  renderTemplateMenu(templates);
+}
+
+/** 用模板新建卡片（阶段 D 升级为下拉面板） */
+async function createFromTemplate(tpl) {
+  const card = await createCardEntry({
+    content: '',
+    title: tpl.title ?? '',
+    emoji: tpl.emoji ?? '',
+    status: tpl.status ?? 'todo',
+    progress: tpl.progress ?? null,
+    duration: tpl.duration ?? null,
+    props: tpl.propsDefaults ?? {},
+    project: tpl.project ?? null,
+    tags: tpl.tags ?? [],
+    provenance: { origin: 'human' },
+  });
+  await refreshAll();
+  openEditor(card, currentTime(), null, null);
+}
+
+/** 模板下拉（阶段 D 实现） */
+function renderTemplateMenu(templates) {
+  const names = ['空白卡片', ...templates.map(t => t.name)];
+  const pick = prompt('选择模板：\n' + names.map((n, i) => `${i}. ${n}`).join('\n'), '0');
+  const idx = pick === null ? -1 : parseInt(pick, 10);
+  if (idx < 0 || idx >= names.length) return;
+  if (idx === 0) { openEditor(null, currentTime(), null, null); return; }
+  createFromTemplate(templates[idx - 1]);
 }
 
 /* ─── 本机 Skills ────────────────────────────────────── */
@@ -1636,6 +1724,7 @@ async function init() {
   updateHeaderDate();
   markViewMode();
   await refreshAll();
+  await loadPoolViews();
 
   // ── 右视图导航 / 模式切换 ──
   els.viewPrev.addEventListener('click', async () => {
@@ -1787,48 +1876,24 @@ async function init() {
     renderRightView();
   });
 
-  // ── TODO：添加 ──
-  els.todoInput.addEventListener('keydown', async (e) => {
-    if (e.key !== 'Enter' || !els.todoInput.value.trim()) return;
-    const title = els.todoInput.value.trim();
-    await createCardEntry({
-      content: title,
-      type: 'task',
-      assignedDate: els.todoDue.value || null,
-      priority: els.todoPriority?.value || 'medium',
-    });
-    els.todoInput.value = '';
-    els.todoDue.value = '';
-    await refreshAll();
+  // ── 卡片池：布局切换（卡片视图 / 列表视图） ──
+  els.poolLayoutBtn?.addEventListener('click', () => {
+    poolLayout = poolLayout === 'card' ? 'list' : 'card';
+    localStorage.setItem('journal.poolLayout', poolLayout);
+    els.poolLayoutBtn.textContent = poolLayout === 'card' ? '⊞' : '☰';
+    renderCardPool();
   });
 
-  // ── TODO：事件委托 ──
-  els.todoList.addEventListener('click', async (e) => {
-    const item = e.target.closest('.todo-item');
-    if (!item) return;
-    const id = item.dataset.id;
-
-    if (e.target.classList.contains('todo-check')) {
-      await updateCardEntry(id, { done: e.target.checked });
-    } else if (e.target.classList.contains('todo-delete')) {
-      if (confirm('删除待办？')) await deleteCardEntry(id);
-    } else {
-      return;
-    }
-    await refreshAll();
+  // ── 卡片池：命名视图（保存 / 切换） ──
+  els.saveViewBtn?.addEventListener('click', saveCurrentView);
+  els.viewSelect?.addEventListener('change', () => {
+    const id = els.viewSelect.value;
+    const view = savedViews.find(v => v.id === id);
+    if (view) applyView(view);
   });
 
-  // ── TODO：筛选 ──
-  els.todoFilters.forEach(btn => {
-    btn.addEventListener('click', () => {
-      els.todoFilters.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      todoFilter = btn.dataset.filter;
-      renderTodoList();
-    });
-  });
-
-  // ── 设置按钮 ──
+  // ── 卡片池：模板（阶段 D） ──
+  els.btnTemplate?.addEventListener('click', openTemplateMenu);
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });

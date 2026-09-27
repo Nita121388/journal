@@ -1649,3 +1649,101 @@ html.wide-mode .calview-summary { font-size: 11px; padding: 3px 5px; }
 
 /* 时间线卡片摘要随宽显示更多文字（现有 ellipsis 继续生效） */
 html.wide-mode .timeline-card { max-width: 300px; }
+
+/* ─── 统一卡片池（阶段 B） ───────────────────────────── */
+
+/* 筛选行 + chip */
+.pool-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.chip {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.chip.is-active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.pool-project-select {
+  font-family: var(--font);
+  font-size: 11px;
+  max-width: 140px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* header 工具按钮 + 视图下拉 */
+.pool-tool-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 0 2px;
+}
+.pool-tool-btn:hover { color: var(--color-accent); }
+.pool-view-select {
+  font-family: var(--font);
+  font-size: 11px;
+  max-width: 96px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.cardpool-actions { display: flex; gap: 6px; }
+.cardpool-actions .cardpool-add-btn { flex: 1; margin-top: 6px; }
+
+/* 卡片项：默认卡片视图（两行：首行 icon+标题+操作，次行状态/属性） */
+.cardpool-item { flex-wrap: wrap; }
+.cardpool-item > .cardpool-type-icon { order: 1; }
+.cardpool-item > .cardpool-text { order: 2; flex: 1 1 auto; }
+.cardpool-item > .cardpool-meta { order: 3; flex-basis: 100%; margin-top: 1px; }
+.cardpool-item > .cardpool-chips { order: 3; flex-basis: 100%; margin-top: 1px; }
+.cardpool-item > .cardpool-schedule-btn { order: 4; margin-left: auto; }
+.cardpool-item > .cardpool-delete-btn { order: 4; }
+
+.cardpool-meta { display: flex; align-items: center; gap: 4px; }
+.cardpool-status-badge {
+  font-size: 10px;
+  color: var(--color-muted);
+  background: var(--color-cell-empty);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.cardpool-progress { font-size: 10px; color: var(--color-accent); font-weight: 600; }
+.cardpool-prio { font-size: 10px; }
+
+.cardpool-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.cardpool-chip {
+  font-size: 10px;
+  color: var(--color-muted);
+  background: var(--color-cell-empty);
+  padding: 1px 4px;
+  border-radius: 3px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 状态着色（左侧色条 + 底色淡染） */
+.cardpool-item.status-todo { border-left: 3px solid #f9a825; }
+.cardpool-item.status-doing { border-left: 3px solid #1e88e5; }
+.cardpool-item.status-done { border-left: 3px solid #43a047; opacity: 0.72; }
+.cardpool-item.status-none { border-left: 3px solid var(--color-border); }
+
+/* 列表视图：密集单行，隐藏状态/属性行 */
+#cardpool-list.is-list .cardpool-item { flex-wrap: nowrap; padding: 3px 6px; }
+#cardpool-list.is-list .cardpool-item .cardpool-meta,
+#cardpool-list.is-list .cardpool-item .cardpool-chips { display: none; }

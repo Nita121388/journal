@@ -24,51 +24,25 @@
     <div id="board">
       <!-- 左侧栏 -->
       <aside id="sidebar">
-        <!-- 卡片池 -->
+      <!-- 统一卡片池（唯一主视图：文本/待办都是卡片，待办只是状态筛选） -->
         <section id="cardpool-section">
           <div class="section-header">
             <span class="section-label">🃏 卡片池</span>
             <span id="cardpool-count" class="section-badge">0</span>
-          </div>
-          <ul id="cardpool-list"></ul>
-          <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
-        </section>
-
-        <!-- 待办（显示未安排的 task 卡片） -->
-        <section id="todo-section">
-          <div class="section-header">
-            <span class="section-label">📝 待办</span>
-            <div id="todo-stats"></div>
-          </div>
-
-          <div id="todo-input-row">
-            <input
-              type="text"
-              id="todo-input"
-              placeholder="快速添加待办..."
-              aria-label="添加待办"
-              autocomplete="off"
-            />
-            <input
-              type="date"
-              id="todo-due"
-              aria-label="截止日期"
-              title="截止日期"
-            />
-            <select id="todo-priority" aria-label="优先级" title="优先级">
-              <option value="low">🟢</option>
-              <option value="medium" selected>🟡</option>
-              <option value="high">🔴</option>
+            <button id="btn-pool-layout" class="pool-tool-btn" title="切换布局（卡片/列表）">⊞</button>
+            <button id="btn-save-view" class="pool-tool-btn" title="保存当前为命名视图">💾</button>
+            <select id="pool-view-select" class="pool-view-select" aria-label="命名视图">
+              <option value="">全部卡片</option>
             </select>
           </div>
-
-          <div id="todo-filter-row">
-            <button class="todo-filter active" data-filter="active">未完成</button>
-            <button class="todo-filter" data-filter="all">全部</button>
-            <button class="todo-filter" data-filter="done">已完成</button>
+          <div id="pool-filter-row" class="pool-filter-row">
+            <!-- 状态筛选 + 布局 + 项目：由 JS 渲染 -->
           </div>
-
-          <ul id="todo-list"></ul>
+          <ul id="cardpool-list"></ul>
+          <div class="cardpool-actions">
+            <button id="btn-template" class="cardpool-add-btn" title="用模板新建">🗂 模板</button>
+            <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
+          </div>
         </section>
 
         <!-- 日历 -->
