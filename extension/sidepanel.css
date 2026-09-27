@@ -2401,3 +2401,17 @@ body.tpl-dragging { user-select: none; }
 #btn-new-card:active { transform: scale(.98); }
 #btn-template { background: var(--color-bg); border: 1px dashed var(--color-border); color: var(--color-muted); }
 #btn-template:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* 模板下拉：入场动画 + 更润的阴影 + 悬停克制 */
+.template-menu {
+  animation: menu-pop .12s ease-out;
+  transform-origin: top left;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.16), 0 1px 4px rgba(0,0,0,.10);
+  padding: 5px;
+}
+@keyframes menu-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+.tpl-item { transition: background .1s, color .1s; }
+.tpl-item:hover { background: var(--color-cell-empty); color: var(--color-text); }
+.tpl-item:hover .tpl-chips { color: var(--color-accent); }
+.tpl-create { color: var(--color-accent); }
