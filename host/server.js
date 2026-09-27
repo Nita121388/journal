@@ -12,7 +12,7 @@ import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release } from 'node:os';
 
-import { createStore } from './lib/storage.js';
+import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
 import { createLogger } from './lib/logger.js';
 import { createBackplane } from './sync/backplane.js';
 import { runSync, syncStatus } from './sync/engine.js';
@@ -300,12 +300,19 @@ export async function createApp(store, { logger } = {}) {
           content: body.content,
           type: body.type,
           done: body.done,
+          title: body.title,
+          status: body.status,
+          progress: body.progress,
+          duration: body.duration,
+          props: body.props,
+          project: body.project,
           assignedDate: body.assignedDate,
           time: body.time,
           startTime: body.startTime,
           endTime: body.endTime,
           priority: body.priority,
           tags: body.tags,
+          emoji: body.emoji,
           meta: provenanceForCreate(body.provenance),
         });
         return ok(res, card);
@@ -458,6 +465,14 @@ export async function createApp(store, { logger } = {}) {
       if (path === '/api/settings' && method === 'PUT') {
         return ok(res, await store.setSettings(body ?? {}));
       }
+
+      // ── Meta（本机配置：属性库 / 模板 / 命名视图）────────
+      if (path === '/api/meta/propertyLibrary' && method === 'GET') return ok(res, await getPropertyLibrary(store));
+      if (path === '/api/meta/propertyLibrary' && method === 'PUT') return ok(res, await savePropertyLibrary(store, body ?? {}));
+      if (path === '/api/meta/templates' && method === 'GET') return ok(res, await getTemplates(store));
+      if (path === '/api/meta/templates' && method === 'PUT') return ok(res, await saveTemplates(store, Array.isArray(body) ? body : []));
+      if (path === '/api/meta/savedViews' && method === 'GET') return ok(res, await getSavedViews(store));
+      if (path === '/api/meta/savedViews' && method === 'PUT') return ok(res, await saveSavedViews(store, Array.isArray(body) ? body : []));
 
       // ── Health ────────────────────────────────────────
       if (path === '/api/health') {

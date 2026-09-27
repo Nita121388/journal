@@ -8,7 +8,8 @@
 
 /** 会被同步的卡片业务字段 */
 export const CARD_FIELDS = Object.freeze([
-  'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags', 'meta',
+  'content', 'type', 'done', 'title', 'status', 'progress', 'duration', 'props', 'project',
+  'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags', 'meta',
 ]);
 
 function normalizeMeta(input) {
@@ -43,15 +44,53 @@ function normalizeTags(input) {
 
 const TYPES = ['text', 'task', 'idea'];
 const PRIORITIES = ['high', 'medium', 'low'];
+const STATUSES = ['none', 'todo', 'doing', 'done'];
+
+function statusFromTypeDone(type, done) {
+  if (type === 'task') return done ? 'done' : 'todo';
+  return 'none';
+}
+function normalizeProgress(p, status) {
+  let v = null;
+  if (p !== null && p !== undefined && p !== '') {
+    const n = Number(p);
+    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  if (v == null && status === 'done') v = 100;
+  return v;
+}
+function normalizeDuration(d) {
+  if (d === null || d === undefined || d === '') return null;
+  const n = Number(d);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+}
+function normalizeProps(input) {
+  if (!input || typeof input !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (typeof k !== 'string' || !k) continue;
+    out[k] = v;
+  }
+  return out;
+}
 
 /** 归一化卡片，便于比较（字段缺失按默认值补齐） */
 export function normalizeCard(card = {}) {
   const start = str(card.startTime) ?? str(card.time) ?? null;
+  const type = TYPES.includes(card.type) ? card.type : 'text';
+  const done = Boolean(card.done);
+  const status = STATUSES.includes(card.status) ? card.status : statusFromTypeDone(type, done);
   return {
     id: card.id,
     content: typeof card.content === 'string' ? card.content : '',
-    type: TYPES.includes(card.type) ? card.type : 'text',
-    done: Boolean(card.done),
+    type,
+    done,
+    title: typeof card.title === 'string' ? card.title : '',
+    status,
+    progress: normalizeProgress(card.progress, status),
+    duration: normalizeDuration(card.duration),
+    props: normalizeProps(card.props),
+    project: str(card.project),
     assignedDate: str(card.assignedDate),
     time: str(card.time) ?? start,
     startTime: start,
@@ -160,7 +199,7 @@ export function cardsEqual(a, b) {
     if (Array.isArray(av) || Array.isArray(bv)) {
       return Array.isArray(av) && Array.isArray(bv) && av.length === bv.length && av.every((v, i) => v === bv[i]);
     }
-    if (f === 'meta') {
+    if (f === 'meta' || f === 'props') {
       return JSON.stringify(av ?? null) === JSON.stringify(bv ?? null);
     }
     return av === bv;

@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { createStore, normalizeTags, verifyNoDataLoss } from '../lib/storage.js';
+import { createStore, normalizeTags, verifyNoDataLoss, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from '../lib/storage.js';
 
 function tmp() { return mkdtempSync(join(tmpdir(), 'jstore-')); }
 
@@ -187,5 +187,105 @@ test('exportJson：包含 journals/todos/cards/settings', async () => {
     assert.equal(exp.todos.length, 1);
     assert.equal(exp.todos[0].title, 'a task');
     assert.ok(exp.journals['2026-09-07']);
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('统一模型：title/status/progress/duration/props/project 读写往返', async () => {
+  const dir = tmp();
+  const s = await createStore({ file: join(dir, 'j.db') });
+  try {
+    const c = await s.createCard({
+      content: 'body',
+      title: '标题',
+      status: 'doing',
+      progress: 70,
+      duration: 45,
+      props: { client: '某公司', energy: 3 },
+      project: 'E:/p',
+      tags: ['pw'],
+    });
+    assert.equal(c.title, '标题');
+    assert.equal(c.status, 'doing');
+    assert.equal(c.progress, 70);
+    assert.equal(c.duration, 45);
+    assert.deepEqual(c.props, { client: '某公司', energy: 3 });
+    assert.equal(c.project, 'E:/p');
+
+    const got = await s.getCard(c.id);
+    assert.equal(got.title, '标题');
+    assert.equal(got.status, 'doing');
+    assert.equal(got.progress, 70);
+    assert.equal(got.duration, 45);
+    assert.deepEqual(got.props, { client: '某公司', energy: 3 });
+    assert.equal(got.project, 'E:/p');
+
+    const u = await s.updateCard(c.id, { status: 'done', progress: 100, props: { client: 'B' } });
+    assert.equal(u.status, 'done');
+    assert.equal(u.progress, 100);
+    assert.deepEqual(u.props, { client: 'B' });
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('状态推导：旧 type/done 读作 status（text→none, task→todo/done），done 补进度100', async () => {
+  const dir = tmp();
+  const file = join(dir, 'old2.db');
+  const raw = new DatabaseSync(file);
+  raw.exec(`CREATE TABLE IF NOT EXISTS cards (
+    id TEXT PRIMARY KEY, content TEXT, type TEXT, done INTEGER, assignedDate TEXT,
+    time TEXT, startTime TEXT, endTime TEXT, priority TEXT,
+    createdAt TEXT, updatedAt TEXT, deleted INTEGER
+  );
+  INSERT INTO cards (id, content, type, done, priority, deleted, createdAt, updatedAt) VALUES
+    ('c_tx', '散文', 'text', 0, 'medium', 0, '2026-01-01', '2026-01-01'),
+    ('c_td', '待办', 'task', 0, 'high', 0, '2026-01-01', '2026-01-01'),
+    ('c_dn', '完成', 'task', 1, 'low', 0, '2026-01-01', '2026-01-01');`);
+  raw.close();
+  const s = await createStore({ file });
+  try {
+    assert.equal((await s.getCard('c_tx')).content, '散文');
+    assert.equal((await s.getCard('c_tx')).status, 'none');
+    assert.equal((await s.getCard('c_td')).status, 'todo');
+    const dn = await s.getCard('c_dn');
+    assert.equal(dn.status, 'done');
+    assert.equal(dn.progress, 100);
+    // type/done 历史列保留（零丢失）
+    assert.equal((await s.getCard('c_dn')).type, 'task');
+    assert.equal((await s.getCard('c_dn')).done, true);
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('project 一等化：写入顶层列；旧 provenance 回落兼容', async () => {
+  const dir = tmp();
+  const s = await createStore({ file: join(dir, 'j.db') });
+  try {
+    const c = await s.createCard({ content: 'x', project: 'E:/new' });
+    assert.equal(c.project, 'E:/new');
+    const c2 = await s.createCard({ content: 'y', meta: { createdBy: { project: 'E:/old' } } });
+    assert.equal((await s.getCard(c2.id)).project, 'E:/old');
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('props 保留字保护：新建名为 title/status 的属性被过滤', async () => {
+  const dir = tmp();
+  const s = await createStore({ file: join(dir, 'j.db') });
+  try {
+    const c = await s.createCard({ content: 'x', props: { title: 'hack', status: 'done', client: 'ok' } });
+    assert.deepEqual(c.props, { client: 'ok' });
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('本机配置存储：属性库 / 模板 / 命名视图', async () => {
+  const dir = tmp();
+  const s = await createStore({ file: join(dir, 'j.db') });
+  try {
+    await savePropertyLibrary(s, { client: { label: '客户', type: 'text' } });
+    assert.deepEqual(await getPropertyLibrary(s), { client: { label: '客户', type: 'text' } });
+    await saveTemplates(s, [{ id: 't1', name: '工作' }]);
+    assert.equal((await getTemplates(s)).length, 1);
+    await saveSavedViews(s, [{ id: 'v1', name: '待办' }]);
+    assert.equal((await getSavedViews(s))[0].name, '待办');
+    // 非法输入防御
+    await assert.rejects(() => saveTemplates(s, 'nope'));
+    await assert.rejects(() => savePropertyLibrary(s, []));
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
 });

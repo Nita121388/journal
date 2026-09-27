@@ -73,6 +73,42 @@ function stripInlineProps(line) {
   return line.replace(/`([A-Za-z_][\w-]*)\s*::\s*[^`]*`/g, '').trim();
 }
 
+/** 自定义属性 → 紧凑 JSON 串（单 token，往返不丢类型） */
+function propsJson(props) {
+  if (!props || typeof props !== 'object' || Object.keys(props).length === 0) return null;
+  try { return JSON.stringify(props); } catch { return null; }
+}
+
+/**
+ * 卡片 → 统一内联属性（新增一等字段 + 自定义属性打包成 `props:: {json}`）。
+ * 每卡一行，Obsidian 阅读模式干净；解析时读回 props/title/status/progress/duration 。
+ */
+function cardInlineProps(c, extra = {}) {
+  return inlineProps({
+    id: c.id,
+    type: c.type,
+    title: c.title || undefined,
+    emoji: c.emoji,
+    status: c.status && c.status !== 'none' ? c.status : undefined,
+    progress: c.progress ?? undefined,
+    duration: c.duration ?? undefined,
+    props: propsJson(c.props),
+    tags: (c.tags ?? []).join(','),
+    ...extra,
+  });
+}
+
+/** 把 md 内联属性里新增的业务字段并入 current */
+function applyMdProps(current, props) {
+  if (props.title !== undefined) current.title = props.title;
+  if (props.status !== undefined) current.status = props.status;
+  if (props.progress !== undefined && /^\d{1,3}$/.test(props.progress)) current.progress = Number(props.progress);
+  if (props.duration !== undefined && /^\d+$/.test(props.duration)) current.duration = Number(props.duration);
+  if (props.props) {
+    try { const p = JSON.parse(props.props); if (p && typeof p === 'object') current.props = p; } catch { /* ignore */ }
+  }
+}
+
 /** ISO → YYYY-MM-DD（本地时区） */
 function isoToDay(iso) {
   if (!iso) return null;
@@ -137,10 +173,7 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
     for (const c of buckets.journal) {
       out.push(c.content ?? '');
       out.push('');
-      const p = inlineProps({
-        id: c.id,
-        type: c.type,
-        emoji: c.emoji,
+      const p = cardInlineProps(c, {
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
         model: c.meta?.createdBy?.model,
         project: c.meta?.createdBy?.project,
@@ -159,12 +192,8 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
       out.push(`### ${t}`, '');
       out.push(c.content ?? '');
       out.push('');
-      const p = inlineProps({
-        id: c.id,
-        type: c.type,
-        emoji: c.emoji,
+      const p = cardInlineProps(c, {
         end: c.endTime,
-        tags: (c.tags ?? []).join(','),
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
         model: c.meta?.createdBy?.model,
         project: c.meta?.createdBy?.project,
@@ -179,11 +208,7 @@ export function serializeDay(dayKey, cards = [], opts = {}) {
     for (const c of buckets.todo) {
       const mark = c.done ? '[x]' : '[ ]';
       out.push(`- ${mark} ${(c.content ?? '').replace(/\n/g, ' ')}`);
-      const p = inlineProps({
-        id: c.id,
-        type: c.type,
-        emoji: c.emoji,
-        tags: (c.tags ?? []).join(','),
+      const p = cardInlineProps(c, {
         by: c.meta?.createdBy?.agent ?? c.meta?.createdBy?.origin,
       });
       if (p) out.push('  ' + p);
@@ -210,7 +235,7 @@ export function serializeInbox(cards = []) {
     '',
   ];
   for (const c of cards) {
-    const p = inlineProps({ id: c.id, type: c.type, emoji: c.emoji, tags: (c.tags ?? []).join(',') });
+    const p = cardInlineProps(c);
     if (c.type === 'task') {
       out.push(`- ${c.done ? '[x]' : '[ ]'} ${(c.content ?? '').replace(/\n/g, ' ')}`);
     } else {
@@ -288,6 +313,11 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         content: (current.content ?? '').trim(),
         type: current.type ?? 'text',
         done: current.done ?? false,
+        title: current.title ?? '',
+        status: current.status ?? (current.type === 'task' ? (current.done ? 'done' : 'todo') : 'none'),
+        progress: current.progress ?? null,
+        duration: current.duration ?? null,
+        props: current.props ?? {},
         assignedDate: dayKey,
         time: current.time ?? null,
         startTime: current.time ?? null,
@@ -330,6 +360,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
     // 缩进的续属性行（上一条卡片/待办的属性，归属该卡）：  `id:: xxx` `tags:: ...`
     if (current && /^\s+`[A-Za-z_][\w-]*\s*::/.test(raw)) {
       const props = parseInlineProps(raw);
+      applyMdProps(current, props);
       if (props.id && !current.id) current.id = props.id.trim();
       if (props.type && !current.type) current.type = props.type;
       if (props.tags) current.tags = props.tags.split(',').map(s => s.trim()).filter(Boolean);
@@ -353,6 +384,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
+      applyMdProps(current, props);
       continue;
     }
 
@@ -360,6 +392,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
     if (section === 'journal') {
       const props = parseInlineProps(line);
       if (props.id && current) {
+        applyMdProps(current, props);
         Object.assign(current, {
           id: props.id,
           type: props.type ?? 'text',
@@ -379,6 +412,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
     if (section === 'timeline' && current) {
       const props = parseInlineProps(line);
       if (props.id || props.end) {
+        applyMdProps(current, props);
         Object.assign(current, {
           id: current.id ?? props.id,
           end: props.end ?? current.end,
@@ -409,6 +443,7 @@ export function parseDay(text, dayKey, mtimeIso = null) {
         emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
+      applyMdProps(current, props);
     }
   }
   flush();
@@ -432,6 +467,11 @@ export function parseInbox(text, mtimeIso = null) {
         content: current.content.trim(),
         type: current.type ?? 'text',
         done: current.done ?? false,
+        title: current.title ?? '',
+        status: current.status ?? (current.type === 'task' ? (current.done ? 'done' : 'todo') : 'none'),
+        progress: current.progress ?? null,
+        duration: current.duration ?? null,
+        props: current.props ?? {},
         assignedDate: null,
         tags: current.tags ?? [],
         emoji: current.emoji ?? '',
@@ -447,6 +487,7 @@ export function parseInbox(text, mtimeIso = null) {
     // 缩进续属性行：归属上一条卡
     if (current && /^\s+`[A-Za-z_][\w-]*\s*::/.test(raw)) {
       const props = parseInlineProps(raw);
+      applyMdProps(current, props);
       if (props.id && !current.id) current.id = props.id.trim();
       if (props.type && !current.type) current.type = props.type;
       if (props.tags) current.tags = props.tags.split(',').map(s => s.trim()).filter(Boolean);
@@ -467,6 +508,7 @@ export function parseInbox(text, mtimeIso = null) {
         emoji: props.emoji ?? '',
         at: props.at ?? null,
       };
+      applyMdProps(current, props);
       continue;
     }
     // 其他行（说明文字等）忽略

@@ -153,3 +153,28 @@ test('meta 不在 md 中产生（md 不是 meta 权威源）', () => {
     assert.equal(c.meta, undefined, 'md 解析不应生成 meta');
   }
 });
+
+test('md 往返保留新字段：title/status/progress/duration/props', () => {
+  const cards = [{
+    id: 'c_rt', content: '带属性的卡', title: '标题', type: 'text', status: 'doing',
+    progress: 70, duration: 45, assignedDate: '2026-09-25', time: '10:00', startTime: '10:00', endTime: '10:45',
+    priority: 'medium', tags: ['tag'], props: { client: '某公司', energy: 3 }, deleted: false,
+  }];
+  const md = serializeDay('2026-09-25', cards);
+  const parsed = parseDay(md, '2026-09-25');
+  assert.equal(parsed.length, 1);
+  const c = parsed[0];
+  assert.equal(c.title, '标题');
+  assert.equal(c.status, 'doing');
+  assert.equal(c.progress, 70);
+  assert.equal(c.duration, 45);
+  assert.deepEqual(c.props, { client: '某公司', energy: 3 });
+});
+
+test('inbox 往返保留自定义属性', () => {
+  const cards = [{ id: 'c_in', content: '池内卡', type: 'text', tags: [], props: { platform: '微信' }, deleted: false }];
+  const md = serializeInbox(cards);
+  const parsed = parseInbox(md);
+  assert.equal(parsed.length, 1);
+  assert.deepEqual(parsed[0].props, { platform: '微信' });
+});

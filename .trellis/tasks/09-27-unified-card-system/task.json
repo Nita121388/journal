@@ -1,0 +1,31 @@
+{
+  "id": "unified-card-system",
+  "name": "unified-card-system",
+  "title": "统一卡片系统重构（Notion/Obsidian 风格）",
+  "description": "UI不区分文本/待办；卡片池统一多色卡片；属性可扩展；支持命名模板。四阶段落地。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "Nita121388",
+  "assignee": "Nita121388",
+  "createdAt": "2026-09-27",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-27-card-data-model",
+    "09-27-card-pool-view",
+    "09-27-card-property-editor",
+    "09-27-card-templates"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

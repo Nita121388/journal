@@ -20,8 +20,52 @@ import { createLogger } from './logger.js';
 
 const CARD_TYPES = ['text', 'task', 'idea'];
 const PRIORITIES = ['high', 'medium', 'low'];
+const STATUSES = ['none', 'todo', 'doing', 'done'];
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const JOURNAL_PREFIX = 'c_mj_';
+
+/** 由 type+done 推导状态（历史数据读侧映射，不写库） */
+function statusFromTypeDone(type, done) {
+  if (type === 'task') return done ? 'done' : 'todo';
+  return 'none';
+}
+
+/** 归一化进度 0-100；done 且无进度时补 100（兼容旧 task+done） */
+function normalizeProgress(p, status) {
+  let v = null;
+  if (p !== null && p !== undefined && p !== '') {
+    const n = Number(p);
+    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  if (v == null && status === 'done') v = 100;
+  return v;
+}
+
+/** 归一化时长（分钟），非法/负数 → null */
+function normalizeDuration(d) {
+  if (d === null || d === undefined || d === '') return null;
+  const n = Number(d);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+}
+
+/** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖 */
+export const RESERVED_PROPS = new Set([
+  'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
+  'endTime', 'priority', 'tags', 'emoji', 'title', 'status', 'progress',
+  'duration', 'props', 'project', 'meta', 'createdAt', 'updatedAt', 'deleted',
+  'createdBy', 'updatedBy', 'provenance', 'deviceId', 'lastAgent',
+]);
+
+/** 归一化自定义属性：去保留字 + 只保留字符串 key */
+function normalizeProps(input) {
+  if (!input || typeof input !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (typeof k !== 'string' || !k || RESERVED_PROPS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
 
 /* ─── 通用工具 ───────────────────────────────────────── */
 
@@ -54,11 +98,21 @@ export function normalizeTags(input) {
 /** 归一化卡片：补默认值 + 约束枚举，兼容旧数据 */
 export function normalizeCard(card = {}) {
   const start = asString(card.startTime) ?? asString(card.time) ?? null;
+  const type = CARD_TYPES.includes(card.type) ? card.type : 'text';
+  const done = Boolean(card.done);
+  const status = STATUSES.includes(card.status) ? card.status : statusFromTypeDone(type, done);
+  const meta = parseMetaCell(card.meta);
   return {
     id: card.id,
     content: typeof card.content === 'string' ? card.content : '',
-    type: CARD_TYPES.includes(card.type) ? card.type : 'text',
-    done: Boolean(card.done),
+    type,
+    done,
+    title: typeof card.title === 'string' ? card.title : '',
+    status,
+    progress: normalizeProgress(card.progress, status),
+    duration: normalizeDuration(card.duration),
+    props: normalizeProps(card.props),
+    project: asString(card.project) ?? meta?.createdBy?.project ?? null,
     assignedDate: asString(card.assignedDate),
     time: asString(card.time) ?? start,
     startTime: start,
@@ -66,7 +120,7 @@ export function normalizeCard(card = {}) {
     priority: PRIORITIES.includes(card.priority) ? card.priority : 'medium',
     tags: normalizeTags(card.tags),
     emoji: typeof card.emoji === 'string' && card.emoji ? card.emoji : '',
-    meta: parseMetaCell(card.meta),
+    meta,
     createdAt: asString(card.createdAt) ?? nowIso(),
     updatedAt: asString(card.updatedAt) ?? nowIso(),
     deleted: Boolean(card.deleted),
@@ -98,6 +152,12 @@ export function buildCard(patch = {}, { idPrefix = 'c_' } = {}) {
     content: typeof patch.content === 'string' ? patch.content : '',
     type: patch.type,
     done: patch.done,
+    title: typeof patch.title === 'string' ? patch.title : '',
+    status: patch.status,
+    progress: patch.progress,
+    duration: patch.duration,
+    props: patch.props,
+    project: patch.project,
     assignedDate: patch.assignedDate,
     time: patch.time ?? start,
     startTime: start,
@@ -118,6 +178,18 @@ export function applyCardPatch(card, patch = {}) {
   if (patch.content !== undefined) next.content = String(patch.content);
   if (patch.type !== undefined && CARD_TYPES.includes(patch.type)) next.type = patch.type;
   if (patch.done !== undefined) next.done = Boolean(patch.done);
+  if (patch.title !== undefined) next.title = typeof patch.title === 'string' ? patch.title : '';
+  // status：显式给则用；只改了 done/type 则按 type+done 重推导（兼容旧客户端）
+  if (patch.status !== undefined && STATUSES.includes(patch.status)) {
+    next.status = patch.status;
+  } else if (patch.done !== undefined || patch.type !== undefined) {
+    next.status = statusFromTypeDone(next.type, next.done);
+  }
+  if (patch.progress !== undefined) next.progress = normalizeProgress(patch.progress, next.status);
+  else if (next.status === 'done' && next.progress == null) next.progress = 100;
+  if (patch.duration !== undefined) next.duration = normalizeDuration(patch.duration);
+  if (patch.props !== undefined) next.props = normalizeProps(patch.props);
+  if (patch.project !== undefined) next.project = asString(patch.project);
   if (patch.assignedDate !== undefined) next.assignedDate = asString(patch.assignedDate);
   if (patch.time !== undefined) next.time = asString(patch.time);
   if (patch.startTime !== undefined) next.startTime = asString(patch.startTime);
@@ -145,7 +217,8 @@ export function validHHMM(v) { return typeof v === 'string' && HHMM_RE.test(v); 
 
 const COLUMNS = [
   'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
-  'endTime', 'priority', 'tags', 'emoji', 'meta', 'createdAt', 'updatedAt', 'deleted',
+  'endTime', 'priority', 'tags', 'emoji', 'title', 'status', 'progress',
+  'duration', 'props', 'project', 'meta', 'createdAt', 'updatedAt', 'deleted',
 ];
 
 function parseTagsCell(raw) {
@@ -154,12 +227,28 @@ function parseTagsCell(raw) {
   try { return normalizeTags(JSON.parse(raw)); } catch { return []; }
 }
 
+function parsePropsCell(raw) {
+  if (raw && typeof raw === 'object') return normalizeProps(raw);
+  if (typeof raw !== 'string' || !raw) return {};
+  try { return normalizeProps(JSON.parse(raw)); } catch { return {}; }
+}
+
 function rowToCard(r) {
+  const type = r.type ?? 'text';
+  const done = Boolean(r.done);
+  const status = STATUSES.includes(r.status) ? r.status : statusFromTypeDone(type, done);
+  const meta = parseMetaCell(r.meta);
   return {
     id: r.id,
     content: r.content ?? '',
-    type: r.type ?? 'text',
-    done: Boolean(r.done),
+    type,
+    done,
+    title: r.title ?? '',
+    status,
+    progress: normalizeProgress(r.progress, status),
+    duration: normalizeDuration(r.duration),
+    props: parsePropsCell(r.props),
+    project: asString(r.project) ?? meta?.createdBy?.project ?? null,
     assignedDate: r.assignedDate ?? null,
     time: r.time ?? null,
     startTime: r.startTime ?? null,
@@ -167,7 +256,7 @@ function rowToCard(r) {
     priority: r.priority ?? 'medium',
     tags: parseTagsCell(r.tags),
     emoji: typeof r.emoji === 'string' && r.emoji ? r.emoji : '',
-    meta: parseMetaCell(r.meta),
+    meta,
     createdAt: r.createdAt ?? null,
     updatedAt: r.updatedAt ?? null,
     deleted: Boolean(r.deleted),
@@ -181,15 +270,19 @@ function cardToValues(c) {
     c.endTime ?? null, c.priority ?? 'medium',
     JSON.stringify(normalizeTags(c.tags)),
     typeof c.emoji === 'string' && c.emoji ? c.emoji : '',
+    c.title ?? '', c.status ?? 'none', c.progress ?? null,
+    c.duration ?? null, JSON.stringify(normalizeProps(c.props)),
+    c.project ?? null,
     metaToCell(c.meta),
     c.createdAt ?? null, c.updatedAt ?? null, c.deleted ? 1 : 0,
   ];
 }
 
-/** 除 tags/meta 外逐字段比对用（历史数据零丢失校验） */
+/** 除 tags/meta/emoji 外逐字段比对用（历史数据零丢失校验） */
 const LOSS_FIELDS = [
-  'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
-  'endTime', 'priority', 'createdAt', 'updatedAt', 'deleted',
+  'content', 'type', 'done', 'title', 'status', 'progress', 'duration', 'props',
+  'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'project',
+  'createdAt', 'updatedAt', 'deleted',
 ];
 
 export function cardsEqualExceptTags(a, b) {
@@ -217,6 +310,31 @@ export function verifyNoDataLoss(before, after) {
   return { ok: true };
 }
 
+/**
+ * 零丢失加列迁移（照 tags/meta/emoji 例）：VACUUM INTO 备份 → ALTER TABLE → 校验 → 失败回滚。
+ * before 用「新列字段取读侧推导值」的快照，既验证现有字段零丢失，也防 schema 漂移。
+ * @param {object} a
+ * @returns {boolean} 是否执行了迁移
+ */
+function migrateAddColumn({ db, log, file, cols, column, ddl }) {
+  if (cols.includes(column)) return false;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backup = `${file}.pre-${column}-${stamp}.bak`;
+  db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
+  log.info(`${column} migration backup: ${backup}`);
+  db.exec(`ALTER TABLE cards ADD COLUMN ${ddl}`);
+  const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
+  const before = after.map(c => ({ ...c, [column]: c[column] }));
+  const check = verifyNoDataLoss(before, after);
+  if (!check.ok) {
+    log.error(`${column} migration failed verification (${check.reason}); restoring backup`);
+    db.close();
+    copyFileSync(backup, file);
+    throw new Error('迁移未改动数据');
+  }
+  return true;
+}
+
 /* ─── SQLite 实现 ────────────────────────────────────── */
 
 function createSqliteStore(DatabaseSync, file, log) {
@@ -236,6 +354,13 @@ function createSqliteStore(DatabaseSync, file, log) {
       endTime TEXT,
       priority TEXT NOT NULL DEFAULT 'medium',
       tags TEXT,
+      emoji TEXT,
+      title TEXT,
+      status TEXT,
+      progress INTEGER,
+      duration INTEGER,
+      props TEXT,
+      project TEXT,
       meta TEXT,
       createdAt TEXT,
       updatedAt TEXT,
@@ -255,54 +380,16 @@ function createSqliteStore(DatabaseSync, file, log) {
     file,
     async init() {
       const cols = db.prepare('PRAGMA table_info(cards)').all().map(c => c.name);
-      if (!cols.includes('tags')) {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backup = `${file}.pre-tags-${stamp}.bak`;
-        db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
-        log.info(`tags migration backup: ${backup}`);
-        db.exec('ALTER TABLE cards ADD COLUMN tags TEXT');
-        const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
-        const before = after.map(c => ({ ...c, tags: [] }));
-        const check = verifyNoDataLoss(before, after);
-        if (!check.ok) {
-          log.error(`tags migration failed verification (${check.reason}); restoring backup`);
-          db.close();
-          copyFileSync(backup, file);
-          throw new Error('迁移未改动数据');
-        }
-      }
-      if (!cols.includes('meta')) {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backup = `${file}.pre-meta-${stamp}.bak`;
-        db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
-        log.info(`meta migration backup: ${backup}`);
-        db.exec('ALTER TABLE cards ADD COLUMN meta TEXT');
-        const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
-        const before = after.map(c => ({ ...c, meta: null }));
-        const check = verifyNoDataLoss(before, after);
-        if (!check.ok) {
-          log.error(`meta migration failed verification (${check.reason}); restoring backup`);
-          db.close();
-          copyFileSync(backup, file);
-          throw new Error('迁移未改动数据');
-        }
-      }
-      if (!cols.includes('emoji')) {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backup = `${file}.pre-emoji-${stamp}.bak`;
-        db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
-        log.info(`emoji migration backup: ${backup}`);
-        db.exec('ALTER TABLE cards ADD COLUMN emoji TEXT');
-        const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
-        const before = after.map(c => ({ ...c, emoji: '' }));
-        const check = verifyNoDataLoss(before, after);
-        if (!check.ok) {
-          log.error(`emoji migration failed verification (${check.reason}); restoring backup`);
-          db.close();
-          copyFileSync(backup, file);
-          throw new Error('迁移未改动数据');
-        }
-      }
+      // 零丢失加列迁移（照 tags/meta/emoji 例）：备份 → 加列 → 校验 → 失败回滚
+      migrateAddColumn({ db, log, file, cols, column: 'tags', ddl: 'tags TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'meta', ddl: 'meta TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'emoji', ddl: 'emoji TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'title', ddl: 'title TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'status', ddl: 'status TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'progress', ddl: 'progress INTEGER' });
+      migrateAddColumn({ db, log, file, cols, column: 'duration', ddl: 'duration INTEGER' });
+      migrateAddColumn({ db, log, file, cols, column: 'props', ddl: 'props TEXT' });
+      migrateAddColumn({ db, log, file, cols, column: 'project', ddl: 'project TEXT' });
       return true;
     },
     async close() { try { db.close(); } catch { /* noop */ } },
@@ -550,6 +637,41 @@ function createJsonStore(file, log) {
 
 export function defaultSettings() {
   return { theme: 'auto', sync: { provider: 'off' } };
+}
+
+/* ─── 本机配置存储（属性库 / 模板 / 命名视图，不入同步快照） ── */
+
+/** 属性库：{ [key]: PropertyDef } */
+export async function getPropertyLibrary(store) {
+  const v = await store.getMeta('propertyLibrary');
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+export async function savePropertyLibrary(store, lib) {
+  if (!lib || typeof lib !== 'object' || Array.isArray(lib)) throw new Error('propertyLibrary 必须是对象');
+  await store.setMeta({ propertyLibrary: lib });
+  return lib;
+}
+
+/** 模板：Template[] */
+export async function getTemplates(store) {
+  const v = await store.getMeta('templates');
+  return Array.isArray(v) ? v : [];
+}
+export async function saveTemplates(store, list) {
+  if (!Array.isArray(list)) throw new Error('templates 必须是数组');
+  await store.setMeta({ templates: list });
+  return list;
+}
+
+/** 命名视图：SavedView[] */
+export async function getSavedViews(store) {
+  const v = await store.getMeta('savedViews');
+  return Array.isArray(v) ? v : [];
+}
+export async function saveSavedViews(store, list) {
+  if (!Array.isArray(list)) throw new Error('savedViews 必须是数组');
+  await store.setMeta({ savedViews: list });
+  return list;
 }
 
 async function exportJsonFrom(store) {
