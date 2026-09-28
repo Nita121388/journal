@@ -22,7 +22,7 @@ const sample = () => ([
     type: 'text',
     assignedDate: '2026-09-24',
     time: '09:00', startTime: '09:00', endTime: '09:30',
-    priority: 'medium', tags: ['journal'], deleted: false,
+    priority: 'medium', tags: ['journal'], emoji: '🔧', deleted: false,
     meta: { createdBy: { origin: 'agent-assisted', agent: 'pi', model: 'deepseek-v4-pro', project: 'E:/projects/journal' } },
   },
   {
@@ -68,6 +68,7 @@ test('往返：id / 内容 / 时间 / tags 全部保留', () => {
   assert.equal(timeline.startTime, '09:00');
   assert.equal(timeline.endTime, '09:30');
   assert.deepEqual(timeline.tags, ['journal']);
+  assert.equal(timeline.emoji, '🔧'); // emoji 往返保留
 
   const todo = byId.get('c_456');
   assert.equal(todo.type, 'task');
@@ -108,7 +109,7 @@ test('不同内容 → 不同 id（不误合并）', () => {
 
 test('inbox 往返：卡片池（无日期）', () => {
   const cards = [
-    { id: 'c_pool1', content: '未安排的想法', type: 'text', assignedDate: null, tags: ['idea'], priority: 'medium', deleted: false },
+    { id: 'c_pool1', content: '未安排的想法', type: 'text', assignedDate: null, tags: ['idea'], priority: 'medium', emoji: '💡', deleted: false },
     { id: 'c_pool2', content: '卡片池待办', type: 'task', done: true, assignedDate: null, tags: [], priority: 'low', deleted: false },
   ];
   const md = serializeInbox(cards);
@@ -117,6 +118,7 @@ test('inbox 往返：卡片池（无日期）', () => {
   const byId = new Map(parsed.map(c => [c.id, c]));
   assert.equal(byId.get('c_pool1').content, '未安排的想法');
   assert.equal(byId.get('c_pool1').assignedDate, null);
+  assert.equal(byId.get('c_pool1').emoji, '💡'); // emoji 往返保留
   assert.equal(byId.get('c_pool2').done, true);
 });
 
@@ -150,4 +152,29 @@ test('meta 不在 md 中产生（md 不是 meta 权威源）', () => {
   for (const c of parsed) {
     assert.equal(c.meta, undefined, 'md 解析不应生成 meta');
   }
+});
+
+test('md 往返保留新字段：title/status/progress/duration/props', () => {
+  const cards = [{
+    id: 'c_rt', content: '带属性的卡', title: '标题', type: 'text', status: 'doing',
+    progress: 70, duration: 45, assignedDate: '2026-09-25', time: '10:00', startTime: '10:00', endTime: '10:45',
+    priority: 'medium', tags: ['tag'], props: { client: '某公司', energy: 3 }, deleted: false,
+  }];
+  const md = serializeDay('2026-09-25', cards);
+  const parsed = parseDay(md, '2026-09-25');
+  assert.equal(parsed.length, 1);
+  const c = parsed[0];
+  assert.equal(c.title, '标题');
+  assert.equal(c.status, 'doing');
+  assert.equal(c.progress, 70);
+  assert.equal(c.duration, 45);
+  assert.deepEqual(c.props, { client: '某公司', energy: 3 });
+});
+
+test('inbox 往返保留自定义属性', () => {
+  const cards = [{ id: 'c_in', content: '池内卡', type: 'text', tags: [], props: { platform: '微信' }, deleted: false }];
+  const md = serializeInbox(cards);
+  const parsed = parseInbox(md);
+  assert.equal(parsed.length, 1);
+  assert.deepEqual(parsed[0].props, { platform: '微信' });
 });

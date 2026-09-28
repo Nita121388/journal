@@ -116,6 +116,24 @@ export async function deleteCardFromHost(id) {
   return res.ok ? { ok: true } : { ok: false, error: res.error };
 }
 
+/* ─── 本机配置（属性库 / 模板 / 命名视图） ──────────────────── */
+
+/**
+ * 读取 host 本机配置（kind ∈ savedViews | propertyLibrary | templates）。
+ * @param {'savedViews'|'propertyLibrary'|'templates'} kind
+ * @returns {Promise<any|null>}
+ */
+export async function getHostMeta(kind) {
+  const res = await api('GET', `/api/meta/${kind}`);
+  return res.ok ? res.data : null;
+}
+
+/** 写入 host 本机配置，提交当前值，返回保存后的值 */
+export async function setHostMeta(kind, value) {
+  const res = await api('PUT', `/api/meta/${kind}`, value);
+  return res.ok ? res.data : null;
+}
+
 /* ─── 监听器（适配新架构） ──────────────────────────────────── */
 
 // 旧接口保留兼容：startPushListener 不再需要，调用方忽略即可

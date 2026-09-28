@@ -32,25 +32,82 @@ export function currentTime() {
 
 /* ─── 卡片操作 ───────────────────────────────────────────── */
 
+const STATUSES = ['none', 'todo', 'doing', 'done'];
+const PRIORITIES = ['high', 'medium', 'low'];
+
+/** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖 */
+export const RESERVED_PROPS = new Set([
+  'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime',
+  'priority', 'tags', 'emoji', 'title', 'status', 'progress', 'duration', 'props',
+  'project', 'meta', 'createdAt', 'updatedAt', 'deleted',
+  'createdBy', 'updatedBy', 'provenance', 'deviceId', 'lastAgent',
+]);
+
+/** 由 type+done 推导状态（历史数据读侧映射） */
+export function statusFromTypeDone(type, done) {
+  if (type === 'task') return done ? 'done' : 'todo';
+  return 'none';
+}
+
+/** 归一化进度 0-100；done 且无进度时补 100 */
+export function normalizeProgress(p, status) {
+  let v = null;
+  if (p !== null && p !== undefined && p !== '') {
+    const n = Number(p);
+    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  if (v == null && status === 'done') v = 100;
+  return v;
+}
+
+/** 归一化时长（分钟） */
+export function normalizeDuration(d) {
+  if (d === null || d === undefined || d === '') return null;
+  const n = Number(d);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+}
+
+/** 归一化自定义属性：去保留字 */
+export function normalizeProps(input) {
+  if (!input || typeof input !== 'object') return {};
+  const out = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (typeof k !== 'string' || !k || RESERVED_PROPS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 /**
  * 创建一张新卡片
- * @param {object} patch — { content?, type?, done?, assignedDate?, time?, startTime?, endTime? }
+ * @param {object} patch — { content?, type?, done?, title?, status?, progress?, duration?, props?, project?, assignedDate?, time?, startTime?, endTime? }
  * @returns {import('./types').Card}
  */
 export function createCard(patch = {}) {
   const now = new Date().toISOString();
   const start = patch.startTime ?? patch.time ?? null;
+  const type = ['text', 'task', 'idea'].includes(patch.type) ? patch.type : 'text';
+  const done = Boolean(patch.done);
+  const status = typeof patch.status === 'string' && patch.status.trim() ? patch.status.trim() : statusFromTypeDone(type, done);
+  const progress = normalizeProgress(patch.progress, status);
   return {
     id: 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     content: patch.content ?? '',
-    type: patch.type ?? 'text',
-    done: patch.done ?? false,
+    type,
+    done,
+    title: patch.title ?? '',
+    status,
+    progress,
+    duration: normalizeDuration(patch.duration),
+    props: normalizeProps(patch.props),
+    project: patch.project ?? null,
     assignedDate: patch.assignedDate ?? null,
     time: patch.time ?? start,
     startTime: start,
     endTime: patch.endTime ?? null,
-    priority: ['high', 'medium', 'low'].includes(patch.priority) ? patch.priority : 'medium',
+    priority: PRIORITIES.includes(patch.priority) ? patch.priority : 'medium',
     tags: patch.tags ?? [],
+    emoji: typeof patch.emoji === 'string' ? patch.emoji : '',
     meta: patch.meta ?? null,
     createdAt: now,
     updatedAt: now,
@@ -285,14 +342,13 @@ export function countCardsByDay(cards) {
  * 获取某天的卡片类型分布
  * @param {Card[]} cards
  * @param {string} date
- * @returns {{text:number, task:number, idea:number}}
+ * @returns {{text:number, task:number}}
  */
 export function getCardTypeCounts(cards, date) {
   const dayCards = getCardsByDate(cards, date);
   return {
-    text: dayCards.filter(c => c.type === 'text').length,
+    text: dayCards.filter(c => c.type === 'text' || c.type === 'idea').length,
     task: dayCards.filter(c => c.type === 'task').length,
-    idea: dayCards.filter(c => c.type === 'idea').length,
   };
 }
 

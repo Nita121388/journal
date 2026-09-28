@@ -127,3 +127,26 @@ test('sync/now：未配置 provider 时返回 SYNC_DISABLED', async () => {
   assert.equal(status, 400);
   assert.equal(json.error.code, 'SYNC_DISABLED');
 });
+
+test('cards API：新增字段读写 + 状态推导（task done→done）', async () => {
+  const created = (await api('POST', '/api/cards', { content: 'x', title: '标题', status: 'doing', progress: 70, props: { client: 'A' } })).json;
+  assert.equal(created.ok, true);
+  assert.equal(created.data.status, 'doing');
+  assert.equal(created.data.title, '标题');
+  assert.equal(created.data.progress, 70);
+  assert.deepEqual(created.data.props, { client: 'A' });
+  const t = (await api('POST', '/api/cards', { content: 'y', type: 'task', done: true })).json.data;
+  assert.equal(t.status, 'done');
+  assert.equal(t.progress, 100);
+});
+
+test('meta 端点：propertyLibrary / templates / savedViews 读写', async () => {
+  const put = (await api('PUT', '/api/meta/savedViews', [{ id: 'v1', name: '待办', status: 'active', layout: 'list' }])).json;
+  assert.equal(put.ok, true);
+  const get = (await api('GET', '/api/meta/savedViews')).json;
+  assert.equal(get.data.length, 1);
+  assert.equal(get.data[0].name, '待办');
+  const lib = (await api('PUT', '/api/meta/propertyLibrary', { client: { key: 'client', type: 'text' } })).json;
+  assert.equal(lib.ok, true);
+  assert.equal((await api('GET', '/api/meta/propertyLibrary')).json.data.client.type, 'text');
+});

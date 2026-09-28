@@ -140,3 +140,14 @@ async function switchToDate(newDate) {
 4. 收缩 `padding-bottom` 时 resize 手柄（`position:absolute; bottom:0`）不受影响 —— 它绘制在流内内容之上。
 
 **原则**：给"靠状态类互斥的交互"（拖拽/缩放/悬停展开）写 CSS 时，逐条核对同特异性规则的出现顺序，并用更高特异性的门控规则显式关掉不需要的过渡。
+
+## Unified Card Pool (统一卡片池，阶段 B)
+
+- **待办不是独立区块**：卡片池是唯一主视图，`status ∈ {todo,doing}` 即「待办」筛选（`statusMatches(c,'active')`），与其他筛选（标签/项目）AND 叠加。
+- **渲染纯函数**：`renderCardPool()` 从 `allCardsCache`（非 `getPoolCards`）过滤；`statusMatches` / `chipSpan` 为纯辅助。
+- **状态着色**：`.cardpool-item.status-{todo|doing|done|none}` 用左侧色条区分；done 卡降透明度。
+- **布局**：`.is-list`（列表，隐藏 chips/进度，显示只读元数据行 `.cardpool-sysmeta` = 修改时间 + 🤖AI/👤人工）；默认卡片视图（两行）。
+- **只读元数据**：修改时间/来源来自 `card.meta.updatedBy`，仅文本展示不可编辑。
+- **命名视图 / 模板 / 属性库** 存 host `meta`（经 `getHostMeta/setHostMeta`），不入 chrome.storage；本机不跨端同步。
+- **进度↔状态联动**：`editorStatus.value==='done' ⇒ progress=100`；`progress>=100 ⇒ status='done'`，回退 `doing/todo`。时长↔起止双向：`updateEditorDuration`（起止→时长）+ `onEditorDurationInput`（时长→结束）。
+- **保留字保护**：自定义属性 key 必须过 `RESERVED_PROPS`（`title/status/…` 不可用作属性名）。

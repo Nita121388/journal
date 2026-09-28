@@ -10,13 +10,14 @@ import {
   todoSummary, dateRange, getMonthMatrix, toDayKey,
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
+  RESERVED_PROPS, normalizeProgress,
 } from './lib/model.js';
 import {
   getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
-  createCardEntry, updateCardEntry, deleteCardEntry,
-  getTodos, saveTodos, getSettings,
+  createCardEntry, updateCardEntry, deleteCardEntry, getSettings,
 } from './lib/store.js';
-import { pullFromHost, startHostSync } from './lib/host-sync.js';
+import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/host-sync.js';
+import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -57,9 +58,10 @@ function shortDate(dayKey) {
   return dayKey;
 }
 
-/** 类型图标 */
-function typeIcon(type) {
-  return type === 'task' ? '☑️' : type === 'idea' ? '💡' : '📝';
+/** 类型图标：卡片有自定义 emoji 时优先用 emoji，否则用类型默认 */
+function typeIcon(type, emoji = '') {
+  if (emoji) return emoji;
+  return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
 }
 
 /* ─── 状态 ──────────────────────────────────────────── */
@@ -77,20 +79,46 @@ let weekAnchor = selectedDate;
 /** @type {'default'|'full'} 时间线展示范围：默认 08-22，full=24 小时 */
 let timelineSpan = localStorage.getItem('journal.timelineSpan') || 'default';
 
-/** @type {'active'|'all'|'done'} */
-let todoFilter = 'active';
-/** @type {Array} */
-let todosCache = [];
+/** @type {'active'|'all'|'done'} 旧待办筛选（已并入卡片池状态筛选，保留变量兼容过渡期渲染） */
+/** 卡片池状态筛选：''全部 | 'active'待办(todo∪doing) | 'todo' | 'doing' | 'done' | 'none'纯文本 */
+let poolStatusFilter = '';
+/** 卡片池标签筛选 */
+let poolTagFilter = '';
+/** 卡片池项目筛选 */
+let poolProjectFilter = '';
+/** 卡片池布局：'card' 卡片视图 | 'list' 列表视图 */
+let poolLayout = localStorage.getItem('journal.poolLayout') || 'card';
+/** 命名视图清单 */
+let savedViews = [];
+/** 当前命名的视图 id（'' = 未命名/手动） */
+let activeViewId = '';
 
 /* ─── 卡片编辑器 ──────────────────────────────────────── */
 
 const editorOverlay = document.getElementById('card-editor-overlay');
-const editorTime = document.getElementById('card-editor-time');
+const editorDate = document.getElementById('card-editor-date');
 const editorType = document.getElementById('card-editor-type');
 const editorContent = document.getElementById('card-editor-content');
 const editorStart = document.getElementById('card-editor-start');
 const editorEnd = document.getElementById('card-editor-end');
 const editorDuration = document.getElementById('card-editor-duration');
+const editorTitle = document.getElementById('card-editor-title');
+const editorStatus = document.getElementById('card-editor-status');
+const editorProgress = document.getElementById('card-editor-progress');
+const editorProgressNumber = document.getElementById('card-editor-progress-number');
+const editorStatusCustom = document.getElementById('card-editor-status-custom');
+const editorDurationMin = document.getElementById('card-editor-duration-min');
+const propsList = document.getElementById('card-editor-props-list');
+const btnAddProp = document.getElementById('btn-add-prop');
+const btnPropLib = document.getElementById('btn-prop-lib');
+const propForm = document.getElementById('prop-form');
+const propKey = document.getElementById('prop-key');
+const propIcon = document.getElementById('prop-icon');
+const propType = document.getElementById('prop-type');
+const propOptions = document.getElementById('prop-options');
+const propFormOk = document.getElementById('prop-form-ok');
+const propFormCancel = document.getElementById('prop-form-cancel');
+const saveTemplateBtn = document.getElementById('card-editor-save-template');
 const editorSave = document.getElementById('card-editor-save');
 const editorCancel = document.getElementById('card-editor-cancel');
 const editorClose = document.getElementById('card-editor-close');
@@ -98,6 +126,9 @@ const editorTagInput = document.getElementById('card-editor-tag-input');
 const editorProjectInput = document.getElementById('card-editor-project');
 const editorMetaEl = document.getElementById('card-editor-meta');
 const projectSuggest = document.getElementById('project-suggest');
+const emojiPreview = document.getElementById('emoji-preview');
+const emojiPicker = document.getElementById('emoji-picker');
+const emojiFreeInput = null; // 已移除自由输入框（图标选择由头部瓦片负责），保留占位兼容 setEditorEmoji
 editorTagInput?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
@@ -105,18 +136,62 @@ editorTagInput?.addEventListener('keydown', (e) => {
   editorTagInput.value = '';
 });
 
+/** 编辑器当前选择的 emoji（'' = 用类型默认图标） */
+let editorEmoji = '';
+let emojiPickerCleanup = null;
+
+/** 编辑器自定义属性：key → 值 */
+let editorProps = {};
+/** 属性定义库（host meta）缓存 */
+let propLibrary = {};
+/** 卡片编辑器：勾选完成 ⇒ 进度100 联动开关 */
+let editorStatusValue = 'none';
+let editorProgressValue = 0;
+
+function setEditorEmoji(emoji) {
+  editorEmoji = emoji || '';
+  if (emojiPreview) emojiPreview.textContent = editorEmoji || typeIcon(editorType.value);
+  if (emojiFreeInput) emojiFreeInput.value = editorEmoji;
+}
+
+function openEmojiPicker() {
+  if (!emojiPicker) return;
+  emojiPicker.classList.remove('hidden');
+  emojiPickerCleanup?.();
+  emojiPickerCleanup = renderEmojiPicker(emojiPicker, (char) => {
+    setEditorEmoji(char);
+    recordRecentEmoji(char);
+    closeEmojiPicker();
+  }, { selected: editorEmoji });
+}
+
+function closeEmojiPicker() {
+  if (emojiPicker) emojiPicker.classList.add('hidden');
+  emojiPickerCleanup?.();
+  emojiPickerCleanup = null;
+}
+
+editorType?.addEventListener('change', () => {
+  // 未设置自定义 emoji 时，预览跟随类型默认图标
+  if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
+});
+// 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
+// 后被点击元素脱离文档导致 closest() 失效、误关 picker）
+editorOverlay?.addEventListener('click', (e) => {
+  const path = e.composedPath ? e.composedPath() : [e.target];
+  if (path.some(el => el?.classList?.contains('ce-tile-wrap'))) return;
+  closeEmojiPicker();
+});
+
 /** 正在编辑的卡片 ID（null = 新建模式） */
 let editingCardId = null;
-/** 编辑器打开时的目标时间 */
-let editorTargetTime = null;
-/** 新建时的安排日期：undefined = 用 selectedDate，null = 未安排（卡片池） */
-let editorAssignDate;
 
 /**
  * 打开卡片编辑器
  * @param {object|null} card — null = 新建，否则编辑
- * @param {string} time — HH:MM（新建时作为开始时间的种子）
+ * @param {string|null} time — HH:MM（新建时作为开始时间的种子；null/空 = 不排具体时间）
  * @param {string|null} date — YYYY-MM-DD
+ * @param {string|null} [assignedDate] — 新建时指定安排日期；null = 未安排（卡片池）
  */
 let editorTags = [];
 
@@ -187,22 +262,38 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
   editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
   renderEditorTags();
-  editorAssignDate = assignedDate;
   let start, end;
   if (card) {
-    start = getCardStartTime(card) ?? snapToQuarter(currentTime());
-    end = getCardEndTime(card) ?? addMinutes(start, 15);
+    // 已有卡片：读其时间；全天卡片（无 startTime）保持时间框为空
+    start = getCardStartTime(card) ?? null;
+    end = getCardEndTime(card) ?? null;
   } else {
-    start = snapUpToQuarter(time ?? currentTime());
-    end = addMinutes(start, 15);
+    // 新建：有种子时间则预填，否则留空（= 不排具体时间，全天卡片）
+    start = time ? snapUpToQuarter(time) : null;
+    end = start ? addMinutes(start, 15) : null;
   }
-  editorTargetTime = start;
-  if (editorStart) editorStart.value = start;
-  if (editorEnd) editorEnd.value = end;
+  if (editorStart) editorStart.value = start ?? '';
+  if (editorEnd) editorEnd.value = end ?? '';
   updateEditorDuration();
-  editorTime.textContent = date ?? (assignedDate === null ? '未安排' : selectedDate);
+  // 日期：编辑时读卡片 assignedDate；新建时用传入日期/选中日期；未安排(卡片池)则留空
+  if (editorDate) {
+    const d = card ? card.assignedDate ?? '' : (assignedDate === null ? '' : (date ?? selectedDate));
+    editorDate.value = d ?? '';
+    // 未安排标记：卡片无日期时占位提示
+    editorDate.title = d ? '' : '未安排（保存在卡片池）';
+  }
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
+  // 阶段 C：标题 / 状态 / 进度 / 时长 / 自定义属性
+  if (editorTitle) editorTitle.value = card?.title ?? '';
+  if (editorStatus) updateStatusSeg(card?.status ?? 'none');
+  if (editorProgress) editorProgress.value = card?.progress ?? 0;
+  if (editorDurationMin) editorDurationMin.value = card?.duration ?? '';
+  updateEditorProgressLabel();
+  editorProps = { ...(card?.props ?? {}) };
+  renderEditorProps();
+  setEditorEmoji(card?.emoji ?? '');
+  closeEmojiPicker();
 
   // 项目：已有卡片取现有值，否则取上次用过的
   const lastProject = localStorage.getItem('journal.lastProject') ?? '';
@@ -224,29 +315,236 @@ function openEditor(card, time, date, assignedDate = undefined) {
   editorContent.focus();
 }
 
-/** 编辑器持续时长显示 */
+/** 编辑器持续时长显示（起止 → 时长 双向） */
 function updateEditorDuration() {
-  if (!editorDuration) return;
   const s = editorStart?.value;
   const e = editorEnd?.value;
-  if (!s || !e) { editorDuration.textContent = ''; return; }
+  if (!s || !e) {
+    if (editorDuration) editorDuration.textContent = '';
+    if (editorDurationMin) editorDurationMin.value = '';
+    return;
+  }
   const dur = Math.max(0, timeToMinutes(e) - timeToMinutes(s));
-  editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+  if (editorDuration) editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+  if (editorDurationMin) editorDurationMin.value = dur > 0 ? dur : '';
+}
+
+/** 时长输入 → 反推结束时间（起止 ↔ 时长 双向） */
+function onEditorDurationInput() {
+  const s = editorStart?.value;
+  const dur = Number(editorDurationMin?.value || 0);
+  if (s && editorEnd && Number.isFinite(dur) && dur >= 0) {
+    editorEnd.value = addMinutes(s, dur);
+    if (editorDuration) editorDuration.textContent = `${dur} 分钟`;
+  }
+}
+
+/** 状态 → 进度 联动：勾选完成 ⇒ 进度100 */
+function onEditorStatusChange() {
+  const s = editorStatus?.value ?? 'none';
+  if (s === 'done' && editorProgress && editorProgress.value !== '100') editorProgress.value = 100;
+  if (s === 'none' && editorProgress && editorProgress.value === '100') editorProgress.value = 0;
+  updateEditorProgressLabel();
+}
+
+const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
+
+/** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
+function updateStatusSeg(value) {
+  const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
+  if (editorStatus) editorStatus.value = v;
+  const seg = document.getElementById('card-editor-status-seg');
+  if (seg) {
+    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
+  }
+  if (editorStatusCustom) {
+    editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
+  }
+}
+
+/** 点击分段胶囊：设状态 + 进度联动 */
+function onStatusClicked(value) {
+  updateStatusSeg(value);
+  onEditorStatusChange();
+}
+
+/** 进度 → 状态 联动：拖到 100% ⇒ 完成；回退 ⇒ 进行中/待办 */
+function onEditorProgressChange() {
+  const val = Number(editorProgress?.value ?? 0);
+  updateEditorProgressLabel();
+  if (editorStatus) {
+    if (val >= 100 && editorStatus.value !== 'done') { editorStatus.value = 'done'; updateStatusSeg('done'); }
+    else if (val < 100 && editorStatus.value === 'done') { editorStatus.value = val > 0 ? 'doing' : 'todo'; updateStatusSeg(editorStatus.value); }
+  }
+}
+
+function updateEditorProgressLabel() {
+  const p = Number(editorProgress?.value ?? 0);
+  if (editorProgressNumber && editorProgressNumber.value !== String(p)) editorProgressNumber.value = p;
+  if (editorProgress) editorProgress.style.setProperty('--ce-prog', p + '%');
+}
+
+/* ─── 自定义属性（编辑器） ───────────────────────────────── */
+
+async function loadPropLibrary() { propLibrary = (await getHostMeta('propertyLibrary')) || {}; }
+async function savePropLibrary() { await setHostMeta('propertyLibrary', propLibrary); }
+
+/** 渲染当前卡的属性行 */
+function renderEditorProps() {
+  if (propsList) propsList.replaceChildren();
+  const keys = Object.keys(editorProps);
+  if (!keys.length && propsList) {
+    const hint = document.createElement('div');
+    hint.className = 'props-empty';
+    hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」';
+    propsList.append(hint);
+    return;
+  }
+  for (const [key, val] of Object.entries(editorProps)) {
+    const def = propLibrary[key];
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    row.dataset.key = key;
+    const label = document.createElement('span');
+    label.className = 'prop-label';
+    label.textContent = (def?.icon ? def.icon + ' ' : '') + (def?.label || key);
+    label.title = key;
+    const ctrl = buildPropControl(key, def, val);
+    const edit = document.createElement('button');
+    edit.type = 'button'; edit.className = 'prop-edit'; edit.textContent = '✎';
+    edit.title = '编辑属性定义（保存到属性库）';
+    edit.addEventListener('click', () => openPropForm(key));
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
+    del.title = '从当前卡片删除该属性（保留属性库定义）';
+    del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
+    row.append(label, ctrl, edit, del);
+    propsList.append(row);
+  }
+}
+
+/** 按属性类型构建编辑控件，改动即写回 editorProps */
+function buildPropControl(key, def, val) {
+  const type = def?.type ?? 'text';
+  if (type === 'checkbox') {
+    const input = document.createElement('input');
+    input.type = 'checkbox'; input.className = 'prop-input';
+    input.checked = Boolean(val);
+    input.addEventListener('change', () => { editorProps[key] = input.checked; });
+    return input;
+  }
+  if (type === 'select' || type === 'multi') {
+    const sel = document.createElement('select');
+    sel.className = 'prop-input';
+    const opts = def?.options ?? [];
+    if (!opts.length) sel.append(new Option('', ''));
+    for (const o of opts) sel.append(new Option(o, o));
+    if (type === 'multi') sel.multiple = true;
+    if (type === 'select') sel.value = (val === null || val === undefined) ? '' : String(val);
+    if (type === 'multi' && Array.isArray(val)) {
+      for (const opt of sel.options) opt.selected = val.includes(opt.value);
+    }
+    sel.addEventListener('change', () => {
+      editorProps[key] = type === 'multi'
+        ? [...sel.selectedOptions].map(o => o.value)
+        : sel.value;
+    });
+    return sel;
+  }
+  const input = document.createElement('input');
+  input.className = 'prop-input';
+  if (type === 'number') input.type = 'number';
+  else if (type === 'date') input.type = 'date';
+  else if (type === 'time') input.type = 'time';
+  else input.type = 'text';
+  input.value = (val === null || val === undefined) ? '' : String(val);
+  input.addEventListener('change', () => {
+    editorProps[key] = input.type === 'number' ? Number(input.value) : input.value;
+  });
+  return input;
+}
+
+let propEditKey = null;
+
+/** 打开属性表单；defKey 传人则编辑属性库中既有定义 */
+function openPropForm(defKey = null) {
+  if (!propForm) return;
+  propEditKey = defKey;
+  const d = defKey ? propLibrary[defKey] : null;
+  if (propKey) propKey.value = d?.key ?? '';
+  if (propIcon) propIcon.value = d?.icon && d.icon !== '•' ? d.icon : '';
+  if (propType) propType.value = d?.type ?? 'text';
+  if (propOptions) propOptions.value = (d?.options || []).join(',');
+  const wrap = propOptions?.closest('.prop-options-wrap');
+  if (wrap) wrap.classList.toggle('hidden', d?.type !== 'select' && d?.type !== 'multi');
+  propForm.classList.remove('hidden');
+  propKey?.focus();
+}
+function closePropForm() {
+  if (propForm) propForm.classList.add('hidden');
+  propEditKey = null;
+}
+
+/** 添加/编辑属性：校验保留字 → 加入当前卡（自动保存到属性库，便于复用/编辑） */
+function onPropFormOk() {
+  const key = (propKey.value || '').trim().replace(/\s+/g, '_');
+  if (!key) { showToast('属性名不能为空', 'error'); return; }
+  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
+  const opts = propOptions.value ? propOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+  const def = { key, label: key, icon: propIcon.value || '•', type: propType.value, ...(opts.length ? { options: opts } : {}) };
+  if (propEditKey && propEditKey !== key) {
+    // 编辑且改名：迁移库定义 + 迁移当前卡值
+    const oldKey = propEditKey;
+    if (oldKey in editorProps) { editorProps[key] = editorProps[oldKey]; delete editorProps[oldKey]; }
+    propLibrary = { ...propLibrary };
+    delete propLibrary[oldKey];
+  }
+  if (!(key in editorProps)) editorProps[key] = '';
+  propLibrary = { ...propLibrary, [key]: def };
+  void savePropLibrary();
+  const wasEdit = propEditKey !== null;
+  renderEditorProps();
+  closePropForm();
+  propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
+  showToast(wasEdit ? `已更新属性「${key}」` : `已添加属性「${key}」（已入库）`, 'success');
+}
+
+/** 从属性库复用属性到当前卡 */
+function openPropLibrary() {
+  const keys = Object.keys(propLibrary);
+  if (!keys.length) { showToast('属性库为空', ''); return; }
+  const lines = keys.map((k, i) => `${i}. ${propLibrary[k].icon || ''} ${propLibrary[k].label || k}`).join('\n');
+  const pick = prompt('从属性库选择（多个用逗号分隔）：\n' + lines, '0');
+  if (pick === null) return;
+  const idxs = pick.split(/[,，\s]+/).map(s => parseInt(s, 10))
+    .filter(n => !Number.isNaN(n) && n >= 0 && n < keys.length);
+  for (const i of idxs) { const k = keys[i]; if (!(k in editorProps)) editorProps[k] = ''; }
+  renderEditorProps();
 }
 
 function closeEditor() {
   editorOverlay.classList.add('hidden');
   editingCardId = null;
-  editorAssignDate = undefined;
   editorContent.value = '';
   editorTags = [];
   renderEditorTags();
   const tagInput = document.getElementById('card-editor-tag-input');
   if (tagInput) tagInput.value = '';
+  if (editorDate) { editorDate.value = ''; editorDate.title = '未安排（保存在卡片池）'; }
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
   if (editorDuration) editorDuration.textContent = '';
+  if (editorDurationMin) editorDurationMin.value = '';
+  if (editorTitle) editorTitle.value = '';
+  if (editorStatus) updateStatusSeg('none');
+  if (editorProgress) { editorProgress.value = 0; }
+  updateEditorProgressLabel();
   if (editorMetaEl) editorMetaEl.textContent = '';
+  editorProps = {};
+  renderEditorProps();
+  closePropForm();
+  setEditorEmoji('');
+  closeEmojiPicker();
 }
 
 async function saveEditor() {
@@ -256,9 +554,18 @@ async function saveEditor() {
   if (pendingTag) addEditorTag(pendingTag);
   if (!content && !editingCardId) { closeEditor(); return; }
 
-  let start = snapToQuarter(editorStart?.value || editorTargetTime || currentTime());
-  let end = snapToQuarter(editorEnd?.value || addMinutes(start, 15));
-  if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+  // 时间：开始时间为空 → 不排具体时间（全天卡片，startTime/endTime = null）
+  const startRaw = (editorStart?.value || '').trim();
+  const endRaw = (editorEnd?.value || '').trim();
+  let start = null, end = null;
+  if (startRaw) {
+    start = snapToQuarter(startRaw);
+    end = snapToQuarter(endRaw || addMinutes(start, 15));
+    if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+  }
+
+  // 日期：date input 的值；空 = 未安排（卡片池）
+  const assignedDate = editorDate?.value || null;
 
   try {
     // 项目目录：本次填写的（记住供下次预填）
@@ -266,19 +573,22 @@ async function saveEditor() {
     if (project) localStorage.setItem('journal.lastProject', project);
     const provenance = { origin: 'human', project };
 
+    // 阶段 C：状态 / 进度 / 时长 / 标题 / 自定义属性
+    const status = editorStatus?.value ?? 'none';
+    const progress = status === 'done' ? 100 : Number(editorProgress?.value || 0);
+    const duration = (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null;
+    const title = editorTitle?.value?.trim() ?? '';
+    const props = editorProps;
+    const basePatch = {
+      content, type, title, status, progress, duration: duration ?? undefined, props,
+      assignedDate, time: start, startTime: start, endTime: end,
+      tags: editorTags, emoji: editorEmoji, provenance,
+    };
+
     if (editingCardId) {
-      await updateCardEntry(editingCardId, { content, type, time: start, startTime: start, endTime: end, tags: editorTags, provenance });
+      await updateCardEntry(editingCardId, basePatch);
     } else {
-      await createCardEntry({
-        content,
-        type,
-        assignedDate: editorAssignDate === undefined ? selectedDate : editorAssignDate,
-        time: start,
-        startTime: start,
-        endTime: end,
-        tags: editorTags,
-        provenance,
-      });
+      await createCardEntry(basePatch);
     }
     closeEditor();
     await refreshAll();
@@ -306,12 +616,6 @@ const els = {
   todayDisplay: document.getElementById('today-display'),
   heatmap: document.getElementById('heatmap-container'),
   heatmapStreak: document.getElementById('heatmap-streak'),
-  todoInput: document.getElementById('todo-input'),
-  todoPriority: document.getElementById('todo-priority'),
-  todoDue: document.getElementById('todo-due'),
-  todoList: document.getElementById('todo-list'),
-  todoStats: document.getElementById('todo-stats'),
-  todoFilters: document.querySelectorAll('.todo-filter'),
   calPrev: document.getElementById('cal-prev'),
   calNext: document.getElementById('cal-next'),
   calToday: document.getElementById('cal-today'),
@@ -324,9 +628,15 @@ const els = {
   viewToday: document.getElementById('view-today'),
   viewModeBtns: document.querySelectorAll('.view-mode-btn'),
   btnSpan: document.getElementById('btn-span'),
+  btnWide: document.getElementById('btn-wide-mode'),
   cardpoolList: document.getElementById('cardpool-list'),
   cardpoolCount: document.getElementById('cardpool-count'),
   btnNewCard: document.getElementById('btn-new-card'),
+  btnTemplate: document.getElementById('btn-template'),
+  poolLayoutBtn: document.getElementById('btn-pool-layout'),
+  saveViewBtn: document.getElementById('btn-save-view'),
+  viewSelect: document.getElementById('pool-view-select'),
+  poolFilterRow: document.getElementById('pool-filter-row'),
 
   // skills
   skillsSection: document.getElementById('skills-section'),
@@ -413,7 +723,6 @@ function viewHeaderLabel() {
   const parts = [];
   if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
   if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
   const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
   return `📅 ${formatDateLabel(date)}${countStr}`;
 }
@@ -545,7 +854,7 @@ function buildCalSummary(card) {
   el.className = `calview-summary type-${card.type || 'text'}` + (card.type === 'task' && card.done ? ' is-done' : '');
   const start = getCardStartTime(card);
   const timeHtml = start ? `<span class="calview-summary-time">${start}</span>` : '';
-  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
+  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     openEditor(card, start ?? currentTime(), card.assignedDate ?? selectedDate);
@@ -570,7 +879,6 @@ async function renderTimeline() {
     const parts = [];
     if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
     if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-    if (typeCounts.idea) parts.push(`${typeCounts.idea}💡`);
     const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
     els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
   }
@@ -861,7 +1169,7 @@ function renderTimelineCard(card, lane = null, allday = false) {
   header.className = 'card-header';
   header.innerHTML = `
     ${originBadge}
-    <span class="card-type-icon">${typeIcon(card.type)}</span>
+    <span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span>
     <span class="card-time">${allday ? '全天' : isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
     <span class="card-meta">${!allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''}</span>
   `;
@@ -1053,7 +1361,7 @@ function buildCardFooter(card) {
   typeBtn.title = '切换类型';
   typeBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const next = card.type === 'text' ? 'task' : card.type === 'task' ? 'idea' : 'text';
+    const next = card.type === 'text' || card.type === 'idea' ? 'task' : 'text';
     await updateCardEntry(card.id, { type: next });
     await refreshAll();
   });
@@ -1128,50 +1436,118 @@ function startNowMarkerTimer() {
   }, 60 * 1000);
 }
 
-/* ─── 渲染：卡片池 ──────────────────────────────────────── */
+/* ─── 渲染：统一卡片池（文本/待办统一，待办只是状态筛选） ─────── */
 
-let poolTagFilter = '';
+const STATUS_OPTIONS = [
+  { value: '', label: '全部' },
+  { value: 'active', label: '⏳ 待办' },
+  { value: 'todo', label: '📌 未开始' },
+  { value: 'doing', label: '🔥 进行中' },
+  { value: 'done', label: '✅ 已完成' },
+  { value: 'none', label: '📝 纯记录' },
+];
+const STATUS_LABEL = { todo: '待办', doing: '进行中', done: '已完成', none: '纯记录' };
 
+/** 状态匹配：active = todo ∪ doing（待办视图） */
+function statusMatches(card, f) {
+  if (!f) return true;
+  if (f === 'active') return card.status === 'todo' || card.status === 'doing';
+  return card.status === f;
+}
+
+/** 卡片池状态 + 项目 筛选条（渲染到 pool-filter-row） */
+function renderPoolFilters() {
+  const row = els.poolFilterRow;
+  if (!row) return;
+  row.replaceChildren();
+  for (const { value, label } of STATUS_OPTIONS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip' + (poolStatusFilter === value ? ' is-active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      poolStatusFilter = value;
+      activeViewId = '';
+      renderCardPool();
+    });
+    row.append(btn);
+  }
+  // 项目筛选
+  const projects = [...new Set((allCardsCache ?? []).map(c => c.project).filter(Boolean))];
+  if (projects.length) {
+    const sel = document.createElement('select');
+    sel.className = 'pool-project-select';
+    sel.title = '按项目筛选';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = '项目: 全部';
+    sel.append(none);
+    for (const p of projects) {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      sel.append(o);
+    }
+    sel.value = poolProjectFilter;
+    sel.addEventListener('change', () => { poolProjectFilter = sel.value; activeViewId = ''; renderCardPool(); });
+    row.append(sel);
+  }
+}
+
+/** 卡片池标签筛选（追加到筛选行） */
 function renderPoolTagFilters(pool) {
+  const row = els.poolFilterRow;
+  if (!row) return;
   const names = [...new Set(pool.flatMap(c => c.tags ?? []))];
-  if (!names.length && !poolTagFilter) return;
-  const bar = document.createElement('li');
-  bar.className = 'cardpool-tag-filters';
+  if (!names.length) return;
   const all = document.createElement('button');
   all.type = 'button';
-  all.className = 'tag-chip' + (poolTagFilter ? '' : ' is-active');
-  all.textContent = '全部';
-  all.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = ''; renderCardPool(); });
-  bar.append(all);
+  all.className = 'chip' + (poolTagFilter ? '' : ' is-active');
+  all.textContent = '# 全部';
+  all.addEventListener('click', () => { poolTagFilter = ''; activeViewId = ''; renderCardPool(); });
+  row.append(all);
   for (const name of names) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'tag-chip' + (poolTagFilter === name ? ' is-active' : '');
-    btn.textContent = name;
-    btn.addEventListener('click', (e) => { e.stopPropagation(); poolTagFilter = name; renderCardPool(); });
-    bar.append(btn);
+    btn.className = 'chip' + (poolTagFilter === name ? ' is-active' : '');
+    btn.textContent = '#' + name;
+    btn.addEventListener('click', () => { poolTagFilter = name; activeViewId = ''; renderCardPool(); });
+    row.append(btn);
   }
-  els.cardpoolList.append(bar);
+}
+
+/** 小芯片（属性/日期展示） */
+function chipSpan(cls, text) {
+  const s = document.createElement('span');
+  s.className = cls;
+  s.textContent = text;
+  return s;
 }
 
 async function renderCardPool() {
-  const allPool = await getPoolCards();
-  const pool = poolTagFilter ? allPool.filter(c => (c.tags ?? []).includes(poolTagFilter)) : allPool;
-  els.cardpoolCount.textContent = allPool.length;
+  const all = allCardsCache.filter(c => !c.deleted);
+  const pool = all.filter(c => {
+    const sOk = statusMatches(c, poolStatusFilter);
+    const tagOk = !poolTagFilter || (c.tags ?? []).includes(poolTagFilter);
+    const projOk = !poolProjectFilter || (c.project ?? '') === poolProjectFilter;
+    return sOk && tagOk && projOk;
+  });
+  els.cardpoolCount.textContent = pool.length;
   els.cardpoolList.replaceChildren();
-  renderPoolTagFilters(allPool);
+  els.cardpoolList.classList.toggle('is-list', poolLayout === 'list');
+  renderPoolFilters();
+  renderPoolTagFilters(all);
 
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    li.textContent = poolTagFilter ? '没有这个标签的卡片' : '没有未安排的卡片';
+    li.textContent = '没有符合条件的卡片';
     els.cardpoolList.append(li);
     return;
   }
 
   for (const card of pool) {
     const li = document.createElement('li');
-    li.className = 'cardpool-item';
+    li.className = 'cardpool-item status-' + (card.status || 'none');
+    if (card.status === 'done') li.classList.add('is-done');
     li.dataset.id = card.id;
     // 支持拖拽到今日时间线（HTML5 DnD）
     li.draggable = true;
@@ -1180,22 +1556,52 @@ async function renderCardPool() {
       e.dataTransfer.setData('text/plain', card.id);
       e.dataTransfer.effectAllowed = 'move';
       li.classList.add('is-dragging');
-      cardDragged = false; // 初始化，dragend 前不会触发 click
+      cardDragged = false;
     });
     li.addEventListener('dragend', () => {
       li.classList.remove('is-dragging');
-      // 标记已发生拖拽，后续 click 不打开编辑器
       cardDragged = true;
-      setTimeout(() => { cardDragged = false; }, 0); // 下一帧解除，只跳过一次
+      setTimeout(() => { cardDragged = false; }, 0);
     });
 
     const icon = document.createElement('span');
     icon.className = 'cardpool-type-icon';
-    icon.textContent = typeIcon(card.type);
+    icon.textContent = typeIcon(card.type, card.emoji);
 
     const text = document.createElement('span');
     text.className = 'cardpool-text';
-    text.textContent = card.content || '(空)';
+    text.textContent = (card.title || card.content || '(空)');
+
+    li.append(icon, text);
+
+    // 状态 + 进度 + 优先级
+    const metaRow = document.createElement('span');
+    metaRow.className = 'cardpool-meta';
+    metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[card.status] || card.status || '纯记录'));
+    if (card.priority && card.priority !== 'medium') metaRow.append(chipSpan('cardpool-prio', card.priority === 'high' ? '🔴' : '🟢'));
+    if (card.progress != null) metaRow.append(chipSpan('cardpool-progress', `${card.progress}%`));
+    li.append(metaRow);
+
+    // 日期 / 项目 / 自定义属性
+    const chips = document.createElement('span');
+    chips.className = 'cardpool-chips';
+    if (card.assignedDate) chips.append(chipSpan('cardpool-chip', shortDate(card.assignedDate)));
+    if (card.project) chips.append(chipSpan('cardpool-chip', '📁 ' + card.project));
+    if (card.duration != null && card.duration > 0) chips.append(chipSpan('cardpool-chip', `⏱ ${card.duration}分`));
+    for (const [k, v] of Object.entries(card.props ?? {})) {
+      if (v === null || v === undefined || v === '') continue;
+      chips.append(chipSpan('cardpool-chip', `•${k}: ${v}`));
+    }
+    if (chips.childNodes.length) li.append(chips);
+
+    // 只读系统元数据：修改时间 + 来源（AI/人工）
+    const sysmeta = document.createElement('span');
+    sysmeta.className = 'cardpool-sysmeta';
+    const ub = card.meta?.updatedBy;
+    const origin = ub?.origin === 'human' ? '👤人工' : (ub?.agent || ub?.model) ? '🤖AI' : '';
+    const at = card.updatedAt ? shortDate(card.updatedAt.slice(0, 10)) : '';
+    sysmeta.textContent = [at, origin].filter(Boolean).join(' · ');
+    if (sysmeta.textContent) li.append(sysmeta);
 
     const schedBtn = document.createElement('button');
     schedBtn.className = 'cardpool-schedule-btn';
@@ -1203,7 +1609,6 @@ async function renderCardPool() {
     schedBtn.title = '安排到某天';
     schedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      // 直接安排到当天
       const st = snapUpToQuarter(currentTime());
       updateCardEntry(card.id, { assignedDate: selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
         .then(() => refreshAll())
@@ -1226,7 +1631,7 @@ async function renderCardPool() {
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
     li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
 
-    li.append(icon, text, schedBtn, delBtn);
+    li.append(schedBtn, delBtn);
     els.cardpoolList.append(li);
   }
 }
@@ -1323,61 +1728,6 @@ function updateHeaderDate() {
 
 /* ─── 渲染：TODO ──────────────────────────────────────── */
 
-function renderTodoList() {
-  const filtered = todosCache.filter(t =>
-    todoFilter === 'active' ? !t.done : todoFilter === 'done' ? t.done : true
-  );
-
-  els.todoList.replaceChildren();
-  if (!filtered.length) {
-    const li = document.createElement('li');
-    li.className = 'todo-empty';
-    li.textContent = todoFilter === 'done' ? '还没有已完成的待办' : '暂无待办';
-    els.todoList.append(li);
-    return;
-  }
-
-  for (const t of filtered) {
-    const li = document.createElement('li');
-    li.className = 'todo-item' + (t.done ? ' is-done' : '');
-    li.dataset.id = t.id;
-
-    const dot = document.createElement('span');
-    dot.className = `todo-priority-dot ${t.priority}`;
-
-    const cb = document.createElement('input');
-    cb.type = 'checkbox'; cb.className = 'todo-check'; cb.checked = t.done;
-
-    const title = document.createElement('span');
-    title.className = 'todo-title';
-    title.textContent = t.title;
-
-    li.append(dot, cb, title);
-
-    if (t.due) {
-      const dueEl = document.createElement('span');
-      dueEl.className = 'todo-due' + (isOverdue(t.due) && !t.done ? ' is-overdue' : '');
-      dueEl.textContent = t.due;
-      li.append(dueEl);
-    }
-
-    const del = document.createElement('button');
-    del.className = 'todo-delete';
-    del.textContent = '✕';
-    li.append(del);
-
-    els.todoList.append(li);
-  }
-
-  const s = todoSummary(todosCache);
-  els.todoStats.textContent = `${s.done}/${s.total}`;
-}
-
-async function persistTodos() {
-  await saveTodos(todosCache);
-  renderTodoList();
-}
-
 /* ─── 全局刷新 ────────────────────────────────────────── */
 
 async function refreshAll() {
@@ -1387,9 +1737,608 @@ async function refreshAll() {
   renderCalendarView();
   await renderRightView();
   await renderCardPool();
-  // 刷新 TODO（从 cards 中筛选 task）
-  todosCache = await getTodos();
-  renderTodoList();
+}
+
+/* ─── 命名视图 ────────────────────────────────────────── */
+
+/** 从 host 拉取命名视图并渲染到下拉 */
+async function loadPoolViews() {
+  savedViews = (await getHostMeta('savedViews')) || [];
+  const sel = els.viewSelect;
+  if (!sel) return;
+  sel.replaceChildren();
+  const optAll = document.createElement('option');
+  optAll.value = ''; optAll.textContent = '全部卡片';
+  sel.append(optAll);
+  for (const v of savedViews) {
+    const o = document.createElement('option');
+    o.value = v.id; o.textContent = v.name;
+    sel.append(o);
+  }
+  sel.value = activeViewId;
+}
+
+/** 把当前筛选 + 布局存成命名视图 */
+async function saveCurrentView() {
+  const name = (prompt('视图名称：', '我的视图') || '').trim();
+  if (!name) return;
+  const id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const view = {
+    id, name,
+    status: poolStatusFilter,
+    tag: poolTagFilter,
+    project: poolProjectFilter,
+    layout: poolLayout,
+  };
+  savedViews = [...savedViews, view];
+  await setHostMeta('savedViews', savedViews);
+  activeViewId = id;
+  await loadPoolViews();
+  showToast('✅ 已保存视图：' + name, 'success');
+}
+
+/** 应用一个命名视图 */
+function applyView(view) {
+  poolStatusFilter = view.status ?? '';
+  poolTagFilter = view.tag ?? '';
+  poolProjectFilter = view.project ?? '';
+  poolLayout = view.layout ?? 'card';
+  localStorage.setItem('journal.poolLayout', poolLayout);
+  activeViewId = view.id;
+  renderCardPool();
+}
+
+/* ─── 模板构建器 ───────────────────────────────────── */
+
+const REQUIRED_DEFS = [
+  { key: 'title', icon: '🏷', label: '标题', type: 'text' },
+  { key: 'content', icon: '📄', label: '内容', type: 'textarea' },
+  { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
+];
+const OPTIONAL_DEFS = [
+  { key: 'status', icon: '📌', label: '状态', type: 'status', options: ['none', 'todo', 'doing', 'done'] },
+  { key: 'progress', icon: '📊', label: '进度', type: 'number', min: 0, max: 100 },
+  { key: 'priority', icon: '⭐', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
+  { key: 'assignedDate', icon: '🗓', label: '日期', type: 'date' },
+  { key: 'schedule', icon: '⏱', label: '起止时间/时长', type: 'schedule' },
+  { key: 'project', icon: '📁', label: '项目', type: 'text' },
+];
+const BUILTIN_DEFS = [...REQUIRED_DEFS, ...OPTIONAL_DEFS];
+
+const tplBuilderName = document.getElementById('tpl-builder-name');
+const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
+const tplBuilderPicker = document.getElementById('tpl-builder-picker');
+const tplPropList = document.getElementById('tpl-prop-list');
+const tplNpKey = document.getElementById('tpl-np-key');
+const tplNpLabel = document.getElementById('tpl-np-label');
+const tplNpIcon = document.getElementById('tpl-np-icon');
+const tplNpType = document.getElementById('tpl-np-type');
+const tplNpOptions = document.getElementById('tpl-np-options');
+const tplNpOk = document.getElementById('tpl-np-ok');
+const tplNpCancel = document.getElementById('tpl-np-cancel');
+const tplNewPropForm = document.getElementById('tpl-newprop-form');
+/** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
+let tplBuilderState = { name: '', emoji: '🗂', extra: [], values: {} };
+let tplBuilderCleanup = null;
+let tplEditingId = null;   // 编辑既有模板时的 id
+let tplEditKey = null;     // 编辑属性定义时的 key
+let tplDragKey = null;     // 排序拖拽中的 key
+
+/** 找属性定义：内建 或 属性库 */
+function findPropDef(key) {
+  const b = BUILTIN_DEFS.find(d => d.key === key);
+  if (b) return b;
+  const c = propLibrary[key];
+  return c ? { key, icon: c.icon || '•', label: c.label || key, type: c.type || 'text', options: c.options } : null;
+}
+
+/** 模板 → 有序 fields（兼容旧扁平 propsDefaults 结构；确保必备三件套 title/content/tags 在最前） */
+function normalizeTemplateFields(tpl) {
+  let fields;
+  if (Array.isArray(tpl?.fields)) {
+    fields = tpl.fields.filter(f => f && f.key).map(f => ({ ...f }));
+  } else {
+    const out = [];
+    const push = (key, value) => { if (value !== undefined && value !== null && value !== '') out.push({ key, value }); };
+    push('title', tpl?.title);
+    push('status', tpl?.status);
+    push('progress', tpl?.progress);
+    push('duration', tpl?.duration);
+    push('project', tpl?.project);
+    if (Array.isArray(tpl?.tags) && tpl.tags.length) push('tags', tpl.tags);
+    for (const [k, v] of Object.entries(tpl?.propsDefaults ?? {})) push(k, v);
+    fields = out;
+  }
+  const have = new Set(fields.map(f => f.key));
+  for (const def of REQUIRED_DEFS) {
+    if (!have.has(def.key)) fields.push({ key: def.key, value: defaultTplValue(def) });
+  }
+  const reqOrder = REQUIRED_DEFS.map(d => d.key);
+  const reqFields = reqOrder.map(k => fields.find(f => f.key === k)).filter(Boolean);
+  const optFields = fields.filter(f => !reqOrder.includes(f.key));
+  return [...reqFields, ...optFields];
+}
+
+/** 打开模板构建器；existing 传人则编辑既有模板 */
+function openTemplateBuilder(existing = null) {
+  tplEditingId = existing?.id ?? null;
+  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂'), extra: [], values: {} };
+  if (existing) {
+    for (const f of normalizeTemplateFields(existing)) {
+      if (REQUIRED_DEFS.some(d => d.key === f.key)) { tplBuilderState.values[f.key] = f.value; continue; }
+      const base = findPropDef(f.key);
+      tplBuilderState.extra.push({
+        key: f.key,
+        def: {
+          key: f.key,
+          label: f.label ?? base?.label ?? f.key,
+          icon: f.icon ?? base?.icon ?? '•',
+          type: f.type ?? base?.type ?? 'text',
+          ...(f.options ? { options: f.options } : (base?.options ? { options: base.options } : {})),
+        },
+      });
+      tplBuilderState.values[f.key] = f.value;
+    }
+  }
+  if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
+  if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
+  renderTemplateBuilder();
+  document.getElementById('template-builder-overlay').classList.remove('hidden');
+  tplBuilderName?.focus();
+  tplBuilderName?.select();
+}
+function closeTemplateBuilder() {
+  document.getElementById('template-builder-overlay').classList.add('hidden');
+  document.getElementById('tpl-add-panel')?.classList.add('hidden');
+  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
+  tplBuilderCleanup?.();
+  tplEditingId = null;
+  tplEditKey = null;
+}
+
+/** 渲染构建器：必备（锁定） + 额外（可编辑列表） */
+function renderTemplateBuilder() {
+  if (!tplPropList) return;
+  tplPropList.replaceChildren();
+  // 必备
+  const gReq = document.createElement('div'); gReq.className = 'tpl-group';
+  const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '必备（模板自动包含）';
+  gReq.append(h1);
+  for (const def of REQUIRED_DEFS) gReq.append(buildReqRow(def));
+  tplPropList.append(gReq);
+  // 额外
+  const gOpt = document.createElement('div'); gOpt.className = 'tpl-group';
+  const h2 = document.createElement('div'); h2.className = 'tpl-group-title'; h2.textContent = '额外属性（可选 · 可增删改排序）';
+  gOpt.append(h2);
+  if (!tplBuilderState.extra.length) {
+    const hint = document.createElement('div'); hint.className = 'tpl-extra-empty';
+    hint.textContent = '尚未添加额外属性，点下方「＋ 添加属性」';
+    gOpt.append(hint);
+  }
+  for (const entry of tplBuilderState.extra) gOpt.append(buildExtraRow(entry));
+  gOpt.append(buildAddPanel());
+  tplPropList.append(gOpt);
+}
+
+/** 必备行（锁定 + 恒显默认值编辑器） */
+function buildReqRow(def) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row is-locked';
+  const ck = document.createElement('input'); ck.type = 'checkbox'; ck.className = 'tpl-prop-check'; ck.checked = true; ck.disabled = true;
+  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label'; lbl.textContent = `${def.icon} ${def.label}`;
+  const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value'; valWrap.append(buildTplDefaultEditor(def));
+  row.append(ck, lbl, valWrap);
+  return row;
+}
+
+/** 可选属性行：排序柄 + 默认值 + 编辑定义 + 移出 */
+function buildExtraRow(entry) {
+  const row = document.createElement('div'); row.className = 'tpl-prop-row tpl-extra-row'; row.dataset.key = entry.key; row.draggable = true;
+  const handle = document.createElement('span'); handle.className = 'tpl-drag'; handle.textContent = '⋮'; handle.title = '拖拽排序';
+  const lbl = document.createElement('span'); lbl.className = 'tpl-prop-label'; lbl.textContent = `${entry.def.icon || '•'} ${entry.def.label || entry.key}`;
+  const valWrap = document.createElement('div'); valWrap.className = 'tpl-prop-value'; valWrap.append(buildTplDefaultEditor(entry.def));
+  const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'tpl-row-act'; edit.textContent = '✎'; edit.title = '编辑属性定义';
+  edit.addEventListener('click', (e) => { e.stopPropagation(); openTplEditProp(entry.key); });
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'tpl-row-act tpl-row-del'; del.textContent = '✕'; del.title = '从模板移出';
+  del.addEventListener('click', (e) => { e.stopPropagation(); removeExtra(entry.key); });
+  row.append(handle, lbl, valWrap, edit, del);
+  const clearOver = () => { row.classList.remove('is-drag-over'); };
+  row.addEventListener('dragstart', (e) => { tplDragKey = entry.key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); document.body.classList.add('tpl-dragging'); });
+  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); document.body.classList.remove('tpl-dragging'); document.querySelectorAll('.tpl-extra-row').forEach(r => r.classList.remove('is-drag-over')); });
+  row.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('is-drag-over'); });
+  row.addEventListener('dragleave', clearOver);
+  row.addEventListener('drop', (e) => { e.preventDefault(); clearOver(); if (tplDragKey && tplDragKey !== entry.key) reorderExtra(tplDragKey, entry.key); });
+  return row;
+}
+
+function reorderExtra(from, to) {
+  const arr = tplBuilderState.extra;
+  const i = arr.findIndex(x => x.key === from);
+  const j = arr.findIndex(x => x.key === to);
+  if (i < 0 || j < 0) return;
+  const [it] = arr.splice(i, 1);
+  arr.splice(j, 0, it);
+  renderTemplateBuilder();
+}
+function removeExtra(key) {
+  tplBuilderState.extra = tplBuilderState.extra.filter(x => x.key !== key);
+  delete tplBuilderState.values[key];
+  renderTemplateBuilder();
+}
+
+/** 「＋ 添加属性」面板：内建可选（未加入）+ 属性库（未加入）+ 新建 */
+function buildAddPanel() {
+  const panel = document.createElement('div'); panel.id = 'tpl-add-panel'; panel.className = 'tpl-add-panel hidden';
+  const addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.className = 'tpl-add-btn';
+  addBtn.textContent = '＋ 添加属性';
+  addBtn.addEventListener('click', () => panel.classList.toggle('hidden'));
+  const inExtra = new Set(tplBuilderState.extra.map(x => x.key));
+  const available = [
+    ...OPTIONAL_DEFS.filter(d => !inExtra.has(d.key)).map(d => ({ key: d.key, icon: d.icon, label: d.label, kind: '内建' })),
+    ...Object.entries(propLibrary).filter(([k]) => !inExtra.has(k)).map(([k, d]) => ({ key: k, icon: d.icon || '•', label: d.label || k, kind: '自定义' })),
+  ];
+  const list = document.createElement('div'); list.className = 'tpl-add-list';
+  if (!available.length) {
+    const none = document.createElement('div'); none.className = 'tpl-add-none'; none.textContent = '可选属性都已加入';
+    list.append(none);
+  }
+  for (const a of available) {
+    const it = document.createElement('button'); it.type = 'button'; it.className = 'tpl-add-item'; it.title = a.kind;
+    it.textContent = `${a.icon} ${a.label}`;
+    it.addEventListener('click', () => addPropToExtra(a.key));
+    list.append(it);
+  }
+  const newBtn = document.createElement('button'); newBtn.type = 'button'; newBtn.className = 'tpl-add-item tpl-add-new';
+  newBtn.textContent = '＋ 新建属性…';
+  newBtn.addEventListener('click', () => { openTplNewPropForm(); });
+  list.append(newBtn);
+  panel.append(addBtn, list);
+  return panel;
+}
+
+function addPropToExtra(key) {
+  const def = findPropDef(key);
+  if (!def || tplBuilderState.extra.some(x => x.key === key)) return;
+  tplBuilderState.extra.push({ key, def });
+  if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
+  document.getElementById('tpl-add-panel')?.classList.add('hidden');
+  renderTemplateBuilder();
+}
+
+/** 按属性类型构建默认值编辑器，改动写入 tplBuilderState.values */
+function buildTplDefaultEditor(def) {
+  const key = def.key;
+  const set = (v) => { tplBuilderState.values[key] = v; };
+  const cur = tplBuilderState.values[key];
+  if (def.type === 'status' || def.type === 'select') {
+    const sel = document.createElement('select'); sel.className = 'prop-input';
+    sel.append(new Option('', ''));
+    for (const o of def.options || []) sel.append(new Option(o, o));
+    sel.value = cur ?? '';
+    sel.addEventListener('change', () => set(sel.value));
+    return sel;
+  }
+  if (def.type === 'multi') {
+    const sel = document.createElement('select'); sel.className = 'prop-input'; sel.multiple = true;
+    for (const o of def.options || []) sel.append(new Option(o, o));
+    if (Array.isArray(cur)) for (const op of sel.options) op.selected = cur.includes(op.value);
+    sel.addEventListener('change', () => set([...sel.selectedOptions].map(o => o.value)));
+    return sel;
+  }
+  if (def.type === 'checkbox') {
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'prop-input'; cb.checked = Boolean(cur);
+    cb.addEventListener('change', () => set(cb.checked));
+    return cb;
+  }
+  if (def.type === 'schedule') {
+    const v = cur && typeof cur === 'object' ? cur : {};
+    const w = document.createElement('div'); w.className = 'tpl-schedule';
+    const s = document.createElement('input'); s.type = 'time'; s.className = 'prop-input'; s.value = v.start || ''; s.title = '开始';
+    const e = document.createElement('input'); e.type = 'time'; e.className = 'prop-input'; e.value = v.end || ''; e.title = '结束';
+    const d = document.createElement('input'); d.type = 'number'; d.className = 'prop-input'; d.min = 0; d.value = v.duration ?? ''; d.title = '时长(分)';
+    const sync = () => set({ start: s.value, end: e.value, duration: d.value === '' ? null : Number(d.value) });
+    [s, e, d].forEach(x => x.addEventListener('change', sync));
+    w.append(s, e, d);
+    return w;
+  }
+  if (def.type === 'tags') {
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'prop-input'; inp.placeholder = '逗号分隔';
+    inp.value = Array.isArray(cur) ? cur.join(', ') : (cur ?? '');
+    inp.addEventListener('change', () => set(inp.value.trim() ? inp.value.split(/[,，]/).map(x => x.trim()).filter(Boolean) : []));
+    return inp;
+  }
+  if (def.type === 'textarea') {
+    const ta = document.createElement('textarea');
+    ta.className = 'prop-input'; ta.rows = 2;
+    ta.value = (cur === null || cur === undefined) ? '' : String(cur);
+    ta.addEventListener('change', () => set(ta.value));
+    return ta;
+  }
+  const inp = document.createElement('input');
+  inp.type = def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : def.type === 'time' ? 'time' : 'text';
+  inp.className = 'prop-input';
+  inp.value = (cur === null || cur === undefined) ? '' : String(cur);
+  inp.addEventListener('change', () => set(inp.type === 'number' ? Number(inp.value) : inp.value));
+  return inp;
+}
+
+/** 默认值兜底 */
+function defaultTplValue(def) {
+  if (def.type === 'status' || def.type === 'select') return '';
+  if (def.type === 'checkbox') return false;
+  if (def.type === 'tags') return [];
+  if (def.type === 'schedule') return null;
+  return '';
+}
+
+/** 保存 / 更新模板 */
+async function saveTemplateBuilder() {
+  const name = (tplBuilderName?.value || '').trim();
+  if (!name) { showToast('模板名称不能为空', 'error'); return; }
+  const requiredFields = REQUIRED_DEFS.map(def => ({ key: def.key, value: tplBuilderState.values[def.key] ?? defaultTplValue(def) }));
+  const extraFields = tplBuilderState.extra.map(e => {
+    const f = { key: e.key, value: tplBuilderState.values[e.key] ?? defaultTplValue(e.def) };
+    const base = findPropDef(e.key);
+    const ov = {};
+    if (e.def.label && e.def.label !== e.key && e.def.label !== base?.label) ov.label = e.def.label;
+    if (e.def.icon && e.def.icon !== '•' && e.def.icon !== base?.icon) ov.icon = e.def.icon;
+    if (e.def.type && e.def.type !== base?.type) ov.type = e.def.type;
+    if (e.def.options && JSON.stringify(e.def.options) !== JSON.stringify(base?.options ?? [])) ov.options = e.def.options;
+    return Object.assign(f, ov);
+  });
+  const fields = [...requiredFields, ...extraFields];
+  const tpl = { id: tplEditingId || ('t_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)), name, emoji: tplBuilderState.emoji, fields };
+  const templates = (await getHostMeta('templates')) || [];
+  const idx = templates.findIndex(t => t.id === tpl.id);
+  const next = idx === -1 ? [...templates, tpl] : templates.map(t => (t.id === tpl.id ? tpl : t));
+  await setHostMeta('templates', next);
+  closeTemplateBuilder();
+  showToast(idx === -1 ? '✅ 已保存模板：' + name : '✅ 已更新模板：' + name, 'success');
+}
+
+/** 以当前卡片为蓝本预填构建器 */
+function prefillTemplateFromCard() {
+  const card = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+  if (!card) { showToast('没有正在编辑的卡片', ''); return; }
+  tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, extra: [], values: {} };
+  const putReq = (key, value) => { if (value !== undefined && value !== null && value !== '') tplBuilderState.values[key] = value; };
+  const putOpt = (key, value) => {
+    if (value !== undefined && value !== null && value !== '' && !tplBuilderState.extra.some(x => x.key === key)) {
+      const def = findPropDef(key);
+      if (def) { tplBuilderState.extra.push({ key, def }); tplBuilderState.values[key] = value; }
+    }
+  };
+  putReq('title', card.title);
+  putReq('content', card.content);
+  putReq('tags', (card.tags && card.tags.length) ? card.tags : []);
+  putOpt('status', card.status && card.status !== 'none' ? card.status : undefined);
+  putOpt('progress', card.progress);
+  putOpt('priority', card.priority && card.priority !== 'medium' ? card.priority : undefined);
+  putOpt('assignedDate', card.assignedDate);
+  if (card.startTime || card.endTime || card.duration) putOpt('schedule', { start: card.startTime || '', end: card.endTime || '', duration: card.duration ?? null });
+  putOpt('project', card.project);
+  for (const [k, v] of Object.entries(card.props || {})) putOpt(k, v);
+  if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
+  if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
+  renderTemplateBuilder();
+}
+
+/** 构建器内新建属性（打开表单） */
+function openTplNewPropForm() {
+  tplEditKey = null;
+  if (tplNpLabel) tplNpLabel.value = '';
+  if (tplNpKey) { tplNpKey.disabled = false; tplNpKey.value = ''; }
+  if (tplNpIcon) tplNpIcon.value = '';
+  if (tplNpType) tplNpType.value = 'text';
+  if (tplNpOptions) tplNpOptions.value = '';
+  if (tplNpOk) tplNpOk.textContent = '加入模板';
+  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  tplNpKey?.focus();
+}
+
+/** 编辑可选属性的定义（内建=仅此模板覆盖；自定义=写回属性库） */
+function openTplEditProp(key) {
+  const entry = tplBuilderState.extra.find(x => x.key === key);
+  if (!entry) return;
+  tplEditKey = key;
+  const isBuiltin = !!BUILTIN_DEFS.find(d => d.key === key);
+  const disp = entry.def.label && entry.def.label !== key ? entry.def.label : '';
+  if (tplNpLabel) tplNpLabel.value = disp;
+  if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = true; tplNpKey.title = '属性键在编辑时不可改（避免破坏已有数据）'; }
+  if (tplNpIcon) tplNpIcon.value = (entry.def.icon && entry.def.icon !== '•') ? entry.def.icon : '';
+  if (tplNpType) tplNpType.value = entry.def.type || 'text';
+  if (tplNpOptions) tplNpOptions.value = (entry.def.options || []).join(',');
+  const wrap = tplNpOptions?.closest('.prop-options-wrap');
+  if (wrap) wrap.classList.toggle('hidden', entry.def.type !== 'select' && entry.def.type !== 'multi');
+  if (tplNpOk) tplNpOk.textContent = isBuiltin ? '保存（仅此模板）' : '保存到属性库';
+  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  tplNpLabel?.focus();
+}
+
+/** 新建/编辑属性提交 */
+function onTplNewPropOk() {
+  if (tplEditKey) {
+    const key = tplEditKey;
+    const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+    const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
+    const entry = tplBuilderState.extra.find(x => x.key === key);
+    if (entry) entry.def = def;
+    if (!BUILTIN_DEFS.find(d => d.key === key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+    tplEditKey = null;
+    if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+    renderTemplateBuilder();
+    showToast(`已更新属性「${key}」`, 'success');
+    return;
+  }
+  addTplNewProp();
+}
+
+/** 新建属性：造定义 → 入库 + 加入模板 */
+function addTplNewProp() {
+  const key = (tplNpKey?.value || '').trim().replace(/\s+/g, '_');
+  if (!key) { showToast('属性名不能为空', 'error'); return; }
+  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
+  const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+  const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
+  propLibrary = { ...propLibrary, [key]: def };
+  void savePropLibrary();
+  if (!tplBuilderState.extra.some(x => x.key === key)) tplBuilderState.extra.push({ key, def });
+  if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
+  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  renderTemplateBuilder();
+  showToast(`已新建属性「${key}」并加入模板`, 'success');
+}
+
+/** 构建器默认图标选择器 */
+function toggleTplBuilderPicker() {
+  if (!tplBuilderPicker) return;
+  if (!tplBuilderPicker.classList.contains('hidden')) { tplBuilderPicker.classList.add('hidden'); return; }
+  tplBuilderPicker.classList.remove('hidden');
+  tplBuilderCleanup?.();
+  tplBuilderCleanup = renderEmojiPicker(tplBuilderPicker, (char) => {
+    tplBuilderState.emoji = char;
+    if (tplBuilderEmoji) tplBuilderEmoji.textContent = char;
+    recordRecentEmoji(char);
+    tplBuilderPicker.classList.add('hidden');
+  }, { selected: tplBuilderState.emoji });
+}
+
+/* ─── 模板菜单（阶段 D 完善） ──────────────────────────── */
+
+async function openTemplateMenu() {
+  const templates = (await getHostMeta('templates')) || [];
+  renderTemplateMenu(templates);
+}
+
+/** 关闭模板下拉 */
+function closeTemplateMenu() {
+  document.getElementById('template-menu')?.remove();
+}
+
+/** 用模板新建卡片：按模板 fields（内建 key 映射到卡片字段，自定义 key → card.props） */
+async function createFromTemplate(tpl) {
+  const fields = normalizeTemplateFields(tpl);
+  const patch = { content: '', emoji: tpl.emoji || '', props: {}, provenance: { origin: 'human' } };
+  for (const f of fields) {
+    const v = f?.value;
+    switch (f?.key) {
+      case 'title': patch.title = v ?? ''; break;
+      case 'content': patch.content = v ?? ''; break;
+      case 'status': patch.status = v ?? 'none'; break;
+      case 'progress': patch.progress = v ?? null; break;
+      case 'priority': patch.priority = v ?? 'medium'; break;
+      case 'assignedDate': patch.assignedDate = v ?? null; break;
+      case 'schedule':
+        if (v && typeof v === 'object') {
+          patch.startTime = v.start || null;
+          patch.endTime = v.end || null;
+          patch.duration = v.duration ?? null;
+        }
+        break;
+      case 'project': patch.project = v ?? null; break;
+      case 'tags': patch.tags = Array.isArray(v) ? v : []; break;
+      default: if (v !== undefined && v !== null && v !== '') patch.props[f.key] = v; break;
+    }
+  }
+  const card = await createCardEntry(patch);
+  await refreshAll();
+  openEditor(card, currentTime(), null, null);
+}
+
+/** 渲染模板下拉菜单（空白 + 模板 + 管理） */
+function renderTemplateMenu(templates) {
+  closeTemplateMenu();
+  const btn = els.btnTemplate;
+  if (!btn) return;
+  const menu = document.createElement('div');
+  menu.id = 'template-menu';
+  menu.className = 'template-menu';
+
+  if (!templates.length) {
+    const hint = document.createElement('div');
+    hint.className = 'tpl-empty';
+    hint.textContent = '还没有模板，先创建一个';
+    menu.append(hint);
+  }
+
+  for (const t of templates) {
+    const it = document.createElement('button');
+    it.type = 'button'; it.className = 'tpl-item';
+    const emoji = document.createElement('span');
+    emoji.textContent = t.emoji || '🗂';
+    const nm = document.createElement('span');
+    nm.textContent = t.name;
+    it.append(emoji, nm);
+    if (t.fields?.length || t.tags?.length) {
+      const tags = Array.isArray(t.fields)
+        ? t.fields.filter(f => f.key === 'tags' && Array.isArray(f.value)).flatMap(f => f.value)
+        : (t.tags ?? []);
+      const summary = t.fields?.length
+        ? `${t.fields.length} 属性` + (tags.length ? ' · #' + tags.join(' #') : '')
+        : (tags.length ? '#' + tags.join(' #') : '');
+      const chips = document.createElement('span');
+      chips.className = 'tpl-chips';
+      chips.textContent = summary;
+      it.append(chips);
+    }
+    it.addEventListener('click', () => { closeTemplateMenu(); createFromTemplate(t); });
+    menu.append(it);
+  }
+
+  const create = document.createElement('button');
+  create.type = 'button'; create.className = 'tpl-item tpl-create' + (!templates.length ? ' tpl-create-cta' : '');
+  create.textContent = '＋ 新建模板' + (templates.length ? '…' : '');
+  create.addEventListener('click', () => { closeTemplateMenu(); openTemplateBuilder(); });
+  menu.append(create);
+
+  if (templates.length) {
+    const mgmt = document.createElement('button');
+    mgmt.type = 'button'; mgmt.className = 'tpl-item tpl-manage';
+    mgmt.textContent = '⚙️ 管理模板…';
+    mgmt.addEventListener('click', () => { closeTemplateMenu(); manageTemplates(templates); });
+    menu.append(mgmt);
+  }
+
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  document.body.append(menu);
+  setTimeout(() => {
+    const handler = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); } };
+    document.addEventListener('click', handler);
+  }, 0);
+}
+
+/** 模板管理：重命名 / 删除 / 编辑 */
+async function manageTemplates(templates) {
+  if (!templates.length) return;
+  const lines = templates.map((t, i) => `${i}. ${t.emoji || ''} ${t.name}`).join('\n');
+  const pick = prompt('选择要管理的模板（输入编号）：\n' + lines, '');
+  const i = pick === null ? -1 : parseInt(pick, 10);
+  if (i < 0 || i >= templates.length) return;
+  const action = prompt(`「${templates[i].name}」 — 输入操作：\n1 重命名  2 删除  3 编辑属性`, '1');
+  if (action === null) return;
+  let list = [...templates];
+  const tpl = list[i];
+  if (action === '2') {
+    if (confirm(`删除模板「${tpl.name}」？`)) list = list.filter(t => t.id !== tpl.id);
+  } else if (action === '1') {
+    const nn = (prompt('新名称：', tpl.name) || '').trim();
+    if (nn) list[i] = { ...tpl, name: nn };
+  } else if (action === '3') {
+    closeTemplateMenu();
+    openTemplateBuilder(tpl);
+    return;
+  } else {
+    return;
+  }
+  await setHostMeta('templates', list);
+  showToast('✅ 模板已更新', 'success');
+}
+
+/** 保存当前卡片为模板 → 打开模板构建器（默认空白，可挑属性/新建属性） */
+function saveEditorAsTemplate() {
+  openTemplateBuilder();
 }
 
 /* ─── 本机 Skills ────────────────────────────────────── */
@@ -1465,6 +2414,34 @@ function renderSkillStatus() {
 
 /* ─── 初始化 ────────────────────────────────────────── */
 
+const WIDE_QUERY = matchMedia('(min-width: 1100px)');
+const WIDE_STATE_KEY = 'journal.wideMode'; // 'auto' | 'on' | 'off'（缺失视为 auto）
+
+/** 当前生效的宽屏状态：手动 on/off 优先，否则跟随视口宽度 */
+function widePreference() {
+  return localStorage.getItem(WIDE_STATE_KEY); // null | 'on' | 'off' | 'auto'
+}
+function computeWide() {
+  const p = widePreference();
+  if (p === 'on') return true;
+  if (p === 'off') return false;
+  return WIDE_QUERY.matches; // auto
+}
+function applyWide() {
+  document.documentElement.classList.toggle('wide-mode', computeWide());
+  updateWideButton();
+}
+function updateWideButton() {
+  if (!els.btnWide) return;
+  const p = widePreference();
+  const isOn = computeWide();
+  els.btnWide.classList.toggle('is-on', p === 'on');
+  els.btnWide.classList.toggle('is-off', p === 'off');
+  els.btnWide.title = isOn
+    ? '宽屏布局已开启' + (p === 'on' ? '（手动）' : '（自动跟随窗口）')
+    : '宽屏布局未开启（点击切换：自动/强制宽屏/强制窄屏）';
+}
+
 async function init() {
   // 主题
   const settings = await getSettings();
@@ -1472,6 +2449,14 @@ async function init() {
       (settings.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.dataset.theme = 'dark';
   }
+
+  // 宽屏模式（初始 + 视口变化时跟随）
+  applyWide();
+  WIDE_QUERY.addEventListener('change', () => {
+    // 非手动模式才需要跟随视口变化
+    const p = widePreference();
+    if (p !== 'on' && p !== 'off') applyWide();
+  });
 
   // 拉取 host 数据
   const pulled = await pullFromHost();
@@ -1490,6 +2475,7 @@ async function init() {
   updateHeaderDate();
   markViewMode();
   await refreshAll();
+  await loadPoolViews();
 
   // ── 右视图导航 / 模式切换 ──
   els.viewPrev.addEventListener('click', async () => {
@@ -1563,15 +2549,78 @@ async function init() {
   // 今日当前时间 marker 每分钟更新
   startNowMarkerTimer();
 
+  // ── 宽屏模式：三态循环 auto → on → off → auto ──
+  els.btnWide?.addEventListener('click', () => {
+    const order = ['auto', 'on', 'off'];
+    const cur = widePreference() || 'auto';
+    const next = order[(order.indexOf(cur) + 1) % order.length] || 'auto';
+    if (next === 'auto') localStorage.removeItem(WIDE_STATE_KEY);
+    else localStorage.setItem(WIDE_STATE_KEY, next);
+    applyWide();
+  });
+
   // ── 编辑器事件 ──
+  // ── 键盘快捷键（Esc 关闭 / ⌘⏎ 保存） ──
+  document.addEventListener('keydown', (e) => {
+    const tplOv = document.getElementById('template-builder-overlay');
+    const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
+    const tplOpen = tplOv && !tplOv.classList.contains('hidden');
+    if (!cardOpen && !tplOpen) return;
+    // 模板构建器内属性表单开着时，Esc 先关表单
+    if (tplOpen && e.key === 'Escape' && tplNewPropForm && !tplNewPropForm.classList.contains('hidden')) {
+      e.preventDefault(); tplNewPropForm.classList.add('hidden'); tplEditKey = null; return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (tplOpen) closeTemplateBuilder(); else closeEditor();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (tplOpen) void saveTemplateBuilder(); else void saveEditor();
+    }
+  });
   editorSave.addEventListener('click', saveEditor);
   editorCancel.addEventListener('click', closeEditor);
   editorClose.addEventListener('click', closeEditor);
   editorStart?.addEventListener('change', updateEditorDuration);
   editorEnd?.addEventListener('change', updateEditorDuration);
+  editorDurationMin?.addEventListener('change', onEditorDurationInput);
+  editorStatus?.addEventListener('change', onEditorStatusChange);
+  // 分段状态胶囊
+  document.getElementById('card-editor-status-seg')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg');
+    if (btn?.dataset.status) onStatusClicked(btn.dataset.status);
+  });
+  // 自定义状态：输入即设为自定义状态，清空回退纯记录
+  editorStatusCustom?.addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    if (v) { editorStatus.value = v; updateStatusSeg(v); onEditorStatusChange(); }
+    else { editorStatus.value = 'none'; updateStatusSeg('none'); onEditorStatusChange(); }
+  });
+  // 进度：手输数值（滑块/手输双向）
+  editorProgressNumber?.addEventListener('change', () => {
+    const p = Math.max(0, Math.min(100, Math.round(Number(editorProgressNumber.value) || 0)));
+    if (editorProgress) editorProgress.value = p;
+    onEditorProgressChange();
+  });
+  // 点击头部图标瓦片打开 emoji picker
+  document.getElementById('btn-emoji-tile')?.addEventListener('click', openEmojiPicker);
+  editorProgress?.addEventListener('change', onEditorProgressChange);
+  editorProgress?.addEventListener('input', onEditorProgressChange);
+  btnAddProp?.addEventListener('click', openPropForm);
+  btnPropLib?.addEventListener('click', openPropLibrary);
+  propFormCancel?.addEventListener('click', closePropForm);
+  propFormOk?.addEventListener('click', onPropFormOk);
+  propType?.addEventListener('change', () => {
+    const wrap = propOptions?.closest('.prop-options-wrap');
+    if (wrap) wrap.classList.toggle('hidden', propType.value !== 'select' && propType.value !== 'multi');
+  });
+  saveTemplateBtn?.addEventListener('click', saveEditorAsTemplate);
   editorOverlay.addEventListener('click', (e) => {
     if (e.target === editorOverlay) saveEditor();
   });
+  await loadPropLibrary();
 
   // ── 卡片池新建 ──
   els.btnNewCard.addEventListener('click', () => {
@@ -1631,48 +2680,43 @@ async function init() {
     renderRightView();
   });
 
-  // ── TODO：添加 ──
-  els.todoInput.addEventListener('keydown', async (e) => {
-    if (e.key !== 'Enter' || !els.todoInput.value.trim()) return;
-    const title = els.todoInput.value.trim();
-    await createCardEntry({
-      content: title,
-      type: 'task',
-      assignedDate: els.todoDue.value || null,
-      priority: els.todoPriority?.value || 'medium',
-    });
-    els.todoInput.value = '';
-    els.todoDue.value = '';
-    await refreshAll();
+  // ── 卡片池：布局切换（卡片视图 / 列表视图） ──
+  els.poolLayoutBtn?.addEventListener('click', () => {
+    poolLayout = poolLayout === 'card' ? 'list' : 'card';
+    localStorage.setItem('journal.poolLayout', poolLayout);
+    els.poolLayoutBtn.textContent = poolLayout === 'card' ? '⊞' : '☰';
+    renderCardPool();
   });
 
-  // ── TODO：事件委托 ──
-  els.todoList.addEventListener('click', async (e) => {
-    const item = e.target.closest('.todo-item');
-    if (!item) return;
-    const id = item.dataset.id;
-
-    if (e.target.classList.contains('todo-check')) {
-      await updateCardEntry(id, { done: e.target.checked });
-    } else if (e.target.classList.contains('todo-delete')) {
-      if (confirm('删除待办？')) await deleteCardEntry(id);
-    } else {
-      return;
-    }
-    await refreshAll();
+  // ── 卡片池：命名视图（保存 / 切换） ──
+  els.saveViewBtn?.addEventListener('click', saveCurrentView);
+  els.viewSelect?.addEventListener('change', () => {
+    const id = els.viewSelect.value;
+    const view = savedViews.find(v => v.id === id);
+    if (view) applyView(view);
   });
 
-  // ── TODO：筛选 ──
-  els.todoFilters.forEach(btn => {
-    btn.addEventListener('click', () => {
-      els.todoFilters.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      todoFilter = btn.dataset.filter;
-      renderTodoList();
-    });
-  });
+  // ── 卡片池：模板（阶段 D） ──
+  els.btnTemplate?.addEventListener('click', openTemplateMenu);
 
-  // ── 设置按钮 ──
+  // ── 模板构建器事件 ──
+  document.getElementById('tpl-builder-close')?.addEventListener('click', closeTemplateBuilder);
+  document.getElementById('tpl-cancel')?.addEventListener('click', closeTemplateBuilder);
+  document.getElementById('tpl-save')?.addEventListener('click', saveTemplateBuilder);
+  document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
+  document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
+  document.getElementById('tpl-np-ok')?.addEventListener('click', onTplNewPropOk);
+  document.getElementById('tpl-np-cancel')?.addEventListener('click', () => { if (tplNewPropForm) tplNewPropForm.classList.add('hidden'); tplEditKey = null; });
+  document.getElementById('tpl-np-type')?.addEventListener('change', () => {
+    const wrap = tplNpOptions?.closest('.prop-options-wrap');
+    if (wrap) wrap.classList.toggle('hidden', tplNpType.value !== 'select' && tplNpType.value !== 'multi');
+  });
+  document.getElementById('template-builder-overlay')?.addEventListener('click', (e) => {
+    // 点击外部关闭；点击瓦片容器内的 emoji picker 不关
+    const path = e.composedPath ? e.composedPath() : [e.target];
+    if (path.some(el => el?.classList?.contains('ce-tile-wrap') || el?.classList?.contains('template-builder'))) return;
+    closeTemplateBuilder();
+  });
   document.getElementById('btn-settings')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });

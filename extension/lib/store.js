@@ -108,11 +108,19 @@ export async function createCardEntry(patch = {}) {
     content: card.content,
     type: card.type,
     done: card.done,
+    title: card.title,
+    status: card.status,
+    progress: card.progress,
+    duration: card.duration,
+    props: card.props,
+    project: card.project,
     assignedDate: card.assignedDate,
     time: card.time,
     startTime: card.startTime ?? null,
     endTime: card.endTime ?? null,
     priority: card.priority,
+    tags: card.tags,
+    emoji: card.emoji,
     provenance: patch.provenance,
   });
   if (!ok) throw new Error('createCard failed');
@@ -207,6 +215,7 @@ export async function getTodos() {
       title: c.content,
       done: c.done,
       due: c.assignedDate,
+      emoji: typeof c.emoji === 'string' ? c.emoji : '',
       priority: ['high', 'medium', 'low'].includes(c.priority) ? c.priority : 'medium',
     }));
 }

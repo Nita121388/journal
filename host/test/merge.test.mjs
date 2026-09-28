@@ -85,3 +85,28 @@ test('cardsEqual 忽略无关字段顺序/默认值', () => {
   assert.ok(cardsEqual({ id: 'c1', content: 'a', updatedAt: 't' }, { id: 'c1', content: 'a', type: 'text', updatedAt: 't' }));
   assert.ok(!cardsEqual({ id: 'c1', content: 'a', updatedAt: 't' }, { id: 'c1', content: 'b', updatedAt: 't' }));
 });
+
+test('normalizeCard 携带新字段（status 推导 + props + title/progress/duration/project）', () => {
+  const n = normalizeCard({
+    id: 'c1', content: 'x', type: 'task', done: false,
+    title: '标题', progress: 60, duration: 30, project: 'E:/p', props: { client: 'A' },
+  });
+  assert.equal(n.status, 'todo');
+  assert.equal(n.title, '标题');
+  assert.equal(n.progress, 60);
+  assert.equal(n.duration, 30);
+  assert.equal(n.project, 'E:/p');
+  assert.deepEqual(n.props, { client: 'A' });
+  // 旧数据 status 推导
+  assert.equal(normalizeCard({ id: 'c2', type: 'task', done: true }).status, 'done');
+  assert.equal(normalizeCard({ id: 'c3', type: 'task', done: true }).progress, 100);
+  assert.equal(normalizeCard({ id: 'c4', type: 'text' }).status, 'none');
+});
+
+test('cardsEqual 区分 props / title / status', () => {
+  const base = card({ id: 'c1', content: 'x', updatedAt: 't' });
+  assert.ok(cardsEqual(base, { ...base, props: {} }));
+  assert.ok(!cardsEqual(base, { ...base, title: 'T' }));
+  assert.ok(!cardsEqual(base, { ...base, props: { k: 'v' } }));
+  assert.ok(!cardsEqual({ ...base, status: 'todo' }, { ...base, status: 'done' }));
+});
