@@ -1028,7 +1028,10 @@ function renderWeekGrid(container) {
     const onRange = (sMin, eMin) => {
       openEditor(null, minutesToTime(sMin), dayKey);
       const endEl = document.getElementById('card-editor-end');
-      if (endEl) endEl.value = minutesToTime(eMin); // 覆盖默认 start+15，预填选区时长
+      if (endEl) {
+        endEl.value = minutesToTime(eMin); // 覆盖默认 start+15，预填选区时长
+        updateEditorDuration(); // 时长标签需随之重算，否则仍显示默认 15 分钟
+      }
     };
     bindRangeSelect(body, onRange);
     body.addEventListener('click', (e) => {
