@@ -1856,12 +1856,14 @@ html.wide-mode .timeline-card { max-width: 300px; }
   border: 1px solid var(--color-border); border-radius: 4px;
   padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
 }
-/* 字段：label 在上、控件在下、占满宽 */
-.prop-field {
-  display: flex !important;
+/* 字段：label 在上、控件在下、占满宽。
+   用 .prop-form-row label.prop-field 提升特异性（0,2,1 > 0,1,1）压过
+   .prop-form-row label 的 align-items:center，避免 !important（设计系统反模式）。 */
+.prop-form-row label.prop-field {
+  display: flex;
   flex-direction: column;
-  align-items: stretch !important;
-  gap: 4px !important;
+  align-items: stretch;
+  gap: 4px;
   flex: 1 1 100%;
   min-width: 0;
 }
