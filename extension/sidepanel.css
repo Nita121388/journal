@@ -929,6 +929,23 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 .calview-week-gridline.is-hour { border-top-color: var(--color-muted); opacity: 0.4; }
 
 /* 列内卡片：占满列宽、不受日视图 min-width/max-width 约束（窄栏 7 列时列宽远小于 120px） */
+.calview-week-col .schedule-allday {
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  border-radius: 0;
+  padding: 4px;
+  margin: 0;
+  background: transparent;
+}
+.calview-week-col .schedule-allday-label { font-size: 9px; margin-bottom: 3px; }
+.calview-week-col .schedule-allday-cards { flex-direction: column; gap: 3px; }
+.calview-week-col .schedule-allday-cards .timeline-card.is-allday {
+  min-width: 0;
+  width: 100%;
+  font-size: 10px;
+  padding: 2px 4px;
+}
+.calview-week-col .schedule-allday-cards .timeline-card .card-body { font-size: 10px; line-height: 1.2; }
 .calview-week-col .timeline-card {
   min-width: 0;
   max-width: none;

@@ -815,6 +815,76 @@ function renderMonthGrid(container) {
 
 /** 周历 7 列 */
 /**
+ * 绑定「拖动框选创建时间范围」交互（周视图列 body）。
+ * mousedown 起点 → mousemove 实时选区 → mouseup 松手以选中起止时间创建。
+ * 纯点击（拖动 < 3px）不触发，由调用方的 click 处理单格创建。
+ * @param {HTMLElement} el 容器
+ * @param {(startMin:number, endMin:number)=>void} onRange 框选完成回调（分钟）
+ */
+function bindRangeSelect(el, onRange) {
+  let sel = null; // { startM, overlay, dragging }
+  let suppressClick = false; // 框选后抑制随后的 click（避免又开一个编辑器）
+
+  const removeSel = () => {
+    if (sel?.overlay) sel.overlay.remove();
+    sel = null;
+  };
+
+  el.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // 仅左键
+    if (e.target.closest('.timeline-card, .timeline-now-marker, .card-add-btn')) return;
+    const rect = el.getBoundingClientRect();
+    const startMin = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+    const startM = Math.max(viewStartMin, Math.min(viewEndMin, startMin));
+    const overlay = document.createElement('div');
+    overlay.className = 'selection-overlay';
+    overlay.style.top = `${scheduleHeight(Math.floor(startM / 15) * 15)}px`;
+    overlay.style.height = '0px';
+    el.append(overlay);
+    sel = { startM, overlay, dragging: false };
+  });
+
+  el.addEventListener('mousemove', (e) => {
+    if (!sel) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const endMin = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+    const endM = Math.max(viewStartMin, Math.min(viewEndMin, endMin));
+    if (Math.abs(endM - sel.startM) * (SLOT_HEIGHT / 15) < 3) return; // 拖动 < 3px 不算框选
+    sel.dragging = true;
+    const s = Math.floor(Math.min(sel.startM, endM) / 15) * 15;
+    const eSlot = Math.ceil(Math.max(sel.startM, endM) / 15) * 15;
+    sel.overlay.style.top = `${scheduleHeight(s)}px`;
+    sel.overlay.style.height = `${scheduleHeight(eSlot) - scheduleHeight(s)}px`;
+    sel.endM = endM;
+  });
+
+  el.addEventListener('mouseup', (e) => {
+    if (!sel) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const endMin = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+    const endM = Math.max(viewStartMin, Math.min(viewEndMin, endMin));
+    const { startM, dragging } = sel;
+    removeSel();
+    if (!dragging) return; // 纯点击 → 走 click 单格创建
+    suppressClick = true;
+    // 起止对齐 15 分钟网格，最小 15 分钟，不超出视图范围
+    let s = Math.floor(Math.min(startM, endM) / 15) * 15;
+    let eSlot = Math.ceil(Math.max(startM, endM) / 15) * 15;
+    if (eSlot - s < 15) eSlot = s + 15;
+    eSlot = Math.min(viewEndMin, eSlot);
+    if (eSlot - s < 15) s = Math.max(viewStartMin, eSlot - 15);
+    onRange(s, eSlot);
+  });
+
+  // capture：抢在单格 click 之前抑制一次
+  el.addEventListener('click', (e) => {
+    if (suppressClick) { suppressClick = false; e.stopPropagation(); }
+  }, true);
+}
+
+/**
  * 周视图：Google Calendar 风格 —— 垂直占满容器 + 左侧小时刻度尺 +
  * 7 天列按真实时间比例定位卡片（复用日视图时间线引擎，保证两视图像素一致）
  */
@@ -931,10 +1001,36 @@ function renderWeekGrid(container) {
     const dayTimed = allTimed.filter((t) => t.dayKey === dayKey);
     const laneMap = layoutScheduleLanes(dayTimed.map((t) => ({ id: t.card.id, start: t.start, end: t.end })));
     for (const t of dayTimed) {
-      body.append(renderTimelineCard(t.card, laneMap.get(t.card.id) ?? null, false, dayKey));
+      const cardEl = renderTimelineCard(t.card, laneMap.get(t.card.id) ?? null, false, dayKey);
+      body.append(cardEl);
+      // 卡片 hover「＋」：在同一时间新建（对齐日视图 .card-add-btn 交互）
+      const addBtn = document.createElement('button');
+      addBtn.className = 'card-add-btn';
+      addBtn.title = '在同一时间新建卡片';
+      addBtn.textContent = '＋';
+      addBtn.style.top = `${scheduleHeight((t.start + t.end) / 2)}px`;
+      addBtn.style.left = 'auto';
+      addBtn.style.right = '2px';
+      body.append(addBtn);
+      const showAdd = () => { cardEl.classList.add('is-hover-add'); addBtn.classList.add('is-visible'); };
+      const hideAdd = () => { cardEl.classList.remove('is-hover-add'); addBtn.classList.remove('is-visible'); };
+      cardEl.addEventListener('mouseenter', showAdd);
+      cardEl.addEventListener('mouseleave', hideAdd);
+      addBtn.addEventListener('mouseenter', showAdd);
+      addBtn.addEventListener('mouseleave', hideAdd);
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditor(null, getCardStartTime(t.card) ?? currentTime(), dayKey);
+      });
     }
 
-    // 点击空白：按 Y 坐标换算时间 → 以该时间新建
+    // 点击空白单格创建 + 拖动框选创建时间范围
+    const onRange = (sMin, eMin) => {
+      openEditor(null, minutesToTime(sMin), dayKey);
+      const endEl = document.getElementById('card-editor-end');
+      if (endEl) endEl.value = minutesToTime(eMin); // 覆盖默认 start+15，预填选区时长
+    };
+    bindRangeSelect(body, onRange);
     body.addEventListener('click', (e) => {
       if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
       const rect = body.getBoundingClientRect();
@@ -943,6 +1039,23 @@ function renderWeekGrid(container) {
     });
 
     col.append(body);
+
+    // 无时间/全天卡片：置于表头正下方（列高可达 1700px，放底部等于藏起来）
+    const noTimeCards = cards.filter((c) => !getCardStartTime(c));
+    if (noTimeCards.length) {
+      const all = document.createElement('div');
+      all.className = 'schedule-allday';
+      const head = document.createElement('div');
+      head.className = 'schedule-allday-label';
+      head.textContent = '全天';
+      all.append(head);
+      const wrap = document.createElement('div');
+      wrap.className = 'schedule-allday-cards';
+      for (const card of noTimeCards) wrap.append(renderTimelineCard(card, null, true, dayKey));
+      all.append(wrap);
+      col.insertBefore(all, body);
+    }
+
     weekEl.append(col);
   }
 
