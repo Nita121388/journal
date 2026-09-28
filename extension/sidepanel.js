@@ -1691,6 +1691,9 @@ async function renderCardPool() {
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
     li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
     li.addEventListener('keydown', (e) => {
+      // 只响应 li 自身获得焦点的情况：子按钮（安排/删除）聚焦时 Enter/空格应走其原生激活，
+      // 否则会被 preventDefault 拦下、误开编辑器
+      if (e.target !== li) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openEditor(card, currentTime(), selectedDate);

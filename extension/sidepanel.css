@@ -14,6 +14,8 @@
   --color-card-border: #e8e8e8;
   --color-timeline: #d0d5dd;
   --color-scroll-thumb: #cfd3da;
+  --color-scrim: rgba(0, 0, 0, 0.28);      /* 抽屉遮罩 */
+  --color-on-accent-ink: #10240f;          /* 暗色下 today 单元格：提亮底上的深字 */
   --banner-block-h: 69px;             /* Host 横幅本体 + 其上外边距 */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -211,7 +213,7 @@ body.panels-open #board::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--color-scrim);
   z-index: 99;
 }
 
@@ -920,6 +922,7 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 }
 
 #timeline-container {
+  position: relative; /* 空态提示的定位上下文（此前回退到 #board，宽屏会横跨侧栏） */
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -2560,7 +2563,7 @@ body.tpl-dragging { user-select: none; }
 .timeline-card .card-footer { margin-top: auto; }
 
 /* 暗色 today 单元格对比度：提亮底色 + 深色字 */
-[data-theme="dark"] .cal-day.is-today { color: #10240f; font-weight: 700; }
+[data-theme="dark"] .cal-day.is-today { color: var(--color-on-accent-ink); font-weight: 700; }
 
 /* 可访问性：动效降级（审计 E-1） */
 @media (prefers-reduced-motion: reduce) {

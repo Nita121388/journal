@@ -72,16 +72,24 @@ export async function runSmoke({ page, width }) {
   const emptyAction = await page.locator('#cardpool-list .empty-action').first().textContent().catch(() => '');
   add('空态有行动按钮', /\S/.test(emptyAction), emptyAction.trim());
 
-  // 11) #5 reduced motion is honored (no error, transition collapsed)
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.waitForTimeout(150);
-  const dur = await page.locator('#app-title').evaluate(
+  // 11) #5 reduced motion collapses transitions.
+  //     Target .cal-day (real `transition: border-color .15s`); #app-title has no
+  //     transition (default 0s) so asserting on it would pass even without the
+  //     reduced-motion CSS — vacuous. Assert both states so the check is real.
+  const readDur = (sel) => page.locator(sel).first().evaluate(
     (el) => getComputedStyle(el).transitionDuration,
   ).catch(() => '');
-  // 解析所有时长值（逗号分隔，支持 1e-05s 等科学计数法）
-  const durs = (dur.match(/[\d.e+-]+s/g) || []).map((v) => parseFloat(v)).filter((n) => !Number.isNaN(n));
-  const collapsed = durs.length > 0 && durs.every((n) => n < 0.05);
-  add('prefers-reduced-motion 生效', collapsed, dur);
+  const maxDur = (s) => (s.match(/[\d.e+-]+s/g) || [])
+    .map((v) => parseFloat(v)).filter((n) => !Number.isNaN(n))
+    .reduce((a, b) => Math.max(a, b), 0);
+  const beforeRaw = await readDur('.cal-day');
+  const before = maxDur(beforeRaw);
+  add('基线：.cal-day 有非零 transition', before >= 0.05, beforeRaw);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForTimeout(150);
+  const afterRaw = await readDur('.cal-day');
+  const after = maxDur(afterRaw);
+  add('prefers-reduced-motion 生效（transition 收敛）', after > 0 && after < 0.05, afterRaw);
   await page.emulateMedia({ reducedMotion: null });
 
   return { checks };
