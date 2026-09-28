@@ -1917,6 +1917,29 @@ const tplNpType = document.getElementById('tpl-np-type');
 const tplNpOptions = document.getElementById('tpl-np-options');
 const tplNpOk = document.getElementById('tpl-np-ok');
 const tplNpCancel = document.getElementById('tpl-np-cancel');
+const tplNpIconTile = document.getElementById('tpl-np-icon-tile');
+const tplNpIconPreview = document.getElementById('tpl-np-icon-preview');
+const tplNpIconPicker = document.getElementById('tpl-np-icon-picker');
+
+// 模板构建器：属性图标 emoji 选择器（复用现有 picker）
+let tplNpIconCleanup = null;
+function openTplNpIconPicker() {
+  if (!tplNpIconPicker || !tplNpIconTile) return;
+  tplNpIconPicker.classList.remove('hidden');
+  tplNpIconCleanup?.();
+  tplNpIconCleanup = renderEmojiPicker(tplNpIconPicker, (char) => {
+    if (tplNpIcon) tplNpIcon.value = char;
+    if (tplNpIconPreview) tplNpIconPreview.textContent = char || '•';
+    recordRecentEmoji(char);
+    closeTplNpIconPicker();
+  }, { selected: tplNpIcon?.value || '' });
+}
+function closeTplNpIconPicker() {
+  tplNpIconPicker?.classList.add('hidden');
+  tplNpIconCleanup?.();
+  tplNpIconCleanup = null;
+}
+tplNpIconTile?.addEventListener('click', openTplNpIconPicker);
 const tplNewPropForm = document.getElementById('tpl-newprop-form');
 /** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
 let tplBuilderState = { name: '', emoji: '🗂', extra: [], values: {} };
@@ -2002,10 +2025,13 @@ function closeTemplateBuilder() {
 function renderTemplateBuilder() {
   if (!tplPropList) return;
   tplPropList.replaceChildren();
-  // 必备
-  const gReq = document.createElement('div'); gReq.className = 'tpl-group';
-  const h1 = document.createElement('div'); h1.className = 'tpl-group-title'; h1.textContent = '必备（模板自动包含）';
-  gReq.append(h1);
+  // 必备：默认折叠为一摘要行（降低窄栏占高），展开可编辑默认值
+  const gReq = document.createElement('details');
+  gReq.className = 'tpl-group tpl-group-req';
+  const sumReq = document.createElement('summary');
+  sumReq.className = 'tpl-group-title tpl-group-summary';
+  sumReq.textContent = `✓ 必备（${REQUIRED_DEFS.map(d => d.label).join(' · ')}）`;
+  gReq.append(sumReq);
   for (const def of REQUIRED_DEFS) gReq.append(buildReqRow(def));
   tplPropList.append(gReq);
   // 额外
@@ -2018,7 +2044,9 @@ function renderTemplateBuilder() {
     gOpt.append(hint);
   }
   for (const entry of tplBuilderState.extra) gOpt.append(buildExtraRow(entry));
-  gOpt.append(buildAddPanel());
+  // F1 修复：「＋ 添加属性」常驻可见（此前被包在初始 hidden 面板内，永久不可点）
+  const { addBtn, panel } = buildAddPanel();
+  gOpt.append(addBtn, panel);
   tplPropList.append(gOpt);
 }
 
@@ -2067,12 +2095,16 @@ function removeExtra(key) {
   renderTemplateBuilder();
 }
 
-/** 「＋ 添加属性」面板：内建可选（未加入）+ 属性库（未加入）+ 新建 */
+/** 「＋ 添加属性」按钮（常驻）+ 候选面板（点击才展开） */
 function buildAddPanel() {
   const panel = document.createElement('div'); panel.id = 'tpl-add-panel'; panel.className = 'tpl-add-panel hidden';
   const addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.className = 'tpl-add-btn';
   addBtn.textContent = '＋ 添加属性';
-  addBtn.addEventListener('click', () => panel.classList.toggle('hidden'));
+  addBtn.setAttribute('aria-expanded', 'false');
+  addBtn.addEventListener('click', () => {
+    const nowHidden = panel.classList.toggle('hidden');
+    addBtn.setAttribute('aria-expanded', String(!nowHidden));
+  });
   const inExtra = new Set(tplBuilderState.extra.map(x => x.key));
   const available = [
     ...OPTIONAL_DEFS.filter(d => !inExtra.has(d.key)).map(d => ({ key: d.key, icon: d.icon, label: d.label, kind: '内建' })),
@@ -2093,8 +2125,8 @@ function buildAddPanel() {
   newBtn.textContent = '＋ 新建属性…';
   newBtn.addEventListener('click', () => { openTplNewPropForm(); });
   list.append(newBtn);
-  panel.append(addBtn, list);
-  return panel;
+  panel.append(list);
+  return { addBtn, panel };
 }
 
 function addPropToExtra(key) {
@@ -2230,6 +2262,7 @@ function openTplNewPropForm() {
   if (tplNpLabel) tplNpLabel.value = '';
   if (tplNpKey) { tplNpKey.disabled = false; tplNpKey.value = ''; }
   if (tplNpIcon) tplNpIcon.value = '';
+  if (tplNpIconPreview) tplNpIconPreview.textContent = '•';
   if (tplNpType) tplNpType.value = 'text';
   if (tplNpOptions) tplNpOptions.value = '';
   if (tplNpOk) tplNpOk.textContent = '加入模板';
@@ -2247,6 +2280,7 @@ function openTplEditProp(key) {
   if (tplNpLabel) tplNpLabel.value = disp;
   if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = true; tplNpKey.title = '属性键在编辑时不可改（避免破坏已有数据）'; }
   if (tplNpIcon) tplNpIcon.value = (entry.def.icon && entry.def.icon !== '•') ? entry.def.icon : '';
+  if (tplNpIconPreview) tplNpIconPreview.textContent = tplNpIcon.value || '•';
   if (tplNpType) tplNpType.value = entry.def.type || 'text';
   if (tplNpOptions) tplNpOptions.value = (entry.def.options || []).join(',');
   const wrap = tplNpOptions?.closest('.prop-options-wrap');

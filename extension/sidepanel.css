@@ -1848,6 +1848,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   border-radius: 6px; background: var(--color-cell-empty);
   display: flex; flex-direction: column; gap: 6px;
 }
+/* 属性表单：窄栏纵向堆叠（避免多字段 inline 挤压），宽屏可两列 */
 .prop-form-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .prop-form-row label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-muted); }
 .prop-form-row input, .prop-form-row select {
@@ -1855,6 +1856,23 @@ html.wide-mode .timeline-card { max-width: 300px; }
   border: 1px solid var(--color-border); border-radius: 4px;
   padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
 }
+/* 字段：label 在上、控件在下、占满宽 */
+.prop-field {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 4px !important;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.prop-field > input,
+.prop-field > select { width: 100%; min-height: 28px; }
+/* 图标选择瓦片 */
+.prop-icon-pick { display: inline-flex; align-items: center; gap: 6px; }
+.prop-icon-pick .ce-emoji-tile { width: 32px; height: 32px; font-size: 15px; }
+/* 窄栏：候选属性纵向列表（360 下更好点） */
+.tpl-add-list { display: flex; flex-direction: column; gap: 4px; }
+.tpl-add-item { text-align: left; }
 .prop-options-wrap { flex: 1; }
 .prop-form-actions { display: flex; align-items: center; gap: 8px; }
 .prop-lib-check { font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 4px; margin-right: auto; }
@@ -2351,6 +2369,29 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-row-del:hover { color: #e53935; }
 
 /* 添加属性面板 */
+/* 必备属性组：默认折叠为一摘要行 */
+/* 模板构建器：从卡片编辑器「保存为模板」打开，属弹窗之上的弹窗，必须高于 .overlay(100)，
+   否则两者同 z-index 时后于 DOM 的卡片编辑器会盖住它（实测：添加属性按钮被完全遮挡） */
+#template-builder-overlay { z-index: 120; }
+
+.tpl-group-req > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tpl-group-req > summary::-webkit-details-marker { display: none; }
+.tpl-group-req > summary::before {
+  content: '▸';
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.tpl-group-req[open] > summary::before { transform: rotate(90deg); }
+.tpl-group-req[open] > summary { margin-bottom: 4px; }
+.tpl-group-summary { color: var(--color-muted); }
+
 .tpl-add-btn {
   margin-top: 8px; padding: 7px; width: 100%;
   border-radius: 9px;
