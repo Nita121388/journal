@@ -757,6 +757,7 @@ async function renderRightView() {
   if (els.timelineDateHeader) els.timelineDateHeader.textContent = viewHeaderLabel();
   const container = els.timelineContainer;
   container.replaceChildren();
+  container.classList.toggle('calview-week-wrap', viewMode === 'week');
   if (viewMode === 'month') { renderMonthGrid(container); return; }
   if (viewMode === 'week') { renderWeekGrid(container); return; }
   await renderTimeline();
@@ -827,6 +828,7 @@ function renderWeekGrid(container) {
   }
   const today = todayKey();
   const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekShort = ['日', '一', '二', '三', '四', '五', '六'];
 
   // ── 全周时间范围：跟随 timelineSpan（08–22 / 24h）+ 全周数据自动扩展（与日视图同逻辑）
   viewStartMin = timelineSpan === 'full' ? 0 : DAY_START_MIN;
@@ -881,7 +883,7 @@ function renderWeekGrid(container) {
     const dt = new Date(Number(dayKey.slice(0, 4)), Number(dayKey.slice(5, 7)) - 1, Number(dayKey.slice(8, 10)));
     const cards = getCardsByDaySync(dayKey);
     // 紧凑表头：单字星期 + 日号（窄列 7 天宽度有限，省去月份）
-    head.innerHTML = `<span title="${dayKey}">${weekNames[dt.getDay()][0]} ${dt.getDate()}</span><span class="calview-week-count">${cards.length}</span>`;
+    head.innerHTML = `<span title="${weekNames[dt.getDay()]} ${dayKey}">${weekShort[dt.getDay()]} ${dt.getDate()}</span><span class="calview-week-count">${cards.length}</span>`;
     head.addEventListener('click', async () => {
       selectedDate = dayKey;
       weekAnchor = dayKey;
@@ -2809,7 +2811,8 @@ async function init() {
     timelineSpan = timelineSpan === 'full' ? 'default' : 'full';
     localStorage.setItem('journal.timelineSpan', timelineSpan);
     updateSpanBtn();
-    if (viewMode === 'timeline') await renderRightView();
+    // 时间范围影响时间线与周视图（周视图复用同一天范围逻辑）
+    await renderRightView();
   });
 
   // 今日当前时间 marker 每分钟更新

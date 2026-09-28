@@ -839,9 +839,12 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 
 /* ─── 周历视图 ─────────────────────────────── */
 /* ─── 周视图：垂直占满 + 时间刻度尺 ──────────────────── */
+/* 窄侧栏下 7 列可横向滚动（列宽不足时不被压成竖排文字） */
+.calview-week-wrap { overflow-x: auto; overflow-y: auto; }
 .calview-week-grid {
   display: grid;
-  grid-template-columns: 44px repeat(7, 1fr);
+  grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
+  min-width: 520px;
   gap: 0;
   margin-top: 8px;
   align-items: stretch;
