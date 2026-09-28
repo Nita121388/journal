@@ -752,15 +752,58 @@ function markViewMode() {
 }
 
 /** 右侧视图统一入口 */
+/**
+ * 一次性聚焦滚动：打开面板 / 切换日期 / 切换视图后，让「当前时刻」垂直居中。
+ * 不足以居中时钳制到边界（顶部 0 / 底部 maxScroll），不强拽；非今天则聚焦
+ * 当天最早一张定时卡（无卡则不滚）。消费后不再干预用户滚动与每分钟 marker 刷新。
+ */
+let pendingFocusScroll = false;
+function requestFocusScroll() { pendingFocusScroll = true; }
+
+function scrollTimelineToFocus(container, prevScroll = 0) {
+  if (!container) return;
+  if (viewMode === 'month') return; // 月视图无时间轴，也不恢复（整月网格）
+
+  if (pendingFocusScroll) {
+    pendingFocusScroll = false;
+    let targetY = null;
+    if (selectedDate === todayKey()) {
+      const now = new Date();
+      const nowMin = Math.max(viewStartMin, Math.min(viewEndMin, now.getHours() * 60 + now.getMinutes()));
+      targetY = scheduleHeight(nowMin);
+    } else {
+      // 非今天：聚焦当天最早一张定时卡
+      const cards = getCardsByDaySync(selectedDate).filter((c) => getCardStartTime(c));
+      if (cards.length) {
+        const s = timeToMinutes(getCardStartTime(cards[0]));
+        targetY = scheduleHeight(Math.max(viewStartMin, s));
+      }
+    }
+    if (targetY === null) { container.scrollTop = 0; return; }
+    const clientH = container.clientHeight;
+    const maxScroll = Math.max(0, container.scrollHeight - clientH);
+    if (maxScroll === 0) return; // 内容不足一屏，不滚
+    // 钳制到边界：贴顶/贴底时停在自然位置，不强行居中
+    container.scrollTop = Math.max(0, Math.min(maxScroll, targetY - clientH / 2));
+    return;
+  }
+
+  // 常规重渲染（host 同步/数据变化）：恢复此前滚动位置，避免 replaceChildren 重置回顶部
+  const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+  container.scrollTop = Math.min(Math.max(0, prevScroll), maxScroll);
+}
+
 async function renderRightView() {
   markViewMode();
   if (els.timelineDateHeader) els.timelineDateHeader.textContent = viewHeaderLabel();
   const container = els.timelineContainer;
+  const prevScroll = container.scrollTop; // 渲染前捕获，供恢复（replaceChildren 会重置滚动）
   container.replaceChildren();
   container.classList.toggle('calview-week-wrap', viewMode === 'week');
   if (viewMode === 'month') { renderMonthGrid(container); return; }
-  if (viewMode === 'week') { renderWeekGrid(container); return; }
+  if (viewMode === 'week') { renderWeekGrid(container); scrollTimelineToFocus(container, prevScroll); return; }
   await renderTimeline();
+  scrollTimelineToFocus(container, prevScroll);
 }
 
 /** 月历网格 */
@@ -959,6 +1002,7 @@ function renderWeekGrid(container) {
       weekAnchor = dayKey;
       calendarMonth = monthOf(dayKey);
       viewMode = 'timeline';
+      requestFocusScroll(); // 跳到该日时间线后聚焦
       await refreshAll();
     });
     col.append(head);
@@ -2858,11 +2902,13 @@ async function init() {
   // 首次全量渲染
   updateHeaderDate();
   markViewMode();
+  requestFocusScroll(); // 打开时聚焦当前时刻
   await refreshAll();
   await loadPoolViews();
 
   // ── 右视图导航 / 模式切换 ──
   els.viewPrev.addEventListener('click', async () => {
+    requestFocusScroll(); // 切换日期后聚焦
     if (viewMode === 'month') {
       let { year, month } = calendarMonth;
       month -= 1;
@@ -2882,6 +2928,7 @@ async function init() {
   });
 
   els.viewNext.addEventListener('click', async () => {
+    requestFocusScroll(); // 切换日期后聚焦
     if (viewMode === 'month') {
       let { year, month } = calendarMonth;
       month += 1;
@@ -2901,6 +2948,7 @@ async function init() {
   });
 
   els.viewToday.addEventListener('click', async () => {
+    requestFocusScroll(); // 切换日期后聚焦
     calendarMonth = monthOf(todayKey());
     weekAnchor = todayKey();
     selectedDate = todayKey();
@@ -2914,6 +2962,7 @@ async function init() {
       viewMode = btn.dataset.mode;
       localStorage.setItem('journal.viewMode', viewMode);
       markViewMode();
+      requestFocusScroll(); // 切换视图后重新聚焦当前时刻
       await renderRightView();
     });
   });

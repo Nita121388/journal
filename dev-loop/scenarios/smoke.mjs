@@ -72,8 +72,7 @@ export async function runSmoke({ page, width }) {
   const emptyAction = await page.locator('#cardpool-list .empty-action').first().textContent().catch(() => '');
   add('空态有行动按钮', /\S/.test(emptyAction), emptyAction.trim());
 
-  // 11) #5 reduced motion collapses transitions.
-  //     Target .cal-day (real `transition: border-color .15s`); #app-title has no
+  // 11) #5 reduced motion collapses transitions.  //     Target .cal-day (real `transition: border-color .15s`); #app-title has no
   //     transition (default 0s) so asserting on it would pass even without the
   //     reduced-motion CSS — vacuous. Assert both states so the check is real.
   const readDur = (sel) => page.locator(sel).first().evaluate(
@@ -91,6 +90,18 @@ export async function runSmoke({ page, width }) {
   const after = maxDur(afterRaw);
   add('prefers-reduced-motion 生效（transition 收敛）', after > 0 && after < 0.05, afterRaw);
   await page.emulateMedia({ reducedMotion: null });
+
+  // 12) 打开即聚焦：今天日视图时刻线应在容器垂直中部（±20% 容差）
+  const nowC = await page.evaluate(() => {
+    const c = document.getElementById('timeline-container');
+    const m = document.querySelector('.timeline-now-marker');
+    if (!c || !m) return null;
+    const cr = c.getBoundingClientRect();
+    const mr = m.getBoundingClientRect();
+    const delta = mr.top - cr.top - cr.height / 2;
+    return { delta: Math.round(delta), h: Math.round(cr.height), ok: Math.abs(delta) <= cr.height * 0.2 };
+  }).catch(() => null);
+  add('打开时当前时刻垂直居中', nowC?.ok === true, nowC ? `Δ=${nowC.delta}px / ${nowC.h}px` : '不可测');
 
   return { checks };
 }
