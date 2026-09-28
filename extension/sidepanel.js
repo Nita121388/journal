@@ -813,6 +813,10 @@ function renderMonthGrid(container) {
 }
 
 /** 周历 7 列 */
+/**
+ * 周视图：Google Calendar 风格 —— 垂直占满容器 + 左侧小时刻度尺 +
+ * 7 天列按真实时间比例定位卡片（复用日视图时间线引擎，保证两视图像素一致）
+ */
 function renderWeekGrid(container) {
   const [y, m, d] = weekAnchor.split('-').map(Number);
   const sunday = new Date(y, m - 1, d); sunday.setDate(sunday.getDate() - sunday.getDay());
@@ -822,20 +826,62 @@ function renderWeekGrid(container) {
     days.push(toDayKey(dt));
   }
   const today = todayKey();
+  const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  // ── 全周时间范围：跟随 timelineSpan（08–22 / 24h）+ 全周数据自动扩展（与日视图同逻辑）
+  viewStartMin = timelineSpan === 'full' ? 0 : DAY_START_MIN;
+  viewEndMin = timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
+  const allTimed = [];
+  for (const dayKey of days) {
+    for (const c of getCardsByDaySync(dayKey)) {
+      if (!getCardStartTime(c)) continue;
+      const s = timeToMinutes(getCardStartTime(c));
+      const e = timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15));
+      viewStartMin = Math.min(viewStartMin, Math.floor(s / 15) * 15);
+      viewEndMin = Math.max(viewEndMin, Math.ceil(e / 15) * 15);
+      allTimed.push({ card: c, dayKey, start: s, end: e });
+    }
+  }
+  viewStartMin = Math.max(0, viewStartMin);
+  viewEndMin = Math.min(24 * 60, viewEndMin);
+  const bodyH = scheduleHeight(viewEndMin);
+
   const weekEl = document.createElement('div');
   weekEl.className = 'calview-week-grid';
-  const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  // ── 左侧刻度尺
+  const ruler = document.createElement('div');
+  ruler.className = 'calview-week-ruler';
+  const rulerHead = document.createElement('div');
+  rulerHead.className = 'calview-week-ruler-head';
+  ruler.append(rulerHead);
+  const rulerBody = document.createElement('div');
+  rulerBody.className = 'calview-week-ruler-body';
+  rulerBody.style.height = `${bodyH}px`;
+  for (let mm = viewStartMin; mm <= viewEndMin; mm += 60) {
+    const lbl = document.createElement('div');
+    lbl.className = 'calview-week-ruler-label';
+    lbl.style.top = `${scheduleHeight(mm)}px`;
+    lbl.textContent = minutesToTime(mm);
+    rulerBody.append(lbl);
+  }
+  ruler.append(rulerBody);
+  weekEl.append(ruler);
+
+  // ── 7 天列
   for (const dayKey of days) {
     const col = document.createElement('div');
     col.className = 'calview-week-col';
     col.dataset.day = dayKey;
     if (dayKey === today) col.classList.add('is-today');
     if (dayKey === selectedDate) col.classList.add('is-selected');
+
     const head = document.createElement('div');
     head.className = 'calview-week-head';
     const dt = new Date(Number(dayKey.slice(0, 4)), Number(dayKey.slice(5, 7)) - 1, Number(dayKey.slice(8, 10)));
     const cards = getCardsByDaySync(dayKey);
-    head.innerHTML = `<span>${weekNames[dt.getDay()]} ${dayKey.slice(5).replace('-', '/')}</span><span class="calview-week-count">${cards.length}</span>`;
+    // 紧凑表头：单字星期 + 日号（窄列 7 天宽度有限，省去月份）
+    head.innerHTML = `<span title="${dayKey}">${weekNames[dt.getDay()][0]} ${dt.getDate()}</span><span class="calview-week-count">${cards.length}</span>`;
     head.addEventListener('click', async () => {
       selectedDate = dayKey;
       weekAnchor = dayKey;
@@ -844,12 +890,60 @@ function renderWeekGrid(container) {
       await refreshAll();
     });
     col.append(head);
-    const list = document.createElement('div');
-    list.className = 'calview-week-cards';
-    for (const card of cards) list.append(buildCalSummary(card));
-    col.append(list);
+
+    const body = document.createElement('div');
+    body.className = 'calview-week-body';
+    body.style.height = `${bodyH}px`;
+
+    // 网格线：每 15 分钟一条，整点加粗
+    for (let mm = viewStartMin; mm <= viewEndMin; mm += 15) {
+      const line = document.createElement('div');
+      line.className = 'calview-week-gridline' + (mm % 60 === 0 ? ' is-hour' : '');
+      line.style.top = `${scheduleHeight(mm)}px`;
+      body.append(line);
+    }
+
+    // 当前时刻线（仅今天列）
+    if (dayKey === today) {
+      const now = new Date();
+      const nowMin = Math.max(viewStartMin, Math.min(viewEndMin, now.getHours() * 60 + now.getMinutes()));
+      const marker = document.createElement('div');
+      marker.className = 'timeline-now-marker';
+      marker.style.top = `${scheduleHeight(nowMin)}px`;
+      const tag = document.createElement('span');
+      tag.className = 'timeline-now-tag';
+      tag.textContent = `● 现在 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      marker.append(tag);
+      const lineEl = document.createElement('span');
+      lineEl.className = 'timeline-now-line';
+      marker.append(lineEl);
+      marker.title = '点击在当前时间新建卡片';
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditor(null, snapUpToQuarter(currentTime()), dayKey);
+      });
+      body.append(marker);
+    }
+
+    // 卡片：按天分道后复用 renderTimelineCard（绝对定位到列内对应时刻）
+    const dayTimed = allTimed.filter((t) => t.dayKey === dayKey);
+    const laneMap = layoutScheduleLanes(dayTimed.map((t) => ({ id: t.card.id, start: t.start, end: t.end })));
+    for (const t of dayTimed) {
+      body.append(renderTimelineCard(t.card, laneMap.get(t.card.id) ?? null, false, dayKey));
+    }
+
+    // 点击空白：按 Y 坐标换算时间 → 以该时间新建
+    body.addEventListener('click', (e) => {
+      if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
+      const rect = body.getBoundingClientRect();
+      const mins = viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+      openEditor(null, snapToQuarter(minutesToTime(mins)), dayKey);
+    });
+
+    col.append(body);
     weekEl.append(col);
   }
+
   container.append(weekEl);
 }
 
@@ -1152,8 +1246,9 @@ function scheduleHeight(mins) {
  * @param {object} card
  * @param {{lane:number, laneCount:number}|null} lane — null 表示全天卡片
  * @param {boolean} [allday=false]
+ * @param {string} [dateOverride] — 周/月视图指定目标日期（默认用全局 selectedDate）
  */
-function renderTimelineCard(card, lane = null, allday = false) {
+function renderTimelineCard(card, lane = null, allday = false, dateOverride = null) {
   const el = document.createElement('div');
   el.className = 'timeline-card' + (allday ? ' is-allday' : '');
   el.dataset.id = card.id;
@@ -1204,7 +1299,7 @@ function renderTimelineCard(card, lane = null, allday = false) {
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     if (suppressClick) { suppressClick = false; return; }
-    openEditor(card, getCardStartTime(card) ?? currentTime(), selectedDate);
+    openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? selectedDate);
   });
 
   // 非全天卡片：底部 resize 手柄调整结束时间

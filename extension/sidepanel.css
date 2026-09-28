@@ -838,51 +838,137 @@ body:has(#host-banner:not(.hidden)) #timeline-section {
 }
 
 /* ─── 周历视图 ─────────────────────────────── */
+/* ─── 周视图：垂直占满 + 时间刻度尺 ──────────────────── */
 .calview-week-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: 44px repeat(7, 1fr);
+  gap: 0;
   margin-top: 8px;
-  align-items: start;
-}
-.calview-week-col {
+  align-items: stretch;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 8px;
+  overflow: hidden;
   background: var(--color-bg);
+  --calview-head-h: 34px;
+}
+
+/* 左侧刻度尺 */
+.calview-week-ruler {
+  position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 380px;
-  overflow: hidden;
-  transition: border-color 0.15s;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
-.calview-week-col.is-today { border-color: var(--color-accent); }
+.calview-week-ruler-head { height: var(--calview-head-h); border-bottom: 1px solid var(--color-border); }
+.calview-week-ruler-body { position: relative; }
+.calview-week-ruler-label {
+  position: absolute;
+  right: 5px;
+  transform: translateY(-50%);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* 7 天列 */
+.calview-week-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--color-border);
+  transition: background 0.15s;
+}
+.calview-week-col:last-child { border-right: none; }
+.calview-week-col.is-today { background: var(--color-accent-light); }
 .calview-week-col.is-selected { background: var(--color-accent-light); }
 .calview-week-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 7px;
+  gap: 3px;
+  height: var(--calview-head-h);
+  padding: 0 6px;
   border-bottom: 1px solid var(--color-border);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  white-space: nowrap;
+  overflow: hidden;
 }
 .calview-week-head:hover { background: var(--color-cell-empty); }
 .calview-week-count {
+  flex-shrink: 0;
   font-size: 10px;
   color: var(--color-muted);
   background: var(--color-cell-empty);
   border-radius: 8px;
-  padding: 0 6px;
+  padding: 0 5px;
 }
-.calview-week-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 5px;
-  overflow-y: auto;
-  flex: 1;
+
+/* 时间区：网格线 + 绝对定位卡片 */
+.calview-week-body { position: relative; }
+.calview-week-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--color-border);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.calview-week-gridline.is-hour { border-top-color: var(--color-muted); opacity: 0.4; }
+
+/* 列内卡片：占满列宽、不受日视图 min-width/max-width 约束（窄栏 7 列时列宽远小于 120px） */
+.calview-week-col .timeline-card {
+  min-width: 0;
+  max-width: none;
+  width: auto;
+  left: 1px;
+  right: 1px;
+  padding: 3px 4px 6px;
+  border-radius: 4px;
+}
+/* 窄列内文字多行截断（-webkit-line-clamp 需 normal white-space，不能用 nowrap） */
+.calview-week-col .timeline-card .card-body {
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.calview-week-col .timeline-card .card-header { gap: 2px; padding: 0; }
+.calview-week-col .timeline-card .card-time { font-size: 9px; }
+.calview-week-col .timeline-card .card-meta { display: none; }
+.calview-week-col .timeline-card .card-footer { display: none; }
+.calview-week-col .timeline-card .card-resize-handle { height: 5px; }
+
+/* 表头：日期缩写 + 溢出隐藏（7 列在窄侧栏宽度有限） */
+.calview-week-head > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+@media (max-width: 420px) {
+  .calview-week-head > span:first-child { font-size: 9px; letter-spacing: -0.2px; }
+}
+
+/* 窄栏：压缩刻度与表头 */
+@media (max-width: 420px) {
+  .calview-week-grid { grid-template-columns: 34px repeat(7, 1fr); }
+  .calview-week-ruler-label { font-size: 9px; right: 3px; }
+  .calview-week-head { font-size: 10px; padding: 0 3px; }
+  .calview-week-col .timeline-card { left: 1px; right: 1px; }
 }
 
 /* ─── 卡片摘要（月历/周历共用） ─────────────── */
