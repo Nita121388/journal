@@ -20,6 +20,7 @@ The **frontend** of this project is the Chrome MV3 extension under `extension/` 
 | [State Management](./state-management.md) | `chrome.storage.local` schema, store-only access, `onChanged` | ✅ Filled |
 | [Quality Guidelines](./quality-guidelines.md) | ESLint, Vitest coverage, CSP, forbidden patterns | ✅ Filled |
 | [Type Safety](./type-safety.md) | JSDoc `@typedef`, runtime validation at store boundary | ✅ Filled |
+| [dev-loop](./dev-loop.md) | Agent 自主验证扩展 UI 的闭环（多宽度截图 + 断言 + 报告） | ✅ Filled |
 
 ---
 
@@ -41,3 +42,4 @@ Before writing any extension code, confirm:
 - [ ] `npx vitest run --coverage` — `lib/` coverage > 80%
 - [ ] Loads clean in `chrome://extensions`, side panel opens, console error-free
 - [ ] No `eval` / `new Function` / `innerHTML` with user content
+- [ ] UI 改动后 `node dev-loop/dev-loop.mjs --width 360,400,500` 回归全绿（见 [dev-loop](./dev-loop.md)）

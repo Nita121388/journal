@@ -1,0 +1,17 @@
+{
+  "name": "journal-dev-loop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent-driven dev loop for the Journal Chrome extension: reload, screenshot, assert, report.",
+  "scripts": {
+    "loop": "node dev-loop.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}
