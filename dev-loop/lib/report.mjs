@@ -20,6 +20,8 @@ export function writeReport({ outDir, startedAt, results, hostMode, summary }) {
       checks: r.checks,
       errors: r.errors,
       screenshot: r.screenshot,
+      screenshots: r.screenshots,
+      combos: r.combos,
     })),
   };
   mkdirSync(outDir, { recursive: true });

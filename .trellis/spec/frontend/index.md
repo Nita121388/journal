@@ -20,6 +20,7 @@ The **frontend** of this project is the Chrome MV3 extension under `extension/` 
 | [State Management](./state-management.md) | `chrome.storage.local` schema, store-only access, `onChanged` | ✅ Filled |
 | [Quality Guidelines](./quality-guidelines.md) | ESLint, Vitest coverage, CSP, forbidden patterns | ✅ Filled |
 | [Type Safety](./type-safety.md) | JSDoc `@typedef`, runtime validation at store boundary | ✅ Filled |
+| [Design System](./design-system.md) | 设计 token 三层 / 组件规范 / 动效 / 可访问性硬门 / 反模式 | ✅ Filled |
 | [dev-loop](./dev-loop.md) | Agent 自主验证扩展 UI 的闭环（多宽度截图 + 断言 + 报告） | ✅ Filled |
 
 ---
