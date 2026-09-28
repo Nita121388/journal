@@ -2118,7 +2118,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .emoji-pick-btn, .emoji-free-input, .emoji-clear-btn { border-radius: 7px; }
 
 /* 更多（折叠） */
-.ce-more { border: 1px solid var(--color-border); border-radius: 12px; background: transparent; overflow: hidden; }
+/* overflow 不可用 hidden：折叠态下 details 会被压成 2px 高，summary 溢出被裁，
+   命中测试落到 .card-editor 背景 → 「更多属性」与「＋ 添加属性」点不开（实测）。 */
+.ce-more { border: 1px solid var(--color-border); border-radius: 12px; background: transparent; }
 .ce-more summary {
   cursor: pointer;
   font-size: 12px;
