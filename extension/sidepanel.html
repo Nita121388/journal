@@ -12,6 +12,7 @@
       <span id="app-title">📓 Journal</span>
       <time id="today-display"></time>
     </div>
+    <button id="btn-panels" aria-label="打开面板" title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar">☰</button>
     <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
   </header>
 
@@ -36,8 +37,10 @@
             </select>
           </div>
           <div id="pool-filter-row" class="pool-filter-row">
-            <!-- 状态筛选 + 布局 + 项目：由 JS 渲染 -->
+            <!-- 状态筛选：由 JS 渲染 -->
           </div>
+          <button id="pool-extra-filter" class="pool-extra-filter" aria-expanded="false" aria-controls="pool-extra">⛁ 项目/标签筛选</button>
+          <div id="pool-extra" class="pool-extra"></div>
           <ul id="cardpool-list"></ul>
           <div class="cardpool-actions">
             <button id="btn-template" class="cardpool-add-btn" title="用模板新建">🗂 模板</button>
@@ -94,6 +97,7 @@
             <button id="view-today" class="cal-today-btn" title="回到今天">今天</button>
           </div>
           <div class="view-tools">
+            <button id="btn-quick-add" class="view-wide-btn" title="在今天新建卡片" aria-label="在今天新建卡片">＋</button>
             <button id="btn-wide-mode" class="view-wide-btn" title="宽屏模式（循环：自动 / 强制宽屏 / 强制窄屏）">⛶</button>
             <button id="btn-span" class="view-span-btn" title="切换时间线范围（08-22 / 24 小时）">08–22</button>
             <div class="view-modes">

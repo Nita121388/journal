@@ -19,7 +19,7 @@ export function writeReport({ outDir, startedAt, results, hostMode, summary }) {
       settled: r.settled,
       checks: r.checks,
       errors: r.errors,
-      screenshot: r.screenshot,
+      screenshot: r.screenshot ?? r.screenshots?.[0],
       screenshots: r.screenshots,
       combos: r.combos,
     })),

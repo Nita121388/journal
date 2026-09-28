@@ -11,7 +11,6 @@ import { join } from 'node:path';
 
 export async function runAudit({ page, width, context }) {
   const { theme = 'light', mode = 'timeline' } = context || {};
-  const shots = [];
 
   // Set theme via chrome.storage (store.js reads settings.theme)
   await page.evaluate(async (th) => {
@@ -30,6 +29,19 @@ export async function runAudit({ page, width, context }) {
   await page.evaluate((m) => localStorage.setItem('journal.viewMode', m), mode);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1500);
+
+  // Capture both IA states: panels closed (default) and panels open (drawer)
+  const shots = [];
+  for (const panels of ['closed', 'open']) {
+    await page.evaluate((p) => {
+      document.body.classList.toggle('panels-open', p === 'open');
+    }, panels);
+    await page.waitForTimeout(400);
+    const name = `${theme}-${mode}-${width}-${panels}`;
+    await page.screenshot({ path: join(context.outDir, `${name}.png`), fullPage: true });
+    shots.push(name);
+  }
+  await page.evaluate(() => document.body.classList.remove('panels-open'));
 
   // Measurements for audit
   const metrics = await page.evaluate(() => {
@@ -52,8 +64,5 @@ export async function runAudit({ page, width, context }) {
   });
 
   const name = `${theme}-${mode}-${width}`;
-  const shot = join(context.outDir, `${name}.png`);
-  await page.screenshot({ path: shot, fullPage: true });
-  shots.push(name);
   return { shots, metrics, theme, mode };
 }

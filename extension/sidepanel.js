@@ -649,6 +649,11 @@ const els = {
   hostBanner: document.getElementById('host-banner'),
   hostBannerText: document.getElementById('host-banner-text'),
   btnStartHost: document.getElementById('btn-start-host'),
+  btnPanels: document.getElementById('btn-panels'),
+  board: document.getElementById('board'),
+  btnQuickAdd: document.getElementById('btn-quick-add'),
+  poolExtra: document.getElementById('pool-extra'),
+  poolExtraFilter: document.getElementById('pool-extra-filter'),
 };
 
 const HOST_HEALTH_URL = 'http://127.0.0.1:8766/api/health';
@@ -905,6 +910,18 @@ async function renderTimeline() {
   canvas.className = 'schedule-canvas';
   canvas.style.height = `${scheduleHeight(viewEndMin)}px`;
   container.append(canvas);
+
+  // 当天无卡片：空态引导（点击画布仍可新建）
+  if (!dayCards.length) {
+    const hint = document.createElement('div');
+    hint.className = 'timeline-empty-hint';
+    const b = document.createElement('b');
+    b.textContent = '今天还没有安排';
+    const sub = document.createElement('span');
+    sub.textContent = '点击空白处新建卡片';
+    hint.append(b, sub);
+    container.append(hint);
+  }
 
   // 背景网格线（每 15 分钟，整点加粗并显示标签）
   for (let m = viewStartMin; m <= viewEndMin; m += 15) {
@@ -1472,45 +1489,62 @@ function renderPoolFilters() {
     });
     row.append(btn);
   }
-  // 项目筛选
-  const projects = [...new Set((allCardsCache ?? []).map(c => c.project).filter(Boolean))];
-  if (projects.length) {
-    const sel = document.createElement('select');
-    sel.className = 'pool-project-select';
-    sel.title = '按项目筛选';
-    const none = document.createElement('option');
-    none.value = ''; none.textContent = '项目: 全部';
-    sel.append(none);
-    for (const p of projects) {
-      const o = document.createElement('option');
-      o.value = p; o.textContent = p;
-      sel.append(o);
+  // 筛选区（项目/标签，渐进披露）：静态容器，JS 只填内容
+  const extra = els.poolExtra;
+  if (extra) {
+    extra.replaceChildren();
+    // 项目筛选
+    const projects = [...new Set((allCardsCache ?? []).map(c => c.project).filter(Boolean))];
+    if (projects.length) {
+      const label = document.createElement('span');
+      label.className = 'pool-extra-label';
+      label.textContent = '项目';
+      extra.append(label);
+      const sel = document.createElement('select');
+      sel.className = 'pool-project-select';
+      sel.title = '按项目筛选';
+      const none = document.createElement('option');
+      none.value = ''; none.textContent = '全部';
+      sel.append(none);
+      for (const p of projects) {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = p;
+        sel.append(o);
+      }
+      sel.value = poolProjectFilter;
+      sel.addEventListener('change', () => { poolProjectFilter = sel.value; activeViewId = ''; renderCardPool(); });
+      extra.append(sel);
     }
-    sel.value = poolProjectFilter;
-    sel.addEventListener('change', () => { poolProjectFilter = sel.value; activeViewId = ''; renderCardPool(); });
-    row.append(sel);
   }
 }
 
-/** 卡片池标签筛选（追加到筛选行） */
+/** 卡片池标签筛选（填充到筛选区 #pool-extra） */
 function renderPoolTagFilters(pool) {
-  const row = els.poolFilterRow;
-  if (!row) return;
+  const extra = els.poolExtra;
+  if (!extra) return;
   const names = [...new Set(pool.flatMap(c => c.tags ?? []))];
-  if (!names.length) return;
+  if (!names.length) {
+    if (els.poolExtraFilter) els.poolExtraFilter.hidden = !extra.querySelector('.pool-project-select');
+    return;
+  }
+  if (els.poolExtraFilter) els.poolExtraFilter.hidden = false;
+  const label = document.createElement('span');
+  label.className = 'pool-extra-label';
+  label.textContent = '标签';
+  extra.append(label);
   const all = document.createElement('button');
   all.type = 'button';
   all.className = 'chip' + (poolTagFilter ? '' : ' is-active');
   all.textContent = '# 全部';
   all.addEventListener('click', () => { poolTagFilter = ''; activeViewId = ''; renderCardPool(); });
-  row.append(all);
+  extra.append(all);
   for (const name of names) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'chip' + (poolTagFilter === name ? ' is-active' : '');
     btn.textContent = '#' + name;
     btn.addEventListener('click', () => { poolTagFilter = name; activeViewId = ''; renderCardPool(); });
-    row.append(btn);
+    extra.append(btn);
   }
 }
 
@@ -1539,7 +1573,29 @@ async function renderCardPool() {
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    li.textContent = '没有符合条件的卡片';
+    const filtering = !!(poolStatusFilter || poolTagFilter || poolProjectFilter || activeViewId);
+    const title = document.createElement('div');
+    title.className = 'empty-title';
+    if (filtering) {
+      title.textContent = '没有符合当前筛选的卡片';
+      const act = document.createElement('button');
+      act.type = 'button';
+      act.className = 'empty-action';
+      act.textContent = '清除筛选';
+      act.addEventListener('click', () => {
+        poolStatusFilter = ''; poolTagFilter = ''; poolProjectFilter = ''; activeViewId = '';
+        renderCardPool();
+      });
+      li.append(title, act);
+    } else {
+      title.textContent = all.length ? '还没有卡片' : '今天还没有记录';
+      const act = document.createElement('button');
+      act.type = 'button';
+      act.className = 'empty-action';
+      act.textContent = '＋ 新建卡片';
+      act.addEventListener('click', () => openEditor(null, currentTime(), selectedDate));
+      li.append(title, act);
+    }
     els.cardpoolList.append(li);
     return;
   }
@@ -1549,6 +1605,10 @@ async function renderCardPool() {
     li.className = 'cardpool-item status-' + (card.status || 'none');
     if (card.status === 'done') li.classList.add('is-done');
     li.dataset.id = card.id;
+    // 键盘可达：卡片可 Tab 聚焦，Enter/空格打开编辑器
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    li.setAttribute('aria-label', `${card.title || card.content || '空卡片'}${card.status ? '，' + card.status : ''}`);
     // 支持拖拽到今日时间线（HTML5 DnD）
     li.draggable = true;
     let cardDragged = false; // 真拖拽后抑制 click 打开编辑器
@@ -1630,6 +1690,12 @@ async function renderCardPool() {
 
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
     li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openEditor(card, currentTime(), selectedDate);
+      }
+    });
 
     li.append(schedBtn, delBtn);
     els.cardpoolList.append(li);
@@ -1703,6 +1769,8 @@ function renderCalendar(container, matrix, selectedDate, heatmap) {
       if (!cell.isCurrentMonth) btn.classList.add('is-out-month');
       if (cell.isToday) btn.classList.add('is-today');
       if (cell.dayKey === selectedDate) btn.classList.add('is-selected');
+      // 键盘可达：roving tabindex（仅选中/今天可 Tab，其余方向键导航）
+      btn.tabIndex = (cell.isToday || cell.dayKey === selectedDate) ? 0 : -1;
       // 卡片数量背景色
       const bgLevel = count >= 5 ? 5 : count;
       if (bgLevel > 0) btn.classList.add(`count-${bgLevel}`);
@@ -1718,6 +1786,36 @@ function renderCalendarView() {
     els.calMonthLabel.textContent = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   }
   renderCalendar(els.calendarGrid, matrix, selectedDate, heatmapCache);
+  bindCalendarKeys();
+}
+
+/** 日历方向键导航（roving tabindex）—— 只绑定一次 */
+let calKeysBound = false;
+function bindCalendarKeys() {
+  const grid = els.calendarGrid;
+  if (!grid || calKeysBound) return;
+  calKeysBound = true;
+  grid.addEventListener('keydown', (e) => {
+    const cells = [...grid.querySelectorAll('.cal-day')];
+    const i = cells.indexOf(document.activeElement);
+    if (i < 0) return;
+    const cols = 7;
+    let n = -1;
+    switch (e.key) {
+      case 'ArrowRight': n = i + 1; break;
+      case 'ArrowLeft': n = i - 1; break;
+      case 'ArrowDown': n = i + cols; break;
+      case 'ArrowUp': n = i - cols; break;
+      case 'Home': n = 0; break;
+      case 'End': n = cells.length - 1; break;
+      default: return;
+    }
+    if (n < 0 || n >= cells.length) return;
+    e.preventDefault();
+    for (const c of cells) c.tabIndex = -1;
+    cells[n].tabIndex = 0;
+    cells[n].focus();
+  });
 }
 
 function updateHeaderDate() {
@@ -2457,6 +2555,42 @@ async function init() {
     const p = widePreference();
     if (p !== 'on' && p !== 'off') applyWide();
   });
+
+  // 侧栏抽屉（窄栏默认收起；宽屏时 CSS 自动隐藏按钮）
+  const setPanels = (open) => {
+    document.body.classList.toggle('panels-open', open);
+    els.btnPanels.setAttribute('aria-expanded', String(open));
+  };
+  setPanels(localStorage.getItem('journal.panelsOpen') === '1');
+  els.btnPanels.addEventListener('click', () => {
+    const open = !document.body.classList.contains('panels-open');
+    setPanels(open);
+    localStorage.setItem('journal.panelsOpen', open ? '1' : '0');
+  });
+  // 点击遮罩关闭抽屉
+  els.board?.addEventListener?.('click', (e) => {
+    if (e.target === els.board) setPanels(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('panels-open')) {
+      setPanels(false);
+      els.btnPanels.focus();
+    }
+  });
+
+  // 快捷新建（今天/当前视图日期）
+  els.btnQuickAdd?.addEventListener('click', () => {
+    openEditor(null, currentTime(), selectedDate);
+  });
+
+  // 项目/标签筛选：展开/收起「筛选」区（渐进披露）
+  if (els.poolExtraFilter && els.poolExtra) {
+    const setExtra = (open) => {
+      els.poolExtra.classList.toggle('is-open', open);
+      els.poolExtraFilter.setAttribute('aria-expanded', String(open));
+    };
+    els.poolExtraFilter.addEventListener('click', () => setExtra(!els.poolExtra.classList.contains('is-open')));
+  }
 
   // 拉取 host 数据
   const pulled = await pullFromHost();

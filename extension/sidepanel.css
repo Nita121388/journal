@@ -65,12 +65,15 @@ header#header {
 #app-title { font-weight: 600; font-size: 16px; }
 #today-display { color: var(--color-muted); font-size: 13px; }
 
-#btn-settings {
+#btn-settings,
+#btn-panels {
   background: none; border: none; font-size: 16px;
   cursor: pointer; color: var(--color-muted);
   border-radius: 6px; padding: 6px 8px;
 }
-#btn-settings:hover { background: var(--color-cell-empty); }
+#btn-settings:hover,
+#btn-panels:hover { background: var(--color-cell-empty); }
+#btn-panels[aria-expanded="true"] { color: var(--color-accent); }
 
 /* ─── Host 状态横幅 ─────────────────────────────── */
 
@@ -121,15 +124,12 @@ main {
 
 #board {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 16px;
+  /* 侧栏场景默认单列：主工作区优先（历史窄屏规则被同特异性规则覆盖而失效） */
+  grid-template-columns: 1fr;
+  gap: 12px;
   flex: 1;
   min-height: 0;
-}
-
-@media (max-width: 720px) {
-  #board { grid-template-columns: 1fr; }
-  #sidebar { display: none; } /* 窄屏隐藏侧栏，简化 */
+  position: relative; /* 抽屉定位上下文 */
 }
 
 /* ─── 通用组件 ──────────────────────────────────── */
@@ -186,18 +186,52 @@ main {
 
 /* ─── 左侧栏 ─────────────────────────────────────── */
 
+/* 窄栏（侧栏场景）默认收起：保留全部功能，用抽屉打开 */
 #sidebar {
-  display: flex;
+  display: none;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(88%, 320px);
+  z-index: 100;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-  /* 列不再无限增长：到顶后内部滚动，底部组件始终可达 */
-  max-height: var(--panel-max-h);
+  padding: 12px;
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--color-scroll-thumb) transparent;
+}
+body.panels-open #sidebar { display: flex; }
+/* 抽屉开启时的半透明遮罩（点击遮罩关闭） */
+body.panels-open #board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 99;
+}
+
+/* 宽栏（宽屏模式 / 宽窗口）：恢复双栏，侧栏常驻 */
+@media (min-width: 721px) {
+  #board { grid-template-columns: 280px 1fr; gap: 16px; }
+  #sidebar {
+    display: flex;
+    position: static;
+    inset: auto;
+    width: auto;
+    z-index: auto;
+    padding: 0;
+    background: transparent;
+    border-right: none;
+    /* 列不再无限增长：到顶后内部滚动，底部组件始终可达 */
+    max-height: var(--panel-max-h);
+  }
+  body.panels-open #board::before { content: none; }
+  #btn-panels { display: none; }
 }
 
 /* 窄栏里默认滚动条太抢位置，侧栏与两个列表统一压细 */
@@ -2429,3 +2463,111 @@ body.tpl-dragging { user-select: none; }
 .card-editor-body::-webkit-scrollbar-thumb, .tpl-builder-body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 .card-editor-body::-webkit-scrollbar-thumb:hover, .tpl-builder-body::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
 .card-editor-body::-webkit-scrollbar-track, .tpl-builder-body::-webkit-scrollbar-track { background: transparent; }
+
+/* ═══════════════════════════════════════════════════════
+   第一轮 UX 改造（审计 A-1/B-1/B-2/D-1/E-1/G-1）
+   ═══════════════════════════════════════════════════════ */
+
+/* 筛选条：状态 chip 单行横向滚动，避免多行堆叠抢占视觉 */
+.pool-filter-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.pool-filter-row::-webkit-scrollbar { display: none; }
+.pool-filter-row .chip { flex: 0 0 auto; }
+
+/* 项目/标签筛选收进可展开的「筛选」区，默认收起（渐进披露） */
+.pool-extra-filter {
+  flex: 0 0 auto;
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.pool-extra-filter:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.pool-extra-filter[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+#pool-extra {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0 2px;
+  border-top: 1px dashed var(--color-border);
+  margin-top: 6px;
+}
+#pool-extra.is-open { display: flex; }
+#pool-extra .pool-extra-label { font-size: 11px; color: var(--color-muted); }
+
+/* 空态：区分「无卡片」与「筛选无结果」，并给行动按钮 */
+.todo-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 10px;
+  text-align: center;
+  color: var(--color-muted);
+}
+.todo-empty .empty-title { font-size: 12px; color: var(--color-text); }
+.todo-empty .empty-action {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+.todo-empty .empty-action:hover { background: var(--color-accent-light, var(--color-cell-empty)); }
+
+/* 时间线空态：当天无卡片时引导新建 */
+.timeline-empty-hint {
+  position: absolute;
+  top: 96px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.timeline-empty-hint b { color: var(--color-text); font-weight: 600; }
+
+/* 快捷新建按钮 */
+#btn-quick-add { font-size: 15px; line-height: 1; }
+
+/* 卡片底部信息吸附到底部：避免高卡片内容短时显得空荡 */
+.timeline-card .card-body { flex: 1 1 auto; }
+.timeline-card .card-footer { margin-top: auto; }
+
+/* 暗色 today 单元格对比度：提亮底色 + 深色字 */
+[data-theme="dark"] .cal-day.is-today { color: #10240f; font-weight: 700; }
+
+/* 可访问性：动效降级（审计 E-1） */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
