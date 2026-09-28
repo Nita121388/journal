@@ -284,7 +284,7 @@ async function saveEditor() {
     await refreshAll();
   } catch (e) {
     console.error('[journal] save card failed:', e);
-    showToast('保存失败：host 服务未连接（127.0.0.1:8765）', 'error');
+    showToast('保存失败：host 服务未连接（127.0.0.1:8766）', 'error');
   }
 }
 
@@ -341,7 +341,7 @@ const els = {
   btnStartHost: document.getElementById('btn-start-host'),
 };
 
-const HOST_HEALTH_URL = 'http://127.0.0.1:8765/api/health';
+const HOST_HEALTH_URL = 'http://127.0.0.1:8766/api/health';
 
 async function checkHostHealth() {
   try {
@@ -1398,7 +1398,7 @@ let skillsCache = null;
 
 async function loadSkillStatus() {
   try {
-    const res = await fetch('http://127.0.0.1:8765/api/skill-status');
+    const res = await fetch('http://127.0.0.1:8766/api/skill-status');
     const data = await res.json();
     skillsCache = data?.data ?? null;
   } catch (e) {

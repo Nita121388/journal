@@ -10,7 +10,7 @@ import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from 
 
 const REPO = 'https://github.com/Nita121388/journal';
 const RAW_SKILL = `${REPO}/raw/main/.agents/skills/journal/SKILL.md`;
-const HOST = 'http://127.0.0.1:8765';
+const HOST = 'http://127.0.0.1:8766';
 
 const PROMPT_TEMPLATE = `我想用 Journal 扩展的 AI 能力写日志。请先获取并阅读技能文件：
 
@@ -22,7 +22,7 @@ const PROMPT_TEMPLATE = `我想用 Journal 扩展的 AI 能力写日志。请先
   git clone ${REPO}.git
   技能文件在项目 .agents/skills/journal/SKILL.md，按说明操作。
 
-前置：如果 host 服务未启动，在项目根目录运行 node host/server.js（监听 127.0.0.1:8765）。
+前置：如果 host 服务未启动，在项目根目录运行 node host/server.js（监听 127.0.0.1:8766）。
 
 之后我会这样说，请照做：
 - "今天记录一下：xxx" → 写今天日志

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Journal",
+  "name": "Journal (dev)",
   "version": "0.1.0",
   "description": "每日日志 + 热力图打卡 + TODO + AI 增删改查",
   "permissions": ["storage", "sidePanel", "nativeMessaging"],
