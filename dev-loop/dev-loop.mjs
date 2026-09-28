@@ -21,6 +21,7 @@ import { launchBrowser, openSidePanel } from './lib/browser.mjs';
 import { writeReport } from './lib/report.mjs';
 import { runSmoke } from './scenarios/smoke.mjs';
 import { runAudit } from './scenarios/audit.mjs';
+import { runTpl } from './scenarios/tpl.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -96,7 +97,7 @@ try {
       log('info', `width ${width}: audit captured ${combos.length} theme×mode combos`);
     } else {
       const { page, console_, errors, settled } = await openSidePanel(ctx, extId, width);
-      const { checks } = await runSmoke({ page, width });
+      const { checks } = args.scenario === 'tpl' ? await runTpl({ page, width }) : await runSmoke({ page, width });
       const shot = join(outDir, `shot-${width}.png`);
       await page.screenshot({ path: shot, fullPage: true });
       const errCount = console_.filter((c) => c.type === 'error').length + errors.length;
