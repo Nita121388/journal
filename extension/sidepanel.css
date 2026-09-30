@@ -16,6 +16,9 @@
   --color-scroll-thumb: #cfd3da;
   --color-scrim: rgba(0, 0, 0, 0.28);      /* 抽屉遮罩 */
   --color-on-accent-ink: #10240f;          /* 暗色下 today 单元格：提亮底上的深字 */
+  --color-danger: #d32f2f;                 /* 危险（Toast error） */
+  --color-warn: #ef6c00;                   /* 警告（Toast warn） */
+  --color-on-accent: #fff;                 /* 主色底上的前景色（按钮/成功 Toast） */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;

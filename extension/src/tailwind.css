@@ -38,19 +38,21 @@
   --color-cell-filled: var(--color-cell-filled);
   --color-card: var(--color-card-bg);
   --color-card-line: var(--color-card-border);
-  /* 危险 / 警告语义色（值与迁移前 sidepanel.css 硬编码一致，零视觉变化） */
-  --color-danger: #d32f2f;
-  --color-warn: #ef6c00;
-  --color-on-accent: #fff;
+  /* 危险 / 警告语义色：真值由 sidepanel.css :root 的 --color-danger / --color-warn / --color-on-accent
+   * 提供（迁移前 toast.toast-error/-success/-warn 的硬编码值，现已提为语义 token）。
+   * 此处只做 var() 引用，不写死 hex（design-system §8 反模式）。 */
+  --color-danger: var(--color-danger);
+  --color-warn: var(--color-warn);
+  --color-on-accent: var(--color-on-accent);
 
   /* 字体 */
   --font-sans: var(--font);
   --font-emoji: var(--font-emoji);
 
-  /* 圆角（对齐 design-system.md） */
+  /* 圆角（对齐 design-system.md §1.1 基础层 --r-sm/--r-md/--r-lg） */
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 10px;
+  --radius-lg: 12px;
 }
 
 /* ── 3. 第一批迁移组件（复杂组件保留原生 CSS，不在此处） ──────
@@ -90,12 +92,12 @@
 
   /* 空状态 */
   .empty-state {
-    @apply text-muted text-center py-4 px-2 border border-dashed border-line rounded-md;
+    @apply text-muted text-center text-[12px] py-4 px-2 border border-dashed border-line rounded-md;
   }
 
   /* Toast */
   .toast {
-    @apply fixed left-1/2 bottom-6 -translate-x-1/2 z-50 text-left font-normal text-[13px]
+    @apply fixed left-1/2 bottom-6 -translate-x-1/2 z-[200] text-left font-normal text-[13px]
       px-[18px] py-2.5 rounded-md opacity-100 select-text cursor-text;
     background: var(--color-text);
     color: var(--color-bg);
