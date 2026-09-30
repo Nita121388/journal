@@ -52,6 +52,7 @@ func nodeExecutable() string {
 	candidates := []string{
 		"/opt/homebrew/bin/node",
 		"/usr/local/bin/node",
+		`C:\Program Files\nodejs\node.exe`,
 	}
 	for _, path := range candidates {
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
@@ -72,6 +73,11 @@ func startNode() error {
 	hostDir := filepath.Dir(exe)
 	cmd := exec.Command(nodeExecutable(), "server.js")
 	cmd.Dir = hostDir
+	// 开发版固定 8766（与扩展 host-sync.js 一致），绝不影响现役 8765 实例
+	cmd.Env = append(os.Environ(),
+		"JOURNAL_PORT=8766",
+		"JOURNAL_DATA_DIR="+filepath.Join(hostDir, "data"),
+	)
 	cmd.Stdin = nil
 	cmd.Stdout = nil
 	cmd.Stderr = nil

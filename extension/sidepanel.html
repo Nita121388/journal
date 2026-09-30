@@ -12,14 +12,12 @@
       <span id="app-title">📓 Journal</span>
       <time id="today-display"></time>
     </div>
-    <button id="btn-panels" aria-label="打开面板" title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
+    <div id="header-right">
+      <button id="btn-panels" aria-label="打开面板" title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar">☰</button>
+      <button id="btn-host-status" class="host-status-btn is-online" aria-label="Host 状态" title="Host 在线">🟢</button>
+      <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
+    </div>
   </header>
-
-  <section id="host-banner" class="host-banner hidden" role="status">
-    <span id="host-banner-text">Host 未连接</span>
-    <button id="btn-start-host" type="button">启动 Host</button>
-  </section>
 
   <main>
     <div id="board">
@@ -43,7 +41,7 @@
           <div id="pool-extra" class="pool-extra"></div>
           <ul id="cardpool-list"></ul>
           <div class="cardpool-actions">
-            <button id="btn-template" class="cardpool-add-btn" title="用模板新建">🗂 模板</button>
+            <button id="btn-template" class="cardpool-add-btn" title="用模板新建">🗂️ 模板</button>
             <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
           </div>
         </section>
@@ -123,7 +121,7 @@
       <div class="card-editor-accent"></div>
       <div class="tpl-builder-header">
         <div class="ce-tile-wrap">
-          <button id="tpl-builder-tile" type="button" class="ce-emoji-tile" title="模板默认图标"><span id="tpl-builder-emoji" class="emoji-preview">🗂</span></button>
+          <button id="tpl-builder-tile" type="button" class="ce-emoji-tile" title="模板默认图标"><span id="tpl-builder-emoji" class="emoji-preview">🗂️</span></button>
           <div id="tpl-builder-picker" class="emoji-picker hidden"></div>
         </div>
         <div class="tpl-builder-head">
@@ -270,7 +268,7 @@
             <div class="props-header">
               <span class="section-label">属性（自定义）</span>
               <button id="btn-add-prop" type="button" class="props-add-btn" title="新增自定义属性">＋ 添加属性</button>
-              <button id="btn-prop-lib" type="button" class="props-add-btn" title="从属性库复用">🗂 属性库</button>
+              <button id="btn-prop-lib" type="button" class="props-add-btn" title="从属性库复用">🗂️ 属性库</button>
             </div>
             <div id="card-editor-props-list" class="props-list"></div>
             <div id="prop-form" class="prop-form hidden">
@@ -301,7 +299,7 @@
         </details>
 
         <div class="card-editor-tools">
-          <button id="card-editor-save-template" type="button" class="btn-secondary" title="把当前卡片保存为命名模板">🗂 保存为模板</button>
+          <button id="card-editor-save-template" type="button" class="btn-secondary" title="把当前卡片保存为命名模板">🗂️ 保存为模板</button>
         </div>
       </div>
 

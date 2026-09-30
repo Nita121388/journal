@@ -16,10 +16,11 @@
   --color-scroll-thumb: #cfd3da;
   --color-scrim: rgba(0, 0, 0, 0.28);      /* 抽屉遮罩 */
   --color-on-accent-ink: #10240f;          /* 暗色下 today 单元格：提亮底上的深字 */
-  --banner-block-h: 69px;             /* Host 横幅本体 + 其上外边距 */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
+  /* emoji 字体栈：保证 U+1F5C2 等符号型 emoji 在 Windows 上不走 Segoe UI Symbol（会渲染成方块） */
+  --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
 [data-theme="dark"] {
@@ -67,6 +68,8 @@ header#header {
 #app-title { font-weight: 600; font-size: 16px; }
 #today-display { color: var(--color-muted); font-size: 13px; }
 
+#header-right { display: flex; align-items: center; gap: 4px; }
+
 #btn-settings,
 #btn-panels {
   background: none; border: none; font-size: 16px;
@@ -77,39 +80,34 @@ header#header {
 #btn-panels:hover { background: var(--color-cell-empty); }
 #btn-panels[aria-expanded="true"] { color: var(--color-accent); }
 
-/* ─── Host 状态横幅 ─────────────────────────────── */
+/* ─── Host 状态按钮（header 右上角） ──────────────────── */
 
-.host-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 12px auto 0;
-  padding: 10px 14px;
-  width: min(960px, calc(100% - 40px));
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-}
-
-.host-banner.hidden { display: none; }
-
-#btn-start-host {
-  border: 1px solid var(--color-accent);
-  border-radius: 8px;
-  background: var(--color-accent);
-  color: #fff;
+.host-status-btn {
+  background: none; border: none; font-size: 15px;
   cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-  padding: 6px 12px;
+  border-radius: 6px; padding: 6px 8px;
+  line-height: 1;
+  filter: saturate(0.4) opacity(0.55);
+  transition: filter 0.15s, background 0.15s;
+}
+.host-status-btn:hover { background: var(--color-cell-empty); }
+/* 离线：红色警示 + 可点击拉起 */
+.host-status-btn.is-offline {
+  cursor: pointer;
+  filter: none;
+  animation: host-pulse 1.8s ease-in-out infinite;
+}
+.host-status-btn.is-offline:hover { background: rgba(220, 60, 60, 0.12); }
+/* 启动中：禁用 */
+.host-status-btn.is-starting { cursor: progress; filter: none; animation: none; opacity: 0.7; }
+
+@keyframes host-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
-#btn-start-host:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@media (prefers-reduced-motion: reduce) {
+  .host-status-btn.is-offline { animation: none; }
 }
 
 /* ─── Main 容器 ──────────────────────────────────── */
@@ -252,12 +250,6 @@ body.panels-open #board::before {
 #sidebar::-webkit-scrollbar-thumb:hover,
 #cardpool-list::-webkit-scrollbar-thumb:hover,
 #todo-list::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
-
-/* Host 离线横幅占位时，同步压缩左右两栏上限，避免底部被顶出视口 */
-body:has(#host-banner:not(.hidden)) #sidebar,
-body:has(#host-banner:not(.hidden)) #timeline-section {
-  max-height: calc(var(--panel-max-h) - var(--banner-block-h));
-}
 
 /* ─── 卡片池 ─────────────────────────────────────── */
 
@@ -1359,7 +1351,7 @@ body.is-dragging .timeline-card.is-short {
   font-size: 10px;
   color: var(--color-muted);
 }
-.card-type-icon { font-size: 11px; }
+.card-type-icon { font-size: 11px; font-family: var(--font-emoji); }
 .card-origin {
   font-size: 10px;
   flex-shrink: 0;
@@ -1564,6 +1556,7 @@ body.is-dragging .timeline-card.is-short {
   align-items: center;
   justify-content: center;
   font-size: 22px;
+  font-family: var(--font-emoji);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -1679,7 +1672,7 @@ body.is-dragging .timeline-card.is-short {
   align-items: center;
   justify-content: center;
   transition: background 0.1s, transform 0.1s;
-  font-family: inherit;
+  font-family: var(--font-emoji);
 }
 .ep-emoji:hover { background: var(--color-cell-empty); transform: scale(1.1); }
 .ep-emoji.selected { background: var(--color-accent-light); box-shadow: inset 0 0 0 2px var(--color-accent); }
@@ -2084,6 +2077,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   background: linear-gradient(135deg, var(--color-accent, #43a047), #26a69a);
   box-shadow: 0 3px 8px rgba(67,160,71,.35);
   transition: transform .12s, box-shadow .12s;
+  font-family: var(--font-emoji);
 }
 .ce-emoji-tile:hover { transform: scale(1.06); box-shadow: 0 5px 12px rgba(67,160,71,.4); }
 .emoji-preview {
@@ -2092,6 +2086,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   font-size: 26px;
   width: auto;
   height: auto;
+  font-family: var(--font-emoji);
   text-shadow: 0 1px 2px rgba(0,0,0,.15);
 }
 .ce-head-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -2410,6 +2405,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
 /* ── 模板构建器美化 ── */
 .template-builder { border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.24), 0 2px 12px rgba(0,0,0,.12); }
 
+/* 去掉模板构建器顶部绿色彩带（卡片编辑器仍保留） */
+.template-builder > .card-editor-accent { display: none; }
+
 .tpl-builder-header {
   padding: 16px 18px 12px;
   background: var(--color-surface);
@@ -2501,6 +2499,26 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-group-req[open] > summary::before { transform: rotate(90deg); }
 .tpl-group-req[open] > summary { margin-bottom: 4px; }
 .tpl-group-summary { color: var(--color-muted); }
+
+/* 必备属性组：展开后三行水平并排铺满（容器窄时自动换行回退） */
+.tpl-req-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tpl-req-fields .tpl-prop-row {
+  flex: 1 1 150px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.tpl-req-fields .tpl-prop-row .tpl-prop-check { grid-area: 1 / 1; }
+.tpl-req-fields .tpl-prop-row .tpl-prop-label { grid-area: 1 / 2; }
+.tpl-req-fields .tpl-prop-row .tpl-prop-value { grid-area: 2 / 1 / 3 / 3; }
 
 .tpl-add-btn {
   margin-top: 8px; padding: 7px; width: 100%;

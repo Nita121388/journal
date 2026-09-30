@@ -646,9 +646,7 @@ const els = {
   skillsOverall: document.getElementById('skills-overall'),
   skillsList: document.getElementById('skills-list'),
   skillsCopyAll: document.getElementById('btn-skills-copy'),
-  hostBanner: document.getElementById('host-banner'),
-  hostBannerText: document.getElementById('host-banner-text'),
-  btnStartHost: document.getElementById('btn-start-host'),
+  hostStatusBtn: document.getElementById('btn-host-status'),
   btnPanels: document.getElementById('btn-panels'),
   board: document.getElementById('board'),
   btnQuickAdd: document.getElementById('btn-quick-add'),
@@ -663,11 +661,34 @@ async function checkHostHealth() {
     const res = await fetch(HOST_HEALTH_URL, { signal: AbortSignal.timeout(1200) });
     const data = await res.json();
     const online = data.ok || data.status === 'running';
-    els.hostBanner?.classList.toggle('hidden', online);
+    setHostStatus(online ? 'online' : 'offline');
     return online;
   } catch {
-    els.hostBanner?.classList.remove('hidden');
+    setHostStatus('offline');
     return false;
+  }
+}
+
+/** 切换 header 右上角 host 状态按钮外观 */
+function setHostStatus(status) {
+  const btn = els.hostStatusBtn;
+  if (!btn) return;
+  btn.classList.toggle('is-online', status === 'online');
+  btn.classList.toggle('is-offline', status === 'offline');
+  btn.classList.toggle('is-starting', status === 'starting');
+  btn.disabled = status === 'starting';
+  if (status === 'online') {
+    btn.textContent = '🟢';
+    btn.title = 'Host 在线';
+    btn.setAttribute('aria-label', 'Host 在线');
+  } else if (status === 'offline') {
+    btn.textContent = '🔴';
+    btn.title = 'Host 未连接，点击启动';
+    btn.setAttribute('aria-label', 'Host 未连接，点击启动');
+  } else { // starting
+    btn.textContent = '⏳';
+    btn.title = '正在启动 Host…';
+    btn.setAttribute('aria-label', '正在启动 Host…');
   }
 }
 
@@ -681,9 +702,8 @@ async function waitForHost(timeoutMs = 15000) {
 }
 
 async function startHost() {
-  if (!els.btnStartHost) return;
-  els.btnStartHost.disabled = true;
-  if (els.hostBannerText) els.hostBannerText.textContent = '正在启动 Host…';
+  if (!els.hostStatusBtn) return;
+  setHostStatus('starting');
   try {
     const result = await chrome.runtime.sendMessage({ type: 'journal:start-host' });
     if (!result?.ok) throw new Error(result?.error || 'Native Host 未注册，请先运行 host\\install-host.bat');
@@ -693,11 +713,10 @@ async function startHost() {
     await refreshAll();
     showToast('Host 已启动', 'success');
   } catch (e) {
-    els.hostBanner?.classList.remove('hidden');
-    if (els.hostBannerText) els.hostBannerText.textContent = 'Host 未连接';
+    setHostStatus('offline');
     showToast(`启动失败：${e.message || '请先运行 host\\install-host.bat'}`, 'error');
   } finally {
-    if (els.btnStartHost) els.btnStartHost.disabled = false;
+    if (els.hostStatusBtn) els.hostStatusBtn.disabled = false;
   }
 }
 
@@ -2199,7 +2218,7 @@ function closeTplNpIconPicker() {
 tplNpIconTile?.addEventListener('click', openTplNpIconPicker);
 const tplNewPropForm = document.getElementById('tpl-newprop-form');
 /** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
-let tplBuilderState = { name: '', emoji: '🗂', extra: [], values: {} };
+let tplBuilderState = { name: '', emoji: '🗂️', extra: [], values: {} };
 let tplBuilderCleanup = null;
 let tplEditingId = null;   // 编辑既有模板时的 id
 let tplEditKey = null;     // 编辑属性定义时的 key
@@ -2243,7 +2262,7 @@ function normalizeTemplateFields(tpl) {
 /** 打开模板构建器；existing 传人则编辑既有模板 */
 function openTemplateBuilder(existing = null) {
   tplEditingId = existing?.id ?? null;
-  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂'), extra: [], values: {} };
+  tplBuilderState = { name: existing?.name ?? '', emoji: existing?.emoji ?? (editorEmoji || '🗂️'), extra: [], values: {} };
   if (existing) {
     for (const f of normalizeTemplateFields(existing)) {
       if (REQUIRED_DEFS.some(d => d.key === f.key)) { tplBuilderState.values[f.key] = f.value; continue; }
@@ -2287,9 +2306,11 @@ function renderTemplateBuilder() {
   gReq.className = 'tpl-group tpl-group-req';
   const sumReq = document.createElement('summary');
   sumReq.className = 'tpl-group-title tpl-group-summary';
-  sumReq.textContent = `✓ 必备（${REQUIRED_DEFS.map(d => d.label).join(' · ')}）`;
+  sumReq.textContent = '✓ 必备';
+  const reqFields = document.createElement('div'); reqFields.className = 'tpl-req-fields';
   gReq.append(sumReq);
-  for (const def of REQUIRED_DEFS) gReq.append(buildReqRow(def));
+  for (const def of REQUIRED_DEFS) reqFields.append(buildReqRow(def));
+  gReq.append(reqFields);
   tplPropList.append(gReq);
   // 额外
   const gOpt = document.createElement('div'); gOpt.className = 'tpl-group';
@@ -2657,7 +2678,7 @@ function renderTemplateMenu(templates) {
     const it = document.createElement('button');
     it.type = 'button'; it.className = 'tpl-item';
     const emoji = document.createElement('span');
-    emoji.textContent = t.emoji || '🗂';
+    emoji.textContent = t.emoji || '🗂️';
     const nm = document.createElement('span');
     nm.textContent = t.name;
     it.append(emoji, nm);
@@ -3155,7 +3176,7 @@ async function init() {
     chrome.runtime.openOptionsPage();
   });
 
-  els.btnStartHost?.addEventListener('click', startHost);
+  els.hostStatusBtn?.addEventListener('click', startHost);
 
   // ── AI Skill 状态 ──
   els.skillsToggle.addEventListener('click', () => {

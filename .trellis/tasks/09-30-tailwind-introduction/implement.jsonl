@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "三层 token 体系与反模式清单是 Tailwind theme 桥接与迁移硬门依据"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "eslint 配置与测试/质量门（dev-loop 回归）是每批验收标准"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "多宽度截图回归是 UI 迁移的既有质量门"}
+{"file": ".trellis/tasks/09-30-tailwind-introduction/design.md", "reason": "本任务的构建链/token 桥接/命名映射表设计"}

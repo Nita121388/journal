@@ -4,6 +4,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# 但扩展的 Tailwind 构建产物要提交（Chrome 加载 unpacked 免构建即可用）
+!extension/dist/
+!extension/dist/**
+
 # Env / secrets
 .env
 .env.local
@@ -20,6 +24,9 @@ npm-debug.log*
 host/data/
 # 日志数据备份（含隐私，不进公开仓库；日志备份走私有仓库 journal-data）
 backup/
+# Native messaging host 清单：含本机绝对路径（由 install-host.bat 生成，机器相关）
+host/com.journal.host.json
+host/extension-ids.txt
 
 # Editor
 .idea/
