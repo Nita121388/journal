@@ -126,51 +126,12 @@
           <div id="tpl-builder-picker" class="emoji-picker hidden"></div>
         </div>
         <div class="tpl-builder-head">
-          <div class="tpl-builder-heading">保存为模板</div>
           <input id="tpl-builder-name" type="text" class="card-editor-title" placeholder="模板名称…" aria-label="模板名称" autocomplete="off" />
         </div>
         <button id="tpl-builder-close" class="card-editor-close-btn" aria-label="关闭">✕</button>
       </div>
       <div class="tpl-builder-body">
-        <div class="tpl-builder-hint">额外属性：点「＋ 添加属性」加入可选字段，可设默认值、拖拽排序、✎ 编辑定义、✕ 移除。<b>标题 / 内容 / 标签为模板必备，自动包含。</b></div>
         <div id="tpl-prop-list" class="tpl-prop-list"></div>
-        <div id="tpl-newprop-form" class="prop-form hidden">
-          <div class="prop-form-row">
-            <label class="prop-field">显示名 <input id="tpl-np-label" type="text" maxlength="12" placeholder="如：重要度" aria-label="显示名" /></label>
-            <label class="prop-field">图标
-              <span class="prop-icon-pick">
-                <button type="button" id="tpl-np-icon-tile" class="ce-emoji-tile" title="点选图标" aria-label="点选图标"><span id="tpl-np-icon-preview" class="emoji-preview">•</span></button>
-                <input id="tpl-np-icon" type="hidden" />
-                <span id="tpl-np-icon-picker-wrap" class="ce-tile-wrap">
-                  <span id="tpl-np-icon-picker" class="emoji-picker hidden"></span>
-                </span>
-              </span>
-            </label>
-          </div>
-          <div class="prop-form-row">
-            <label class="prop-field">类型
-              <select id="tpl-np-type" aria-label="属性类型">
-                <option value="text">文本</option>
-                <option value="number">数字</option>
-                <option value="select">选择</option>
-                <option value="multi">多选</option>
-                <option value="date">日期</option>
-                <option value="time">时间</option>
-                <option value="checkbox">勾选</option>
-              </select>
-            </label>
-          </div>
-          <div class="prop-form-row">
-            <label class="prop-field">属性键 <input id="tpl-np-key" type="text" placeholder="priority" aria-label="属性键" /></label>
-          </div>
-          <div class="prop-form-row">
-            <label class="prop-field prop-options-wrap hidden">选项(,分隔) <input id="tpl-np-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
-          </div>
-          <div class="prop-form-actions">
-            <button id="tpl-np-ok" class="btn-primary" type="button">加入模板</button>
-            <button id="tpl-np-cancel" class="btn-secondary" type="button">取消</button>
-          </div>
-        </div>
         <div class="tpl-builder-foot">
           <button id="tpl-prefill" class="btn-secondary" type="button" title="以当前卡片为蓝本，自动勾选并填入已有值">从当前卡预填</button>
           <span class="tpl-builder-spacer"></span>
@@ -307,6 +268,55 @@
       <div class="card-editor-footer">
         <button id="card-editor-cancel" class="btn-secondary">取消</button>
         <button id="card-editor-save" class="btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 属性定义编辑弹窗（新建 / 编辑属性，高于模板构建器） -->
+  <div id="tpl-prop-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="编辑属性定义">
+    <div class="card-editor tpl-prop-dialog">
+      <div class="card-editor-header">
+        <div class="card-editor-title" id="tpl-prop-dialog-title">新建属性</div>
+        <button id="tpl-prop-close" class="card-editor-close-btn" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div class="card-editor-body">
+        <div id="tpl-newprop-form" class="prop-form">
+          <div class="prop-form-row">
+            <label class="prop-field">显示名 <input id="tpl-np-label" type="text" maxlength="12" placeholder="如：重要度" aria-label="显示名" /></label>
+            <label class="prop-field">图标
+              <span class="prop-icon-pick">
+                <button type="button" id="tpl-np-icon-tile" class="ce-emoji-tile" title="点选图标" aria-label="点选图标"><span id="tpl-np-icon-preview" class="emoji-preview">•</span></button>
+                <input id="tpl-np-icon" type="hidden" />
+                <span id="tpl-np-icon-picker-wrap" class="ce-tile-wrap">
+                  <span id="tpl-np-icon-picker" class="emoji-picker hidden"></span>
+                </span>
+              </span>
+            </label>
+          </div>
+          <div class="prop-form-row">
+            <label class="prop-field">类型
+              <select id="tpl-np-type" aria-label="属性类型">
+                <option value="text">文本</option>
+                <option value="number">数字</option>
+                <option value="select">选择</option>
+                <option value="multi">多选</option>
+                <option value="date">日期</option>
+                <option value="time">时间</option>
+                <option value="checkbox">勾选</option>
+              </select>
+            </label>
+          </div>
+          <div class="prop-form-row">
+            <label class="prop-field">属性键 <input id="tpl-np-key" type="text" placeholder="priority" aria-label="属性键" /></label>
+          </div>
+          <div class="prop-form-row">
+            <label class="prop-field prop-options-wrap hidden">选项(,分隔) <input id="tpl-np-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
+          </div>
+          <div class="prop-form-actions">
+            <button id="tpl-np-ok" class="btn-primary" type="button">加入模板</button>
+            <button id="tpl-np-cancel" class="btn-secondary" type="button">取消</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -21,7 +21,7 @@
   --color-on-accent: #fff;                 /* 主色底上的前景色（按钮/成功 Toast） */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Microsoft YaHei", sans-serif;
+    "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   /* emoji 字体栈：保证 U+1F5C2 等符号型 emoji 在 Windows 上不走 Segoe UI Symbol（会渲染成方块） */
   --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
@@ -2222,7 +2222,6 @@ html.wide-mode .timeline-card { max-width: 300px; }
   flex-direction: column;
   gap: 8px;
 }
-.tpl-builder-hint { font-size: 12px; color: var(--color-muted); margin-bottom: 2px; }
 
 .tpl-prop-list { display: flex; flex-direction: column; gap: 8px; }
 .tpl-group { border: 1px solid var(--color-border); border-radius: 10px; padding: 8px; background: var(--color-surface); }
@@ -2329,17 +2328,6 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 .tpl-builder-body { padding: 12px 16px 14px; gap: 10px; }
 
-.tpl-builder-hint {
-  font-size: 12px;
-  color: var(--color-muted);
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: var(--color-cell-empty);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.tpl-builder-hint::before { content: '💡'; }
 
 .tpl-group {
   border: 1px solid var(--color-border);
@@ -2404,30 +2392,45 @@ html.wide-mode .timeline-card { max-width: 300px; }
   color: var(--color-muted);
   transition: transform 0.15s ease;
   display: inline-block;
+  font-size: 11px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 3px;
+  background: var(--color-cell-empty);
+  flex-shrink: 0;
 }
 .tpl-group-req[open] > summary::before { transform: rotate(90deg); }
 .tpl-group-req[open] > summary { margin-bottom: 4px; }
 .tpl-group-summary { color: var(--color-muted); }
 
-/* 必备属性组：展开后三行水平并排铺满（容器窄时自动换行回退） */
+/* 必备属性组：单列垂直排列，每行占满整行 */
 .tpl-req-fields {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 .tpl-req-fields .tpl-prop-row {
-  flex: 1 1 150px;
-  display: grid;
-  grid-template-columns: auto 1fr;
+  width: 100%;
+  display: flex;
   align-items: center;
-  gap: 4px 6px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 7px 8px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
 }
-.tpl-req-fields .tpl-prop-row .tpl-prop-check { grid-area: 1 / 1; }
-.tpl-req-fields .tpl-prop-row .tpl-prop-label { grid-area: 1 / 2; }
-.tpl-req-fields .tpl-prop-row .tpl-prop-value { grid-area: 2 / 1 / 3 / 3; }
+.tpl-req-fields .tpl-prop-row .tpl-prop-value { flex: 1; min-width: 0; }
+
+/* 模板构建器瓦片：透明背景（不跟随 .ce-emoji-tile 的绿色） */
+#tpl-builder-tile {
+  background: transparent;
+  box-shadow: none;
+}
+#tpl-builder-tile:hover {
+  background: var(--color-cell-empty);
+  box-shadow: none;
+}
 
 .tpl-add-btn {
   margin-top: 8px; padding: 7px; width: 100%;
@@ -2651,4 +2654,76 @@ body.tpl-dragging { user-select: none; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── 下拉框统一简约美化（无彩色，仅 token 中性色） ──────────
+ * 覆盖浏览器原生 select 外观：柔和边框、细圆角、自定义下拉箭头。 */
+
+select {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 4px 22px 4px 8px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
+    linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+select:hover { border-color: var(--color-muted); }
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 特定小 select 保持紧凑（不重复 padding，仅对齐已有尺寸） */
+.pool-view-select,
+.pool-project-select {
+  padding-top: 3px; padding-bottom: 3px;
+}
+
+/* ─── 属性定义编辑弹窗 ───────────────────────────────────
+ * 独立弹窗（不再内嵌构建器 body），解决窄栏下空间局限；
+ * z-index 高于模板构建器（120）与卡片编辑器。 */
+#tpl-prop-overlay { z-index: 140; }
+
+.tpl-prop-dialog {
+  width: 92%;
+  max-width: 380px;
+  max-height: 86vh;
+}
+
+.tpl-prop-dialog .card-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.tpl-prop-dialog .card-editor-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.tpl-prop-dialog .card-editor-body { padding: 14px 16px 16px; }
+
+/* 表单行在弹窗内纵向堆叠，保证每项占满整行 */
+.tpl-prop-dialog .prop-form { display: flex; flex-direction: column; gap: 12px; }
+.tpl-prop-dialog .prop-form-row { flex-direction: column; align-items: stretch; gap: 6px; }
+.tpl-prop-dialog .prop-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }

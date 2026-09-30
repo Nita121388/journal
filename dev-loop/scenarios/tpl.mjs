@@ -36,6 +36,24 @@ export async function runTpl({ page, width }) {
   await page.waitForTimeout(400);
   const formVisible = await page.locator('#tpl-newprop-form:not(.hidden)').isVisible().catch(() => false);
   add('「新建属性…」表单可达', formVisible);
+  // 属性编辑已改为独立弹窗：点击「＋添加属性」→ 「新建属性…」应弹出 overlay
+  if (formVisible) {
+    const dialogOk = await page.evaluate(() => {
+      const ov = document.getElementById('tpl-prop-overlay');
+      if (!ov) return { found: false };
+      const form = document.getElementById('tpl-newprop-form');
+      const inDialog = form && ov.contains(form);
+      return { found: true, visible: !ov.classList.contains('hidden'), inDialog };
+    });
+    add('属性表单位于独立弹窗内', dialogOk.found && dialogOk.inDialog, JSON.stringify(dialogOk));
+    // 点遮罩关闭
+    if (dialogOk.visible) {
+      await page.locator('#tpl-prop-overlay').click({ position: { x: 5, y: 5 }, timeout: 3000 }).catch(() => {});
+      const closed = await page.evaluate(() => document.getElementById('tpl-prop-overlay').classList.contains('hidden'));
+      add('点遮罩可关闭属性弹窗', closed);
+    }
+    await page.locator('.tpl-add-new').click({ timeout: 3000 }).catch(() => {});
+  }
   if (formVisible) {
     const overflow = await page.evaluate(() => {
       const f = document.querySelector('#tpl-newprop-form');

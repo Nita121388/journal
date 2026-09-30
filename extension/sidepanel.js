@@ -1923,7 +1923,7 @@ async function renderCardPool() {
     chips.className = 'cardpool-chips';
     if (card.assignedDate) chips.append(chipSpan('cardpool-chip', shortDate(card.assignedDate)));
     if (card.project) chips.append(chipSpan('cardpool-chip', '📁 ' + card.project));
-    if (card.duration != null && card.duration > 0) chips.append(chipSpan('cardpool-chip', `⏱ ${card.duration}分`));
+    if (card.duration != null && card.duration > 0) chips.append(chipSpan('cardpool-chip', `⏱️ ${card.duration}分`));
     for (const [k, v] of Object.entries(card.props ?? {})) {
       if (v === null || v === undefined || v === '') continue;
       chips.append(chipSpan('cardpool-chip', `•${k}: ${v}`));
@@ -2168,16 +2168,16 @@ function applyView(view) {
 /* ─── 模板构建器 ───────────────────────────────────── */
 
 const REQUIRED_DEFS = [
-  { key: 'title', icon: '🏷', label: '标题', type: 'text' },
+  { key: 'title', icon: '🏷️', label: '标题', type: 'text' },
   { key: 'content', icon: '📄', label: '内容', type: 'textarea' },
   { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
 ];
 const OPTIONAL_DEFS = [
   { key: 'status', icon: '📌', label: '状态', type: 'status', options: ['none', 'todo', 'doing', 'done'] },
   { key: 'progress', icon: '📊', label: '进度', type: 'number', min: 0, max: 100 },
-  { key: 'priority', icon: '⭐', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
-  { key: 'assignedDate', icon: '🗓', label: '日期', type: 'date' },
-  { key: 'schedule', icon: '⏱', label: '起止时间/时长', type: 'schedule' },
+  { key: 'priority', icon: '⭐️', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
+  { key: 'assignedDate', icon: '🗓️', label: '日期', type: 'date' },
+  { key: 'schedule', icon: '⏱️', label: '起止时间/时长', type: 'schedule' },
   { key: 'project', icon: '📁', label: '项目', type: 'text' },
 ];
 const BUILTIN_DEFS = [...REQUIRED_DEFS, ...OPTIONAL_DEFS];
@@ -2216,7 +2216,25 @@ function closeTplNpIconPicker() {
   tplNpIconCleanup = null;
 }
 tplNpIconTile?.addEventListener('click', openTplNpIconPicker);
-const tplNewPropForm = document.getElementById('tpl-newprop-form');
+const tplPropOverlay = document.getElementById('tpl-prop-overlay');
+const tplPropDialogTitle = document.getElementById('tpl-prop-dialog-title');
+
+/** 打开属性编辑弹窗（新建 / 编辑共用） */
+function openTplPropDialog(title) {
+  if (!tplPropOverlay) return;
+  if (tplPropDialogTitle) tplPropDialogTitle.textContent = title;
+  tplPropOverlay.classList.remove('hidden');
+}
+
+/** 关闭属性编辑弹窗 */
+function closeTplPropDialog() {
+  if (tplPropOverlay) tplPropOverlay.classList.add('hidden');
+  tplEditKey = null;
+}
+tplPropOverlay?.addEventListener('click', (e) => {
+  if (e.target === tplPropOverlay) closeTplPropDialog();
+});
+document.getElementById('tpl-prop-close')?.addEventListener('click', closeTplPropDialog);
 /** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
 let tplBuilderState = { name: '', emoji: '🗂️', extra: [], values: {} };
 let tplBuilderCleanup = null;
@@ -2290,7 +2308,7 @@ function openTemplateBuilder(existing = null) {
 function closeTemplateBuilder() {
   document.getElementById('template-builder-overlay').classList.add('hidden');
   document.getElementById('tpl-add-panel')?.classList.add('hidden');
-  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  closeTplPropDialog();
   if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
   tplBuilderCleanup?.();
   tplEditingId = null;
@@ -2544,7 +2562,7 @@ function openTplNewPropForm() {
   if (tplNpType) tplNpType.value = 'text';
   if (tplNpOptions) tplNpOptions.value = '';
   if (tplNpOk) tplNpOk.textContent = '加入模板';
-  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  openTplPropDialog('新建属性');
   tplNpKey?.focus();
 }
 
@@ -2564,7 +2582,7 @@ function openTplEditProp(key) {
   const wrap = tplNpOptions?.closest('.prop-options-wrap');
   if (wrap) wrap.classList.toggle('hidden', entry.def.type !== 'select' && entry.def.type !== 'multi');
   if (tplNpOk) tplNpOk.textContent = isBuiltin ? '保存（仅此模板）' : '保存到属性库';
-  if (tplNewPropForm) tplNewPropForm.classList.remove('hidden');
+  openTplPropDialog(`编辑属性「${key}」`);
   tplNpLabel?.focus();
 }
 
@@ -2577,8 +2595,7 @@ function onTplNewPropOk() {
     const entry = tplBuilderState.extra.find(x => x.key === key);
     if (entry) entry.def = def;
     if (!BUILTIN_DEFS.find(d => d.key === key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
-    tplEditKey = null;
-    if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+    closeTplPropDialog();
     renderTemplateBuilder();
     showToast(`已更新属性「${key}」`, 'success');
     return;
@@ -2597,7 +2614,7 @@ function addTplNewProp() {
   void savePropLibrary();
   if (!tplBuilderState.extra.some(x => x.key === key)) tplBuilderState.extra.push({ key, def });
   if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
-  if (tplNewPropForm) tplNewPropForm.classList.add('hidden');
+  closeTplPropDialog();
   renderTemplateBuilder();
   showToast(`已新建属性「${key}」并加入模板`, 'success');
 }
@@ -3021,9 +3038,10 @@ async function init() {
     const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
     const tplOpen = tplOv && !tplOv.classList.contains('hidden');
     if (!cardOpen && !tplOpen) return;
-    // 模板构建器内属性表单开着时，Esc 先关表单
-    if (tplOpen && e.key === 'Escape' && tplNewPropForm && !tplNewPropForm.classList.contains('hidden')) {
-      e.preventDefault(); tplNewPropForm.classList.add('hidden'); tplEditKey = null; return;
+    // 属性编辑弹窗开着时，Esc 先关弹窗
+    const propOpen = tplPropOverlay && !tplPropOverlay.classList.contains('hidden');
+    if (propOpen && e.key === 'Escape') {
+      e.preventDefault(); closeTplPropDialog(); return;
     }
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -3161,7 +3179,7 @@ async function init() {
   document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
   document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
   document.getElementById('tpl-np-ok')?.addEventListener('click', onTplNewPropOk);
-  document.getElementById('tpl-np-cancel')?.addEventListener('click', () => { if (tplNewPropForm) tplNewPropForm.classList.add('hidden'); tplEditKey = null; });
+  document.getElementById('tpl-np-cancel')?.addEventListener('click', closeTplPropDialog);
   document.getElementById('tpl-np-type')?.addEventListener('change', () => {
     const wrap = tplNpOptions?.closest('.prop-options-wrap');
     if (wrap) wrap.classList.toggle('hidden', tplNpType.value !== 'select' && tplNpType.value !== 'multi');
