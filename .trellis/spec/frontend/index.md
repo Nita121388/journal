@@ -6,7 +6,9 @@
 
 ## Overview
 
-The **frontend** of this project is the Chrome MV3 extension under `extension/` — plain ES modules, no framework, no build step. Main UI = side panel (`sidepanel.html/js`); settings = `options.html/js`; shared logic = `lib/`.
+The **frontend** of this project is the Chrome MV3 extension under `extension/` — plain ES modules, no framework, no bundler. Main UI = side panel (`sidepanel.html/js`); settings = `options.html/js`; shared logic = `lib/`.
+
+Styling: hand-written CSS (`sidepanel.css`) **plus** an optional pure-CSS Tailwind v4 build (`src/tailwind.css` → `dist/sidepanel.css`, committed; `npm run build:css`). No JS bundler, no framework — see [Design System](./design-system.md) §8.1 for the token bridge and migration rules.
 
 ---
 
@@ -39,7 +41,7 @@ Before writing any extension code, confirm:
 
 ## Quality Check
 
-- [ ] `npx eslint extension/` — 0 errors
+- [ ] `cd extension && npm run lint` — 0 errors（或不新增，见基线缺口说明）
 - [ ] `npx vitest run --coverage` — `lib/` coverage > 80%
 - [ ] Loads clean in `chrome://extensions`, side panel opens, console error-free
 - [ ] No `eval` / `new Function` / `innerHTML` with user content

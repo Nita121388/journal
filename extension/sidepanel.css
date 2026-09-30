@@ -133,58 +133,11 @@ main {
 }
 
 /* ─── 通用组件 ──────────────────────────────────── */
+/* 以下组件已迁移到 src/tailwind.css @layer components（构建产物 dist/sidepanel.css）：
+ * .section-label / .section-header / .section-badge / .btn-primary / .btn-secondary
+ * .chip（筛选）/ .empty-state / .toast
+ * 如需回退：从 tailwind.css 恢复并在 HTML 调整 link。 */
 
-.section-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-muted);
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.section-badge {
-  font-size: 11px;
-  color: var(--color-muted);
-  background: var(--color-cell-empty);
-  padding: 1px 6px;
-  border-radius: 9px;
-  font-weight: 500;
-}
-
-.btn-primary {
-  background: var(--color-accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 7px 16px;
-  font-size: 13px;
-  font-family: var(--font);
-  font-weight: 500;
-  cursor: pointer;
-}
-.btn-primary:hover { filter: brightness(0.9); }
-
-.btn-secondary {
-  background: var(--color-bg);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 7px 16px;
-  font-size: 13px;
-  font-family: var(--font);
-  cursor: pointer;
-}
-.btn-secondary:hover { background: var(--color-cell-empty); }
-
-/* ─── 左侧栏 ─────────────────────────────────────── */
 
 /* 窄栏（侧栏场景）默认收起：保留全部功能，用抽屉打开 */
 #sidebar {
@@ -1735,43 +1688,7 @@ body.is-dragging .timeline-card.is-short {
   margin-top: 10px;
 }
 
-.empty-state {
-  color: var(--color-muted);
-  font-size: 12px;
-  text-align: center;
-  padding: 16px 8px;
-  border: 1px dashed var(--color-border);
-  border-radius: 8px;
-}
-
-/* ─── Toast 提示 ─────────────────────────────── */
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%) translateY(0);
-  background: var(--color-text);
-  color: var(--color-bg);
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 13px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-  z-index: 200;
-  max-width: min(720px, calc(100% - 32px));
-  text-align: left;
-  opacity: 1;
-  transition: opacity 0.2s;
-  pointer-events: auto;
-  user-select: text;
-  cursor: text;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.toast.hidden { display: none; }
-.toast.toast-error { background: #d32f2f; color: #fff; }
-.toast.toast-success { background: var(--color-accent); color: #fff; }
-.toast.toast-warn { background: #ef6c00; color: #fff; }
+/* .empty-state / .toast 已迁移到 src/tailwind.css */
 
 /* ─── 宽屏模式（宽标签页自动铺满全宽） ───────────────
  * 由 sidepanel.js 根据视口宽度 / 手动选择给 <html> 加 wide-mode 类。
@@ -1795,18 +1712,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   gap: 4px;
   margin: 6px 0;
 }
-.chip {
-  font-family: var(--font);
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-muted);
-  cursor: pointer;
-}
-.chip:hover { border-color: var(--color-accent); color: var(--color-accent); }
-.chip.is-active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+/* .chip / .empty-state / .toast 已迁移到 src/tailwind.css */
 .pool-project-select {
   font-family: var(--font);
   font-size: 11px;

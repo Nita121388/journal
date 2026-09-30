@@ -22,6 +22,7 @@ import { writeReport } from './lib/report.mjs';
 import { runSmoke } from './scenarios/smoke.mjs';
 import { runAudit } from './scenarios/audit.mjs';
 import { runTpl } from './scenarios/tpl.mjs';
+import { runTailwindMigrated } from './scenarios/tailwind-migrated.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -97,7 +98,10 @@ try {
       log('info', `width ${width}: audit captured ${combos.length} theme×mode combos`);
     } else {
       const { page, console_, errors, settled } = await openSidePanel(ctx, extId, width);
-      const { checks } = args.scenario === 'tpl' ? await runTpl({ page, width }) : await runSmoke({ page, width });
+      const run = args.scenario === 'tpl' ? runTpl
+        : args.scenario === 'tailwind-migrated' ? runTailwindMigrated
+        : runSmoke;
+      const { checks } = await run({ page, width });
       const shot = join(outDir, `shot-${width}.png`);
       await page.screenshot({ path: shot, fullPage: true });
       const errCount = console_.filter((c) => c.type === 'error').length + errors.length;

@@ -2,5 +2,17 @@
   "name": "journal-extension",
   "private": true,
   "type": "module",
-  "//": "仅供工具/测试（如 node --test）将 extension/*.js 识别为 ESM；Chrome 扩展加载会忽略本文件。"
+  "//": "仅供工具/测试（如 node --test）将 extension/*.js 识别为 ESM；Chrome 扩展加载会忽略本文件。",
+  "//build": "Tailwind v4 构建产物 → dist/sidepanel.css（提交进仓库，Chrome 加载 unpacked 免构建）。改 src/tailwind.css 后必须跑 npm run build:css。",
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i src/tailwind.css -o dist/sidepanel.css",
+    "build:css:min": "npx @tailwindcss/cli -i src/tailwind.css -o dist/sidepanel.css --minify",
+    "watch:css": "npx @tailwindcss/cli -i src/tailwind.css -o dist/sidepanel.css --watch",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "eslint": "^9.39.5",
+    "tailwindcss": "^4.3.3"
+  }
 }

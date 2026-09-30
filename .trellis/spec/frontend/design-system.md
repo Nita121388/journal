@@ -142,6 +142,17 @@
 - ❌ `outline:none` 去焦点环
 - ❌ 媒体查询被后续同特异性规则覆盖
 - ❌ 无 reduced-motion 降级的动画
+- ❌ 在 `src/tailwind.css` 的组件里写死 hex（与全站一样必须走语义 token）
+- ❌ 把 `@import "tailwindcss"`（含 preflight）引入——会全站 reset 漂移，必须用 `theme/utilities` 两段式
+- ❌ 通过 CDN `<script>` 引入 Tailwind——MV3 CSP 禁止（`script-src 'self'`），只能本地 CLI 构建
+
+## 8.1 构建与 Tailwind（v4）
+
+- 样式入口：`extension/src/tailwind.css` → `npm run build:css` → `extension/dist/sidepanel.css`（**产物提交进仓库**，Chrome 加载 unpacked 免构建）。
+- 加载顺序：`dist/sidepanel.css` 先、`sidepanel.css` 后。前者承载已迁移组件（`@layer components`）与 utility；后者承载未迁移的复杂组件与设计 token 定义。
+- **token 桥接**：`@theme inline` 把既有语义变量映射为 Tailwind utility，右侧用 `var()` 引用而非字面值，使暗色切换自动跟随。颜色别名：`canvas`（页面底）/`surface`（卡片面）/`ink`（文字）/`muted`（次要文字）/`line`（描边）/`accent`（主色）。**必须用 `@theme inline`**：普通 `@theme` 会产生 `--color-accent: var(--color-accent)` 循环引用而失效。
+- **组件迁移规则**：简单高频区（按钮/chip/徽标/空状态/Toast）迁入 `@layer components` 并删除 `sidepanel.css` 对应规则（不双份维护）；复杂组件（时间线画布、周视图网格、日历、热力图、卡片编辑器）保留原生 CSS，因大量运行时计算定位（`scheduleHeight()` 等）无法 utility 化。
+- **迁移验收**：`node dev-loop/dev-loop.mjs --scenario tailwind-migrated --width 320,360,400,500` 全绿（校验 computed-style + 暗色跟随）。
 
 ## 9. 验收清单（每轮改造后）
 

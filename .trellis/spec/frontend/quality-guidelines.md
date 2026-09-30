@@ -6,25 +6,24 @@
 
 ## Linting
 
-**Tool:** ESLint with strict vanilla JS config (no framework rules).
+**Tool:** ESLint flat config（`extension/eslint.config.js`，ESLint 9；`extension/package.json` 的 `npm run lint`）。适配原生 ESM + Chrome 扩展 globals。
 
-```json
-{
-  "env": { "browser": true, "es2024": true },
-  "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
-  "rules": {
-    "no-eval": "error",
-    "no-implied-eval": "error",
-    "no-new-func": "error",
-    "no-script-url": "error",
-    "no-unsafe-innerhtml/no-unsafe-innerhtml": "error",
-    "jsdoc/require-jsdoc": "warn",
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
-  }
+```js
+// extension/eslint.config.js 要点
+rules: {
+  'no-eval': 'error',
+  'no-implied-eval': 'error',
+  'no-new-func': 'error',
+  'no-script-url': 'error',
+  'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]
 }
 ```
 
-Run: `npx eslint extension/` before every commit.
+> 注：`no-unsafe-innerhtml` 来自 `eslint-plugin-no-unsanitized`（未装），innerHTML 安全由 Code Review 人工门把关；`jsdoc/require-jsdoc` 需 jsdoc 插件（未装），作为人工项。
+
+Run: `cd extension && npm run lint`（即 `npx eslint .`）before every commit.
+
+> **已知基线缺口（2026-09-30 实测）**：`sidepanel.js` 存在 23 处存量 `no-unused-vars`（死 import/未用变量，如 `aggregateHeatmap`/`groupCardsForTimeline`/`switchSeq` 等），非本次引入。清理留待独立重构任务；本任务验收以「不新增 lint 错误」为准。
 
 ---
 

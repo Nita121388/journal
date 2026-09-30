@@ -1,0 +1,113 @@
+/* tailwind.css — Tailwind CSS v4 入口（构建源）
+ * 编译产物 → extension/dist/sidepanel.css（提交进仓库，Chrome 加载 unpacked 免构建）
+ * 构建命令：npm run build:css
+ *
+ * 关键决策（勿轻易改为 `@import "tailwindcss"`）：
+ * - 采用三段式导入 theme/utilities/components，**不引 preflight**。
+ *   理由：本扩展已有 594 条手写 CSS 规则 + 完整 box-sizing/margin 重置，
+ *   Tailwind preflight 全站 reset 会与既有样式打架、导致视觉漂移。
+ * - @theme 只存「变量引用」而非字面值，使 [data-theme="dark"] 覆盖变量后
+ *   utility 自动跟随（暗色主题不需额外 CSS）。
+ */
+
+/* ── 1. Tailwind 层（不含 preflight） ─────────────────────── */
+@import "tailwindcss/theme";
+@import "tailwindcss/utilities";
+
+/* ── 2. 设计 token 桥接 ──────────────────────────────────────
+ * 语义层变量（来自 design-system.md）与既有 sidepanel.css :root 一致，
+ * 此处只做「命名映射」让 Tailwind 生成可读 utility；不新增硬编码 hex。
+ *
+ * 用 `@theme inline`：Tailwind 不再向产物输出一份同名变量，而是把右侧
+ * var() 直接内联到 utility（bg-accent → background-color: var(--color-accent)），
+ * 运行时由 sidepanel.css :root 真正定义值，并随 [data-theme=dark] 自动切换。
+ * 若用普通 @theme 会产生 --color-accent: var(--color-accent) 的循环引用而失效。 */
+
+/* 颜色别名：避开 Tailwind 默认色板命名冲突
+ * canvas=页面底 / surface=卡片面 / ink=文字 / muted=次要文字 / line=描边 / accent=主色 */
+@theme inline {
+  --color-canvas: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-ink: var(--color-text);
+  --color-muted: var(--color-muted);
+  --color-line: var(--color-border);
+  --color-accent: var(--color-accent);
+  --color-accent-light: var(--color-accent-light);
+  --color-cell-empty: var(--color-cell-empty);
+  --color-cell-mid: var(--color-cell-mid);
+  --color-cell-filled: var(--color-cell-filled);
+  --color-card: var(--color-card-bg);
+  --color-card-line: var(--color-card-border);
+  /* 危险 / 警告语义色（值与迁移前 sidepanel.css 硬编码一致，零视觉变化） */
+  --color-danger: #d32f2f;
+  --color-warn: #ef6c00;
+  --color-on-accent: #fff;
+
+  /* 字体 */
+  --font-sans: var(--font);
+  --font-emoji: var(--font-emoji);
+
+  /* 圆角（对齐 design-system.md） */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+}
+
+/* ── 3. 第一批迁移组件（复杂组件保留原生 CSS，不在此处） ──────
+ * 用 @apply 组合 utility 表达原组件样式；类名保持不变，HTML 改动最小。
+ * 迁移后从 sidepanel.css 删除对应规则（不双份维护）。 */
+
+/* 区块标题 */
+@layer components {
+  .section-label {
+    @apply block text-[11px] font-semibold uppercase tracking-[0.5px] text-muted;
+  }
+  .section-header {
+    @apply flex items-center gap-1.5 mb-2;
+  }
+  /* 计数徽标 */
+  .section-badge {
+    @apply text-[11px] text-muted bg-cell-empty px-1.5 py-px rounded-[9px] font-medium;
+  }
+
+  /* 按钮 */
+  .btn-primary {
+    @apply bg-accent text-white border-none rounded-sm px-4 py-[7px] text-[13px] font-sans font-medium cursor-pointer;
+  }
+  .btn-primary:hover { @apply [filter:brightness(0.9)]; }
+
+  .btn-secondary {
+    @apply bg-canvas text-ink border border-line rounded-sm px-4 py-[7px] text-[13px] font-sans cursor-pointer;
+  }
+  .btn-secondary:hover { @apply bg-cell-empty; }
+
+  /* 筛选 chip */
+  .chip {
+    @apply font-sans text-[11px] px-[7px] py-0.5 rounded-[12px] border border-line bg-canvas text-muted cursor-pointer;
+  }
+  .chip:hover { @apply border-accent text-accent; }
+  .chip.is-active { @apply bg-accent border-accent text-white; }
+
+  /* 空状态 */
+  .empty-state {
+    @apply text-muted text-center py-4 px-2 border border-dashed border-line rounded-md;
+  }
+
+  /* Toast */
+  .toast {
+    @apply fixed left-1/2 bottom-6 -translate-x-1/2 z-50 text-left font-normal text-[13px]
+      px-[18px] py-2.5 rounded-md opacity-100 select-text cursor-text;
+    background: var(--color-text);
+    color: var(--color-bg);
+    max-width: min(720px, calc(100% - 32px));
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    transition: opacity 0.2s;
+    pointer-events: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .toast.hidden { display: none; }
+  .toast.toast-error { @apply bg-danger text-on-accent; }
+  .toast.toast-success { @apply bg-accent text-on-accent; }
+  .toast.toast-warn { @apply bg-warn text-on-accent; }
+}

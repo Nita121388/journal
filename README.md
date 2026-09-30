@@ -45,6 +45,33 @@ host 是权威数据源（SQLite，`host/data/journal.db`）。同步把卡片�
 - 打开扩展设置页可配置「数据同步」并点「立即同步」。
 - host 测试：`cd host && npm test`（`node --test`）。
 
+### 样式与构建（Tailwind CSS v4）
+
+侧边栏样式由 **Tailwind CSS v4** 参与构建，但仍保持「加载 unpacked 免构建」：
+
+- `extension/src/tailwind.css` —— 构建源：`@theme` 把既有设计 token 桥接为 Tailwind utility（颜色别名 `canvas/surface/ink/muted/line/accent`），`@layer components` 放从 `sidepanel.css` 迁移来的组件。
+- `extension/dist/sidepanel.css` —— **构建产物，已提交进仓库**。修改 `src/tailwind.css` 后必须重建：
+
+```bash
+cd extension && npm run build:css       # 构建
+cd extension && npm run watch:css       # 监听重建（开发时）
+```
+
+- 加载顺序：`dist/sidepanel.css` 先、`sidepanel.css` 后（后者承载尚未迁移的复杂组件与设计 token 定义）。
+- **不要引入 preflight**（用 `@import "tailwindcss/theme" + "tailwindcss/utilities"` 两段式，而非 `@import "tailwindcss"`）：现有样式体系已完整，加全站 reset 会视觉漂移。
+- 复杂组件（时间线画布、周视图网格、日历、热力图）**保留原生 CSS**，靠运行时计算的定位（如 `scheduleHeight()`）无法用 utility 表达。
+
+### UI 回归（dev-loop）
+
+UI 改动后跑自动化截图 + 断言回归（Playwright，多宽度）：
+
+```bash
+cd dev-loop
+node dev-loop.mjs --width 320,360,400,500                # smoke：首屏/host/日历/卡片池
+node dev-loop.mjs --scenario tpl --width 360             # 模板构建器
+node dev-loop.mjs --scenario tailwind-migrated --width 360  # 迁移组件的 computed-style 校验
+```
+
 ## 结构
 
 ```
