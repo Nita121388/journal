@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "选项页 DOM 构建规范；details 折叠无 JS 偏好"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "折叠卡片与表单样式走既有 token，不硬编码 hex"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "PUT /api/ai/config 的响应契约（不返回 key）"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "LLM Proxy 章节：配置读写职责"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "node --test 门禁；key 不落日志/响应"}

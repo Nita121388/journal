@@ -61,7 +61,7 @@ host/
 
 零依赖（`dependencies: {}`）的 LLM 代理层，供扩展通过 `/api/ai/*` 调用。
 
-- **配置**：`host/data/config.json`（`baseURL` / `model` / `apiKey` / `timeoutMs` / `enabled`）。真实文件被 `.gitignore` 忽略，模板 `config.example.json` 提交。**API key 永不进入响应或日志**。
+- **配置**：`host/data/config.json`（`baseURL` / `model` / `apiKey` / `timeoutMs` / `enabled`）。真实文件被 `.gitignore` 忽略，模板 `config.example.json` 提交。**API key 永不进入响应或日志**。读写经端点 `GET /api/ai/config`（不返回 key）/ `PUT /api/ai/config`（合并写盘，`apiKey` 空串 = 不改）；用户经**选项页 AI 卡片**配置（不再手改文件）；key 只在 PUT body 出现一次，扩展不持久化。`writeConfig` 用 temp→rename 原子写。
 - **协议插槽**：`chatCompletions(config, body, fetchImpl)` 是唯一的网络调用点（裸 `fetch`，OpenAI 兼容 `/chat/completions`；国产模型全兼容，只换 `baseURL`）。未来接 Anthropic/Gemini 原生协议或换 Vercel AI SDK 时**只改此函数**，降级链与端点契约不动。
 - **结构化输出三级降级链**：`response_format: json_schema` → `json_object` → prompt-only（`extractJson()` 去围栏 + 平衡括号扫描 + `normalizePropDef()` 校验修复）→ `source:'fallback'`。provider 不遵守 `response_format` 时仍能拿到结构化结果。
 - **静默降级**：LLM 故障/超时/未配置统一返回 `200 + source:'fallback'|'not_configured'` + 本地结果（见 `error-handling.md`），扩展 UI 永不因 AI 故障中断。

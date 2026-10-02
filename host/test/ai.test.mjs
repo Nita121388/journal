@@ -128,3 +128,38 @@ test('缺 name → 400 VALIDATION_ERROR', async () => {
   assert.equal(r.status, 400);
   assert.equal(r.json.error.code, 'VALIDATION_ERROR');
 });
+
+test('PUT /api/ai/config：写入后 GET configured=true 且 key 永不回显', async () => {
+  // 先清掉配置
+  rmSync(missingConfig, { force: true });
+  const put = await api('PUT', '/api/ai/config', {
+    provider: 'deepseek',
+    baseURL: 'https://api.deepseek.com',
+    model: 'deepseek-chat',
+    apiKey: 'sk-PUT-SECRET',
+    enabled: true,
+  });
+  assert.equal(put.status, 200);
+  assert.equal(put.json.data.configured, true);
+  assert.ok(!JSON.stringify(put.json).includes('SECRET'), 'PUT 响应不得含 key');
+  const get = await api('GET', '/api/ai/config');
+  assert.equal(get.json.data.configured, true);
+  assert.equal(get.json.data.provider, 'deepseek');
+  assert.equal(get.json.data.model, 'deepseek-chat');
+  assert.equal(get.json.data.baseURL, 'https://api.deepseek.com');
+  assert.ok(!JSON.stringify(get.json).includes('SECRET'), 'GET 响应不得含 key');
+});
+
+test('PUT /api/ai/config：省略 apiKey 不改已有 key', async () => {
+  // 已有 key sk-PUT-SECRET；只改 model
+  const put = await api('PUT', '/api/ai/config', { model: 'qwen-plus' });
+  assert.equal(put.status, 200);
+  assert.ok(!JSON.stringify(put.json).includes('SECRET'));
+  const get = await api('GET', '/api/ai/config');
+  assert.equal(get.json.data.model, 'qwen-plus');
+  assert.equal(get.json.data.configured, true, '省略 key 不改 key → 仍 configured');
+  // 验证真实文件里 key 还在
+  const { readFileSync } = await import('node:fs');
+  const raw = JSON.parse(readFileSync(missingConfig, 'utf-8'));
+  assert.equal(raw.apiKey, 'sk-PUT-SECRET');
+});

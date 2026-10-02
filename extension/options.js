@@ -3,7 +3,7 @@
  * 职责：主题切换、host 健康探测、prompt 复制、数据导出、数据同步配置
  */
 
-import { getSettings } from './lib/store.js';
+import { getSettings, saveSettings } from './lib/store.js';
 import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from './lib/sync.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
@@ -64,6 +64,19 @@ const els = {
   syncTest: document.getElementById('sync-test'),
   syncNow: document.getElementById('sync-now'),
   syncFeedback: document.getElementById('sync-feedback'),
+  // AI 增强
+  aiSection: document.getElementById('ai-section'),
+  aiDot: document.getElementById('ai-dot'),
+  aiLabel: document.getElementById('ai-label'),
+  aiEnabled: document.getElementById('ai-enabled'),
+  aiProvider: document.getElementById('ai-provider'),
+  aiBase: document.getElementById('ai-base'),
+  aiModel: document.getElementById('ai-model'),
+  aiKey: document.getElementById('ai-key'),
+  aiInferMode: document.getElementById('ai-infer-mode'),
+  aiSave: document.getElementById('ai-save'),
+  aiTest: document.getElementById('ai-test'),
+  aiFeedback: document.getElementById('ai-feedback'),
 };
 
 /* ─── 主题 ──────────────────────────────────────────────── */
@@ -265,6 +278,132 @@ async function onSyncNow() {
   }
 }
 
+/* ─── AI 增强设置 ─────────────────────────────────────────── */
+
+/** 服务商预设：选 provider 自动填 baseURL + model */
+const AI_PROVIDERS = {
+  deepseek:    { baseURL: 'https://api.deepseek.com', model: 'deepseek-chat' },
+  qwen:        { baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  kimi:        { baseURL: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  zhipu:       { baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+  siliconflow: { baseURL: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
+  ollama:      { baseURL: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:3b' },
+  custom:      { baseURL: '', model: '' },
+};
+
+/** 按 baseURL 反查 provider（迁移旧配置时用） */
+function providerFromBase(baseURL) {
+  const b = (baseURL || '').trim();
+  if (!b) return 'custom';
+  for (const [key, p] of Object.entries(AI_PROVIDERS)) {
+    if (key !== 'custom' && b.startsWith(new URL(p.baseURL).origin)) return key;
+  }
+  return 'custom';
+}
+
+function setAiFeedback(msg, kind = '') {
+  if (els.aiFeedback) {
+    els.aiFeedback.textContent = msg;
+    els.aiFeedback.className = 'copy-feedback' + (kind ? ' ' + kind : '');
+  }
+}
+
+/** 读 host 配置 + 扩展 inferMode → 填表单（key 永不回显） */
+async function loadAiSettings() {
+  try {
+    const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
+    const data = (await res.json())?.data;
+    if (data) {
+      if (els.aiEnabled) els.aiEnabled.checked = Boolean(data.enabled);
+      if (els.aiBase) els.aiBase.value = data.baseURL || '';
+      if (els.aiModel) els.aiModel.value = data.model || '';
+      if (els.aiProvider) {
+        // 反查 provider（不匹配预设时落到「自定义」，用户已填的 base/model 保留）
+        els.aiProvider.value = providerFromBase(data.baseURL);
+      }
+      renderAiStatus(data.configured);
+    } else {
+      renderAiStatus(false);
+    }
+  } catch {
+    renderAiStatus(false);
+  }
+  // inferMode 来自扩展 settings
+  try {
+    const settings = await getSettings();
+    if (els.aiInferMode) els.aiInferMode.value = settings?.ai?.inferMode ?? 'auto';
+  } catch { /* 忽略 */ }
+}
+
+/** 状态点：configured → 绿 + 「已配置」；否则灰 + 「未配置」 */
+function renderAiStatus(configured) {
+  if (els.aiDot) els.aiDot.className = 'status-dot' + (configured ? ' is-online' : '');
+  if (els.aiLabel) els.aiLabel.textContent = configured ? '已配置' : '未配置';
+}
+
+/** 选 provider → 自动填 baseURL + model */
+function onAiProviderChange() {
+  const p = AI_PROVIDERS[els.aiProvider.value] || AI_PROVIDERS.custom;
+  if (els.aiBase) els.aiBase.value = p.baseURL;
+  if (els.aiModel) els.aiModel.value = p.model;
+}
+
+/** 保存：PUT 到 host（key 只进 host）+ 扩展 inferMode */
+async function onAiSave() {
+  const payload = {
+    enabled: els.aiEnabled.checked,
+    provider: els.aiProvider.value,
+    baseURL: els.aiBase.value.trim(),
+    model: els.aiModel.value.trim(),
+  };
+  const key = (els.aiKey.value || '').trim();
+  if (key) payload.apiKey = key;
+  try {
+    const res = await fetch(`${HOST}/api/ai/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),
+    });
+    const data = (await res.json())?.data;
+    if (data) {
+      if (els.aiKey) els.aiKey.value = ''; // 只在成功时清空 key（失败让用户改完重试）
+      renderAiStatus(data.configured);
+      setAiFeedback(data.configured ? '✅ 已保存（AI 已启用）' : '已保存，但缺少 API Key 或 Base URL 尚未启用', 'ok');
+    } else {
+      setAiFeedback('保存失败：host 返回异常', 'err');
+    }
+  } catch {
+    setAiFeedback('保存失败：host 服务未连接（127.0.0.1:8766）', 'err');
+  }
+  // 扩展侧 inferMode：无论 host 是否连上，都保存到扩展（下次生效）
+  try {
+    const settings = await getSettings();
+    await saveSettings({ ai: { ...(settings?.ai || {}), inferMode: els.aiInferMode.value } });
+  } catch { /* 忽略 */ }
+}
+
+/** 连接测试：只读状态，不写、不含 key */
+async function onAiTest() {
+  try {
+    const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
+    const data = (await res.json())?.data;
+    if (data) {
+      renderAiStatus(data.configured);
+      setAiFeedback(
+        data.configured
+          ? `✅ 已连接（${data.provider || 'AI'} / ${data.model || ''}）`
+          : 'host 在线但 AI 未配置（缺 key 或未启用）',
+        data.configured ? 'ok' : '',
+      );
+    } else {
+      setAiFeedback('host 返回异常', 'err');
+    }
+  } catch {
+    setAiFeedback('连接失败：host 服务未启动', 'err');
+  }
+}
+
 /* ─── 初始化 ──────────────────────────────────────────────── */
 
 async function init() {
@@ -277,6 +416,12 @@ async function init() {
   els.syncSave.addEventListener('click', onSaveSync);
   els.syncTest.addEventListener('click', onTestSync);
   els.syncNow.addEventListener('click', onSyncNow);
+
+  // AI 增强
+  if (els.aiProvider) els.aiProvider.addEventListener('change', onAiProviderChange);
+  if (els.aiSave) els.aiSave.addEventListener('click', onAiSave);
+  if (els.aiTest) els.aiTest.addEventListener('click', onAiTest);
+  await loadAiSettings();
 
   const online = await probeHost(); // 尽力而为
   if (online) {

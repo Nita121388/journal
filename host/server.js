@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release } from 'node:os';
 
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
-import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi } from './lib/llm.js';
+import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
 import { createBackplane } from './sync/backplane.js';
 import { runSync, syncStatus } from './sync/engine.js';
@@ -484,8 +484,33 @@ export async function createApp(store, { logger } = {}) {
           configured: isAiConfigured(cfg),
           provider: cfg?.provider ?? '',
           model: cfg?.model ?? '',
+          baseURL: cfg?.baseURL ?? '',
           enabled: cfg?.enabled ?? false,
         });
+      }
+      if (path === '/api/ai/config' && method === 'PUT') {
+        const patch = {};
+        if (typeof body?.enabled === 'boolean') patch.enabled = body.enabled;
+        if (typeof body?.provider === 'string') patch.provider = body.provider.slice(0, 40);
+        if (typeof body?.baseURL === 'string') patch.baseURL = body.baseURL.slice(0, 500);
+        if (typeof body?.model === 'string') patch.model = body.model.slice(0, 100);
+        if (typeof body?.apiKey === 'string' && body.apiKey.trim()) patch.apiKey = body.apiKey.slice(0, 300);
+        if (Number.isFinite(body?.timeoutMs)) patch.timeoutMs = Math.max(1000, Math.min(body.timeoutMs, 120000));
+        try {
+          const next = writeAiConfig(patch);
+          const cfg = readAiConfig();
+          // key 永不回显
+          return ok(res, {
+            configured: isAiConfigured(cfg),
+            provider: cfg?.provider ?? '',
+            model: cfg?.model ?? '',
+            baseURL: cfg?.baseURL ?? '',
+            enabled: cfg?.enabled ?? false,
+          });
+        } catch (e) {
+          log.warn(`ai config write failed: ${e.message}`);
+          return err(res, 500, 'INTERNAL', 'AI 配置写入失败');
+        }
       }
       if (path === '/api/ai/infer-prop' && method === 'POST') {
         const name = String(body?.name ?? '').trim();

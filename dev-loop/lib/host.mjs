@@ -79,7 +79,7 @@ export function startHost({ port, projectDir = REPO_ROOT }) {
   const dataDir = mkdtempSync(join(tmpdir(), 'journal-devloop-data-'));
   const proc = spawn(process.execPath, [HOST_JS], {
     cwd: HOST_DIR,
-    env: { ...process.env, JOURNAL_PORT: String(port), JOURNAL_DATA_DIR: dataDir, JOURNAL_PROJECT_DIR: projectDir },
+    env: { ...process.env, JOURNAL_PORT: String(port), JOURNAL_DATA_DIR: dataDir, JOURNAL_PROJECT_DIR: projectDir, JOURNAL_AI_CONFIG: join(dataDir, 'config.json') },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   proc.stdout.on('data', (d) => log('host', String(d).trim()));

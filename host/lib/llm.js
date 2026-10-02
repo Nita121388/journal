@@ -12,13 +12,35 @@
  * 可测试：所有外部 I/O 通过注入 fetchImpl（默认 globalThis.fetch），单测不联网。
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 /** 配置文件位置：host/data/config.json（gitignore，用户填 key） */
 const CONFIG_PATH = process.env.JOURNAL_AI_CONFIG || join(__dirname, '..', 'data', 'config.json');
+
+/** 原子写配置：temp → rename（防 crash 留半文件）；apiKey 空串/省略 = 不改已有 key */
+export function writeConfig(patch, path = CONFIG_PATH) {
+  if (!patch || typeof patch !== 'object') throw new Error('invalid config patch');
+  let cur = {};
+  try {
+    const raw = readFileSync(path, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') cur = parsed;
+  } catch { /* 无文件或非法 JSON → 按新写 */ }
+  const next = { ...cur };
+  for (const k of ['provider', 'baseURL', 'model', 'timeoutMs', 'enabled']) {
+    if (patch[k] !== undefined) next[k] = patch[k];
+  }
+  if (typeof patch.apiKey === 'string' && patch.apiKey.trim()) next.apiKey = patch.apiKey;
+  // 最小校验：baseURL/model 为字符串时去空格
+  if (typeof next.baseURL === 'string') next.baseURL = next.baseURL.trim();
+  if (typeof next.model === 'string') next.model = next.model.trim();
+  writeFileSync(`${path}.tmp`, JSON.stringify(next, null, 2), 'utf-8');
+  renameSync(`${path}.tmp`, path);
+  return next;
+}
 
 /** 属性类型全集（与扩展 lib/prop-infer.js 的 PROP_TYPES 对齐） */
 export const PROP_TYPES = [

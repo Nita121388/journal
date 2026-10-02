@@ -552,3 +552,29 @@ h3:first-of-type { margin-top: 10px; }
 @media (min-width: 720px) {
   #data-section .btn-block { width: auto; min-width: 190px; }
 }
+
+/* ── AI 增强设置项 ── */
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.check-field input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+#ai-section .desc { margin: 10px 0 4px; }
+#ai-section code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  background: var(--color-surface-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+#ai-section .status-row { margin-left: auto; }

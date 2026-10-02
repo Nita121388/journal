@@ -14,7 +14,7 @@
 
   <main>
     <!-- host 状态区 -->
-    <details id="host-section" class="card collapsible" open>
+    <details id="host-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="host-status-card">
           <span class="section-icon" aria-hidden="true">⚡</span>
@@ -36,8 +36,61 @@
       </div>
     </details>
 
+    <!-- AI 增强（LLM 代理配置；key 存 host 侧，不进扩展） -->
+    <details id="ai-section" class="card collapsible">
+      <summary class="collapse-header">
+        <div class="section-head">
+          <span class="section-icon" aria-hidden="true">✨</span>
+          <h2>AI 增强</h2>
+          <div class="status-row">
+            <span id="ai-dot" class="status-dot"></span>
+            <span id="ai-label">未配置</span>
+          </div>
+        </div>
+        <span class="collapse-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="section-body">
+        <p class="desc">AI 用于「模板属性推断」的增强：本地规则没把握的长尾属性名（如「客户满意度评分」）会交给大模型推断类型与选项。常见属性走本地规则，零延迟。API Key 只保存在本机 host 配置文件（<code>host/data/config.json</code>），不会写入扩展。</p>
+
+        <label class="check-field">
+          <input type="checkbox" id="ai-enabled">
+          <span>启用 AI 增强推断</span>
+        </label>
+
+        <label class="field">服务商
+          <select id="ai-provider">
+            <option value="deepseek">DeepSeek（推荐）</option>
+            <option value="qwen">通义千问 Qwen</option>
+            <option value="kimi">Kimi / 月之暗面</option>
+            <option value="zhipu">智谱 GLM</option>
+            <option value="siliconflow">硅基流动</option>
+            <option value="ollama">Ollama（本地模型）</option>
+            <option value="custom">自定义</option>
+          </select>
+        </label>
+
+        <label class="field">Base URL<input id="ai-base" type="text" placeholder="https://api.deepseek.com" autocomplete="off"></label>
+        <label class="field">模型<input id="ai-model" type="text" placeholder="deepseek-chat" autocomplete="off"></label>
+        <label class="field">API Key<input id="ai-key" type="password" placeholder="留空表示不修改（已保存的 key 不会显示）" autocomplete="off"></label>
+
+        <label class="field">触发策略
+          <select id="ai-infer-mode">
+            <option value="auto">智能：仅长尾属性问 AI（推荐）</option>
+            <option value="always">总是：每次新建属性都问 AI</option>
+            <option value="never">从不：只用本地规则</option>
+          </select>
+        </label>
+
+        <div class="btn-row">
+          <button id="ai-save" class="btn" type="button">保存配置</button>
+          <button id="ai-test" class="btn" type="button">连接测试</button>
+        </div>
+        <span id="ai-feedback" class="copy-feedback"></span>
+      </div>
+    </details>
+
     <!-- Agent 接入引导区 -->
-    <details id="agent-section" class="card collapsible" open>
+    <details id="agent-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
           <span class="section-icon" aria-hidden="true">🤖</span>
@@ -74,7 +127,7 @@
     </details>
 
     <!-- 数据区 -->
-    <details id="data-section" class="card collapsible" open>
+    <details id="data-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
           <span class="section-icon" aria-hidden="true">💾</span>
@@ -90,7 +143,7 @@
     </details>
 
     <!-- 同步区 -->
-    <details id="sync-section" class="card collapsible" open>
+    <details id="sync-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
           <span class="section-icon" aria-hidden="true">☁️</span>
