@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "构建器 UI 为无框架 DOM 构建函数，须遵守 createElement/textContent 与纯渲染约束"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "新增行/菜单样式须沿用现有 token（颜色/圆角/阴影），避免硬编码 hex"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "settings.ai 与 lib/store.js 的存储 schema 约束；本轮不动但需保持兼容"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "meta['propertyLibrary']/templates 的字段语义（key 不变、override 字段）不能被破坏"}

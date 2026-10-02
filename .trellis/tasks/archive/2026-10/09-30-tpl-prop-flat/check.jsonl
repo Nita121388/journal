@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/09-30-tpl-prop-flat/prd.md", "reason": "验收标准逐条核对"}
+{"file": ".trellis/tasks/09-30-tpl-prop-flat/design.md", "reason": "核对数据/渲染结构与兼容风险点"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "交付前质量门禁"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "属性库/模板写入路径的兼容检查"}
