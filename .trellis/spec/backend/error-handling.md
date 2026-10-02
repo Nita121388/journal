@@ -16,7 +16,8 @@ The host is a **local-only** process serving one client (the extension). Error h
 |------|------|--------------|-----|
 | `VALIDATION_ERROR` | Bad request body (missing `dayKey`, bad todo shape) | `400` + `{ error: { code, message } }` | `warn` |
 | `NOT_FOUND` | Asked to update/delete a non-existent journal/todo | `404` + `{ error: { code } }` | `warn` |
-| `AI_ERROR` | LLM call failed (timeout, API key rejected) | `502` + `{ error: { code, message } }` | `error` |
+| `AI_ERROR` | LLM call failed (timeout, API key rejected) | **`200` + `{ ok:true, data:{ source:'fallback', ...localResult } }`**（AI 增强类端点采用静默降级：LLM 故障/未配置时返回本地结果，扩展无需区分「网络错」与「没配 key」，见 `lib/llm.js`） | `warn` |
+| 配置缺失 | AI key/baseURL/model 未填或 disabled | `200` + `data.source:'not_configured'`（同一端点） | `warn` |
 | `STORAGE_ERROR` | JSON file read/write failed, disk full | `500` + `{ error: { code } }` | `error` |
 | `INTERNAL` | Anything unexpected | `500` + `{ error: { code: 'INTERNAL' } }` | `error` + stack |
 
@@ -33,8 +34,10 @@ All responses are JSON. Success:
 Failure:
 
 ```json
-{ "ok": false, "error": { "code": "AI_ERROR", "message": "OpenAI: rate limit exceeded" } }
+{ "ok": true, "data": { "source": "fallback", "type": "text", "icon": "📄", "options": null } }
 ```
+
+> 例外：**AI 增强类端点（`/api/ai/*`）不返回 502**。LLM 故障、超时、未配置统一为 `200 + data.source: 'fallback' | 'not_configured'`（静默降级到本地结果），保证扩展 UI 永不因 AI 故障中断。AI 相关错误细节只在服务端日志（warn，不含 key/prompt）。
 
 - **Never leak stack traces or file paths** in the response `message` (host is local, but keep it clean). Full detail goes to stderr.
 - The extension's `lib/ai.js` maps `error.code` to a friendly UI message.

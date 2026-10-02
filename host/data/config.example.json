@@ -1,0 +1,8 @@
+{
+  "provider": "deepseek",
+  "baseURL": "https://api.deepseek.com",
+  "model": "deepseek-chat",
+  "apiKey": "",
+  "timeoutMs": 15000,
+  "enabled": true
+}

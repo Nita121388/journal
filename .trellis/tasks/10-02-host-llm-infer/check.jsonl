@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-02-host-llm-infer/prd.md", "reason": "验收标准逐条核对（not_configured 降级/0 请求断言/故障降级/key 不泄露）"}
+{"file": ".trellis/tasks/10-02-host-llm-infer/design.md", "reason": "降级链与端点契约核对"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "LLM 失败静默降级、不把异常抛给 UI"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "交付前 node --test + lint 门禁"}

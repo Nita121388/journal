@@ -13,6 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release } from 'node:os';
 
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
+import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
 import { createBackplane } from './sync/backplane.js';
 import { runSync, syncStatus } from './sync/engine.js';
@@ -475,6 +476,33 @@ export async function createApp(store, { logger } = {}) {
       if (path === '/api/meta/templates' && method === 'PUT') return ok(res, await saveTemplates(store, Array.isArray(body) ? body : []));
       if (path === '/api/meta/savedViews' && method === 'GET') return ok(res, await getSavedViews(store));
       if (path === '/api/meta/savedViews' && method === 'PUT') return ok(res, await saveSavedViews(store, Array.isArray(body) ? body : []));
+
+      // ── AI（LLM 代理；key 存 host/data/config.json，不进扩展）─────
+      if (path === '/api/ai/config' && method === 'GET') {
+        const cfg = readAiConfig();
+        return ok(res, {
+          configured: isAiConfigured(cfg),
+          provider: cfg?.provider ?? '',
+          model: cfg?.model ?? '',
+          enabled: cfg?.enabled ?? false,
+        });
+      }
+      if (path === '/api/ai/infer-prop' && method === 'POST') {
+        const name = String(body?.name ?? '').trim();
+        if (!name) return err(res, 400, 'VALIDATION_ERROR', 'name is required');
+        const local = body?.local ?? {};
+        const cfg = readAiConfig();
+        if (!isAiConfigured(cfg)) {
+          // 未配置：直接回落本地结果，扩展无需区分「没配 key」与「网络错」
+          return ok(res, { source: 'not_configured', icon: local.icon ?? '📄', type: local.type ?? 'text', options: local.options ?? null });
+        }
+        const r = await inferPropAi(cfg, name, { log: { debug: (m) => log.debug(m), warn: (m) => log.warn(m) } });
+        if (r.source === 'llm') {
+          return ok(res, { source: 'llm', icon: r.def.icon, type: r.def.type, options: r.def.options, defaultValue: r.def.defaultValue, model: r.model });
+        }
+        // LLM 失败：静默降级本地
+        return ok(res, { source: 'fallback', icon: local.icon ?? '📄', type: local.type ?? 'text', options: local.options ?? null });
+      }
 
       // ── Health ────────────────────────────────────────
       if (path === '/api/health') {

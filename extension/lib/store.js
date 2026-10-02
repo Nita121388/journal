@@ -240,7 +240,7 @@ export async function getSettings() {
   const { [KEY.SETTINGS]: raw } = await chrome.storage.local.get(KEY.SETTINGS);
   return {
     sync: { enabled: false, provider: '', endpoint: '', ...(raw?.sync || {}) },
-    ai:   { provider: 'local', apiKey: '', ...(raw?.ai || {}) },
+    ai:   { provider: 'local', apiKey: '', inferMode: 'auto', ...(raw?.ai || {}) },
     theme: raw?.theme ?? 'auto',
   };
 }

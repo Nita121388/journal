@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "host/lib 与 host/data 的目录约定，配置文件落位"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "端点错误分类、非 2xx 处理、不在响应/日志泄露敏感信息"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "LLM 调用日志不含 key/prompt 全文"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "host 零依赖约束、node --test 质量门禁"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "AI 建议徽标用 createElement/textContent；行内编辑与 key 语义沿用上轮沉淀"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "settings.ai.inferMode 读写路径；缓存放 chrome.storage.local 的约定"}

@@ -23,6 +23,7 @@ import { runSmoke } from './scenarios/smoke.mjs';
 import { runAudit } from './scenarios/audit.mjs';
 import { runTpl } from './scenarios/tpl.mjs';
 import { runTailwindMigrated } from './scenarios/tailwind-migrated.mjs';
+import { runLlm } from './scenarios/llm.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -100,8 +101,9 @@ try {
       const { page, console_, errors, settled } = await openSidePanel(ctx, extId, width);
       const run = args.scenario === 'tpl' ? runTpl
         : args.scenario === 'tailwind-migrated' ? runTailwindMigrated
+        : args.scenario === 'llm' ? runLlm
         : runSmoke;
-      const { checks } = await run({ page, width });
+      const { checks } = await run({ page, width, extId });
       const shot = join(outDir, `shot-${width}.png`);
       await page.screenshot({ path: shot, fullPage: true });
       const errCount = console_.filter((c) => c.type === 'error').length + errors.length;
