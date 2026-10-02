@@ -2542,6 +2542,110 @@ body.tpl-dragging { user-select: none; }
 .tpl-prop-row:focus-within { background: var(--color-cell-empty); }
 .prop-row:focus-within { background: var(--color-cell-empty); }
 
+/* ═══════════════════════════════════════════════════════
+   模板构建器 · 扁平 Notion 式属性行
+   ═══════════════════════════════════════════════════════ */
+
+/* 内置行不再用底色盒子，靠图标/文字表达「不可删」 */
+.tpl-prop-row.is-locked { background: transparent; }
+.tpl-prop-row.is-locked .tpl-prop-name { color: var(--color-text); font-weight: 600; }
+
+/* 图标按钮 */
+.tpl-prop-icon {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+  border: none; background: transparent; cursor: pointer;
+  border-radius: 6px;
+  padding: 0;
+  appearance: none;
+  transition: background .12s;
+}
+.tpl-prop-icon:hover { background: var(--color-cell-empty); }
+
+/* 属性名（双击改名） */
+.tpl-prop-name {
+  flex-shrink: 0;
+  min-width: 56px; max-width: 96px;
+  font-size: 13px; color: var(--color-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: default; user-select: none;
+  padding: 2px 4px; border-radius: 5px;
+}
+.tpl-prop-name:hover { background: var(--color-cell-empty); }
+.tpl-prop-name-input {
+  flex-shrink: 0;
+  width: 96px;
+  font-family: var(--font); font-size: 13px; color: var(--color-text);
+  padding: 2px 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: 5px;
+  background: var(--color-surface);
+  outline: none;
+}
+
+/* 自定义行：悬停才显示操作按钮（平时干净） */
+.tpl-row-act { opacity: 0; transition: opacity .12s; }
+.tpl-extra-row:hover .tpl-row-act,
+.tpl-prop-row:focus-within .tpl-row-act { opacity: 1; }
+
+/* 一行式添加行（与属性行同高） */
+.tpl-add-row {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 6px;
+  font-family: var(--font); font-size: 13px;
+  color: var(--color-muted);
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.tpl-add-row:hover { background: var(--color-cell-empty); border-color: var(--color-accent); color: var(--color-accent); }
+.tpl-add-ico { font-size: 14px; line-height: 1; }
+.tpl-add-text { color: inherit; }
+
+/* 行右键菜单：高于模板构建器(120)，低于属性定义弹窗(140) */
+.tpl-ctx-menu {
+  position: fixed;
+  z-index: 130;
+  min-width: 148px;
+  display: flex; flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgba(0,0,0,.16);
+  animation: ce-pop .12s ease-out;
+}
+.tpl-ctx-item {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--font); font-size: 12px; text-align: left;
+  color: var(--color-text);
+  border: none; background: transparent;
+  border-radius: 7px; cursor: pointer;
+  white-space: nowrap;
+}
+.tpl-ctx-item:hover:not(:disabled) { background: var(--color-cell-empty); }
+.tpl-ctx-item:disabled { opacity: .4; cursor: default; }
+.tpl-ctx-item.is-active { color: var(--color-accent); font-weight: 600; }
+.tpl-ctx-item.tpl-ctx-del { color: var(--color-danger); }
+.tpl-ctx-item.tpl-ctx-back { color: var(--color-muted); }
+.tpl-ctx-sep { height: 1px; margin: 4px 2px; background: var(--color-border); }
+
+/* 行内图标选择器浮层（同右键菜单层）；宽度约束同标准 emoji-picker */
+.tpl-prop-icon-pop {
+  position: fixed;
+  z-index: 130;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  animation: ce-pop .12s ease-out;
+}
+
 /* 弹窗主体细滚动条 */
 .card-editor-body::-webkit-scrollbar, .tpl-builder-body::-webkit-scrollbar { width: 8px; }
 .card-editor-body::-webkit-scrollbar-thumb, .tpl-builder-body::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }

@@ -151,3 +151,20 @@ async function switchToDate(newDate) {
 - **命名视图 / 模板 / 属性库** 存 host `meta`（经 `getHostMeta/setHostMeta`），不入 chrome.storage；本机不跨端同步。
 - **进度↔状态联动**：`editorStatus.value==='done' ⇒ progress=100`；`progress>=100 ⇒ status='done'`，回退 `doing/todo`。时长↔起止双向：`updateEditorDuration`（起止→时长）+ `onEditorDurationInput`（时长→结束）。
 - **保留字保护**：自定义属性 key 必须过 `RESERVED_PROPS`（`title/status/…` 不可用作属性名）。
+
+## Gotcha: 行内编辑（原位替换）+ 数据标识（key）语义
+
+**场景**：模板构建器属性行要支持「双击属性名 → 原位变 input → 回车/失焦确认、Esc 取消」，且新建属性时按属性名自动推断 type/icon/options、key 取属性名。
+
+**行内编辑要点**（`openNameEditor` 模式，sidepanel.js）：
+1. **原位替换而非弹窗**：把 `<span>` 用 `replaceWith(input)` 换掉，`input.focus()+select()`；提交/取消后整块 `renderTemplateBuilder()` 重建。
+2. **Enter 提交 / blur 提交 / Esc 取消**：`keydown` 里 Enter→`finish(true)`、Esc→`finish(false)`；`blur`→`finish(true)`。`finish` 用局部 `done` 防重入（blur+Enter 连发）。
+3. **拒绝提交要能保持编辑态**：`onCommit` 返回 `false` 时（如保留字拦截），`finish` 把 `done` 复位、不重建列表、焦点留在 input —— 用户可继续改。这是「校验失败不吞输入」的关键。
+4. **实时推断不能重建列表**：输入过程中要按名字改图标/类型，只能**局部替换** `.tpl-prop-icon` 文本和 `.tpl-prop-value` 的 `replaceChildren()`，重建整棵列表会打断输入焦点。
+
+**数据标识（key）语义**（模板/属性库通用）：
+- **key = 数据身份，label = 显示名**：创建时 key 取属性名（自动去重 `(2)`、`(3)`），改名**只改 `def.label`，key 永不变** —— 否则已填卡片数据按旧 key 存、改名即断链。
+- **新建属性必须过 `RESERVED_PROPS`**：自定义属性 key 不得撞一等字段（`title/status/priority/project/…`）。注意 `dedupeKey` 会给保留字加后缀绕过，所以**先判原始名、再 dedupe**。
+- 图标/显示名覆盖允许，类型锁定（内置三件套）时右键菜单不出现「修改类型/移除」。
+
+**原则**：凡「原地编辑 + 校验失败重来」的交互，onCommit 必须支持「返回 false 拒绝且不丢焦点」；凡「名字即数据标识」的字段，改名路径与 dedupe 路径必须分开，防止校验被去重绕过。
