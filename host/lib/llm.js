@@ -15,6 +15,9 @@
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveProtocol, needsApiKey, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './llm-providers.js';
+
+export { PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP, resolveProtocol, needsApiKey };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 /** 配置文件位置：host/data/config.json（gitignore，用户填 key） */
@@ -99,9 +102,11 @@ export function readConfig(path = CONFIG_PATH) {
   const apiKey = typeof cfg.apiKey === 'string' ? cfg.apiKey.trim() : '';
   const baseURL = typeof cfg.baseURL === 'string' ? cfg.baseURL.trim().replace(/\/+$/, '') : '';
   const model = typeof cfg.model === 'string' ? cfg.model.trim() : '';
-  if (!apiKey || !baseURL || !model) return null;
+  const provider = typeof cfg.provider === 'string' ? cfg.provider.trim() : '';
+  // 无需 API Key 的服务商（本地模型 ollama 等）允许空 key；其余仍要求 key
+  if ((needsApiKey(provider) && !apiKey) || !baseURL || !model) return null;
   return {
-    provider: typeof cfg.provider === 'string' ? cfg.provider.trim() : '',
+    provider,
     baseURL,
     model,
     apiKey,
@@ -112,7 +117,9 @@ export function readConfig(path = CONFIG_PATH) {
 
 /** 配置是否可用 */
 export function isConfigured(cfg) {
-  return Boolean(cfg && cfg.enabled && cfg.apiKey && cfg.baseURL && cfg.model);
+  if (!cfg || !cfg.enabled || !cfg.baseURL || !cfg.model) return false;
+  // 无需 API Key 的服务商（本地模型等）不要求 key
+  return needsApiKey(cfg.provider) ? Boolean(cfg.apiKey) : true;
 }
 
 /** baseURL 去重拼接 /chat/completions（兼容 baseURL 带不带 /v1） */
@@ -182,20 +189,22 @@ export function normalizePropDef(parsed) {
 /* ── 协议层（单点封装，未来换 SDK 只改这里） ─────────────── */
 
 /**
- * 调用一次 OpenAI 兼容 chat/completions。
- * @param {object} cfg 配置
- * @param {object} body 完整请求体
+ * 调用一次 LLM（按服务商分派协议：openai 兼容 / anthropic / gemini）。
+ * @param {object} cfg 配置（含 provider）
+ * @param {object} body openai 风格的归一化 body（model/messages/response_format 或 structured 标记）
  * @param {function} fetchImpl 注入的 fetch（默认 globalThis.fetch）
  * @returns {Promise<{ok:boolean, status?:number, content?:string, error?:string}>}
  */
 export async function chatCompletions(cfg, body, fetchImpl = globalThis.fetch) {
-  const url = chatCompletionsURL(cfg.baseURL);
+  const protocol = resolveProtocol(cfg.provider);
+  const { url, headers, payload } = buildRequest(cfg, body, protocol);
+
   let res;
   try {
     res = await fetchImpl(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(cfg.timeoutMs || 15000),
     });
   } catch (e) {
@@ -210,11 +219,95 @@ export async function chatCompletions(cfg, body, fetchImpl = globalThis.fetch) {
   } catch {
     return { ok: false, error: 'bad_json' };
   }
-  const content = data?.choices?.[0]?.message?.content;
+  const content = extractProtocolContent(data, protocol);
   if (typeof content !== 'string' || !content) {
     return { ok: false, error: 'empty_content' };
   }
   return { ok: true, content };
+}
+
+/* ── 协议适配：openai / anthropic / gemini ──────────────── */
+
+/** 按协议构造 url + headers + body（输入为归一化 openai 风格 body） */
+function buildRequest(cfg, body, protocol) {
+  const model = cfg.model;
+  const sys = body.messages?.[0]?.content ?? SYSTEM_PROMPT;
+  const user = body.messages?.[1]?.content ?? '';
+  const structured = body.response_format?.type; // 'json_schema' | 'json_object' | undefined
+
+  if (protocol === 'anthropic') {
+    const root = cfg.baseURL.replace(/\/+$/, '');
+    const url = /\/messages$/.test(root) ? root : `${root}/messages`;
+    const payload = {
+      model,
+      max_tokens: 1024,
+      temperature: 0,
+      system: sys,
+      messages: [{ role: 'user', content: user }],
+    };
+    if (structured) {
+      // 强制工具调用拿结构化输出
+      payload.tools = [{ name: 'infer_prop', description: '输出属性推断结果', input_schema: PROP_SCHEMA }];
+      payload.tool_choice = { type: 'tool', name: 'infer_prop' };
+    }
+    return {
+      url,
+      headers: { 'x-api-key': cfg.apiKey, 'anthropic-version': '2023-06-01' },
+      payload,
+    };
+  }
+
+  if (protocol === 'gemini') {
+    const root = cfg.baseURL.replace(/\/+$/, '');
+    const url = `${root}/models/${encodeURIComponent(model)}:generateContent`;
+    const payload = {
+      contents: [{ role: 'user', parts: [{ text: `${sys}\n\n${user}` }] }],
+      generationConfig: { temperature: 0 },
+    };
+    if (structured) {
+      payload.generationConfig.responseMimeType = 'application/json';
+      payload.generationConfig.responseSchema = geminiSchema();
+    }
+    return { url, headers: { 'x-goog-api-key': cfg.apiKey }, payload };
+  }
+
+  // openai 兼容（默认）
+  return {
+    url: chatCompletionsURL(cfg.baseURL),
+    headers: { Authorization: `Bearer ${cfg.apiKey}` },
+    payload: body,
+  };
+}
+
+/** gemini 的 responseSchema 不支持联合类型，转成宽松 schema */
+function geminiSchema() {
+  return {
+    type: 'object',
+    properties: {
+      type: { type: 'string' },
+      options: { type: 'array', items: { type: 'string' } },
+      icon: { type: 'string' },
+      defaultValue: { type: 'string' },
+    },
+    required: ['type'],
+  };
+}
+
+/** 从各协议响应里抽出文本内容 */
+function extractProtocolContent(data, protocol) {
+  if (protocol === 'anthropic') {
+    // 工具调用优先（tool_use.input 即结构化结果），否则取文本
+    const tu = data?.content?.find((c) => c?.type === 'tool_use');
+    if (tu?.input) return JSON.stringify(tu.input);
+    const text = data?.content?.filter((c) => c?.type === 'text').map((c) => c.text).join('');
+    return text || '';
+  }
+  if (protocol === 'gemini') {
+    const parts = data?.candidates?.[0]?.content?.parts;
+    if (Array.isArray(parts)) return parts.map((p) => p?.text ?? '').join('');
+    return '';
+  }
+  return data?.choices?.[0]?.message?.content;
 }
 
 /* ── 结构化输出降级链 ───────────────────────────────────── */
@@ -237,6 +330,9 @@ function buildBody(cfg, name, responseFormat) {
     body.response_format = { type: 'json_object' };
     // DeepSeek/Qwen 的 json_object 要求 prompt 中带 "json"
     body.messages[0].content += ' 必须输出合法 JSON。';
+  } else if (responseFormat === 'tool_choice' || responseFormat === 'responseSchema') {
+    // anthropic / gemini 的结构化标记（具体请求体在 buildRequest 里按协议构造）
+    body.response_format = { type: responseFormat };
   }
   return body;
 }
@@ -247,15 +343,34 @@ function buildBody(cfg, name, responseFormat) {
  */
 export async function inferProp(cfg, name, { fetchImpl = globalThis.fetch, log = {} } = {}) {
   if (!isConfigured(cfg)) return { source: 'fallback', error: 'not_configured' };
-  const attempts = [
-    ['json_schema', (rf) => buildBody(cfg, name, rf), (c) => JSON.parse(c)],
-    ['json_object', (rf) => buildBody(cfg, name, rf), (c) => JSON.parse(c)],
-    ['prompt_only', () => buildBody(cfg, name, null), (c) => {
-      const raw = extractJson(c);
-      if (!raw) throw new Error('no json in prompt-only reply');
-      return JSON.parse(raw);
-    }],
-  ];
+  const protocol = resolveProtocol(cfg.provider);
+  const promptOnly = (c) => {
+    const raw = extractJson(c);
+    if (!raw) throw new Error('no json in prompt-only reply');
+    return JSON.parse(raw);
+  };
+  // 各协议的降级链：
+  //  openai   : json_schema → json_object → prompt-only
+  //  anthropic: tool_choice（强制工具）→ prompt-only
+  //  gemini   : responseSchema → prompt-only
+  let attempts;
+  if (protocol === 'anthropic') {
+    attempts = [
+      ['tool_choice', () => buildBody(cfg, name, 'tool_choice'), (c) => JSON.parse(c)],
+      ['prompt_only', () => buildBody(cfg, name, null), promptOnly],
+    ];
+  } else if (protocol === 'gemini') {
+    attempts = [
+      ['responseSchema', () => buildBody(cfg, name, 'responseSchema'), (c) => JSON.parse(c)],
+      ['prompt_only', () => buildBody(cfg, name, null), promptOnly],
+    ];
+  } else {
+    attempts = [
+      ['json_schema', () => buildBody(cfg, name, 'json_schema'), (c) => JSON.parse(c)],
+      ['json_object', () => buildBody(cfg, name, 'json_object'), (c) => JSON.parse(c)],
+      ['prompt_only', () => buildBody(cfg, name, null), promptOnly],
+    ];
+  }
   let lastError = '';
   for (const [label, build, parse] of attempts) {
     try {

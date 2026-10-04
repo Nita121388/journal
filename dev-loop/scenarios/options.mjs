@@ -27,15 +27,49 @@ export async function runOptions({ page, extId }) {
   const aiOpen = await page.locator('#ai-section').evaluate((el) => el.open);
   add('点击标题可展开 AI 卡片', aiOpen);
 
-  // 3) 选服务商自动填 base/model
-  await page.locator('#ai-provider').selectOption('qwen');
-  await page.waitForTimeout(300);
+  // 3) 服务商下拉：动态渲染 24 家 + 自定义
+  const providerCount = await page.locator('#ai-provider option').count();
+  add('服务商下拉渲染 24 家 + 自定义', providerCount === 25, `options=${providerCount}`);
+
+  // 4) 选 deepseek（有推荐模型）→ 自动填 baseURL + 第一个推荐模型
+  await page.locator('#ai-provider').selectOption('deepseek');
+  await page.waitForTimeout(400);
   const autoFill = await page.evaluate(() => ({
     base: document.getElementById('ai-base').value,
     model: document.getElementById('ai-model').value,
+    datalist: document.querySelectorAll('#ai-model-options option').length,
   }));
-  add('选服务商自动填 baseURL + model',
-    autoFill.base.includes('dashscope') && autoFill.model === 'qwen-plus', JSON.stringify(autoFill));
+  add('选 deepseek 自动填 baseURL + 推荐模型（下拉）',
+    autoFill.base.includes('deepseek') && autoFill.model === 'deepseek-v4-pro' && autoFill.datalist >= 3,
+    JSON.stringify(autoFill));
+
+  // 5) 选 ollama（无需 key）→ API Key 置灰 + 本地地址
+  await page.locator('#ai-provider').selectOption('ollama');
+  await page.waitForTimeout(400);
+  const ollamaState = await page.evaluate(() => ({
+    base: document.getElementById('ai-base').value,
+    keyDisabled: document.getElementById('ai-key').disabled,
+    keyHint: document.getElementById('ai-key-hint')?.textContent || '',
+  }));
+  add('选 ollama：无需 key 置灰 + 本地地址',
+    ollamaState.base === 'http://127.0.0.1:11434/v1' && ollamaState.keyDisabled === true && /无需/.test(ollamaState.keyHint),
+    JSON.stringify(ollamaState));
+
+  // 6) 选无 defaultBaseUrl 的 bedrock → 提示需云厂商凭据
+  await page.locator('#ai-provider').selectOption('bedrock');
+  await page.waitForTimeout(400);
+  const bedrockState = await page.evaluate(() => ({
+    base: document.getElementById('ai-base').value,
+    hint: document.getElementById('ai-base-hint')?.textContent || '',
+    keyDisabled: document.getElementById('ai-key').disabled,
+  }));
+  add('选 bedrock（无 baseURL）→ 提示需云厂商凭据',
+    bedrockState.base === '' && /云厂商凭据/.test(bedrockState.hint) && bedrockState.keyDisabled === true,
+    JSON.stringify(bedrockState));
+
+  // 回到 deepseek 继续保存流程
+  await page.locator('#ai-provider').selectOption('deepseek');
+  await page.waitForTimeout(400);
 
   // 4) 保存配置 → host configured=true
   await page.locator('#ai-enabled').check();

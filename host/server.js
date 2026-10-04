@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release } from 'node:os';
 
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
-import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig } from './lib/llm.js';
+import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
 import { createBackplane } from './sync/backplane.js';
 import { runSync, syncStatus } from './sync/engine.js';
@@ -478,6 +478,14 @@ export async function createApp(store, { logger } = {}) {
       if (path === '/api/meta/savedViews' && method === 'PUT') return ok(res, await saveSavedViews(store, Array.isArray(body) ? body : []));
 
       // ── AI（LLM 代理；key 存 host/data/config.json，不进扩展）─────
+      if (path === '/api/ai/providers' && method === 'GET') {
+        return ok(res, {
+          providerInfo: PROVIDER_INFO,
+          suggestedModels: SUGGESTED_MODELS,
+          fixedCredProviders: FIXED_CRED_PROVIDERS,
+          logoMap: PROVIDER_LOGO_MAP,
+        });
+      }
       if (path === '/api/ai/config' && method === 'GET') {
         const cfg = readAiConfig();
         return ok(res, {

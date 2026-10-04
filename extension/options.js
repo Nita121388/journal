@@ -280,23 +280,109 @@ async function onSyncNow() {
 
 /* ─── AI 增强设置 ─────────────────────────────────────────── */
 
-/** 服务商预设：选 provider 自动填 baseURL + model */
-const AI_PROVIDERS = {
-  deepseek:    { baseURL: 'https://api.deepseek.com', model: 'deepseek-chat' },
-  qwen:        { baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
-  kimi:        { baseURL: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
-  zhipu:       { baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
-  siliconflow: { baseURL: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
-  ollama:      { baseURL: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:3b' },
-  custom:      { baseURL: '', model: '' },
+/**
+ * 服务商 / 模型数据表：从 host GET /api/ai/providers 拉取（单一来源）。
+ * host 离线时用下方内置兜底表（常用几家），保证设置页可用。
+ */
+let aiTable = { providerInfo: {}, suggestedModels: {}, fixedCredProviders: [], logoMap: {} };
+
+/** host 离线时的兜底表（保持与 host 表同形） */
+const AI_FALLBACK = {
+  providerInfo: {
+    deepseek:    { label: 'DeepSeek', defaultBaseUrl: 'https://api.deepseek.com/v1' },
+    qwen:        { label: 'Qwen (Alibaba)', defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+    kimi:        { label: 'Kimi (Moonshot)', defaultBaseUrl: 'https://api.moonshot.cn/v1' },
+    glm:         { label: 'GLM (Zhipu)', defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
+    siliconflow: { label: 'SiliconFlow', defaultBaseUrl: 'https://api.siliconflow.cn/v1' },
+    ollama:      { label: 'Ollama', defaultBaseUrl: 'http://127.0.0.1:11434/v1' },
+    custom:      { label: '自定义', defaultBaseUrl: '' },
+  },
+  suggestedModels: {
+    deepseek: ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner'],
+    ollama:   ['qwen2.5:3b', 'qwen3:4b', 'gemma3:4b'],
+  },
+  fixedCredProviders: ['ollama'],
+  logoMap: {},
 };
+
+/** 品牌 logo 的 emoji 近似（避免打包图片资源） */
+const PROVIDER_EMOJI = {
+  openai: '🧠', anthropic: '🤖', google: '🔵', vertexai: '🔷', azure: '☁️', bedrock: '🪵',
+  ollama: '🦙', openrouter: '🔀', aihubmix: '🧩', deepseek: '🐋', siliconflow: '🧊',
+  sglang: '⚡', gateway: '🚪', edgeone: '🛡️', doubao: '🥟', modelscope: '🔬', glm: '🧠',
+  qwen: '🐳', qiniu: '☁️', kimi: '🌙', minimax: '🎯', novita: '✨', mimo: '📱',
+  atlascloud: '🌐', custom: '⚙️',
+};
+const providerEmoji = (key) => PROVIDER_EMOJI[key] || '🤖';
+
+/** 拉取 host 的服务商表（失败用内置兜底表） */
+async function loadAiTable() {
+  try {
+    const res = await fetch(`${HOST}/api/ai/providers`, { signal: AbortSignal.timeout(3000) });
+    const data = (await res.json())?.data;
+    if (data?.providerInfo && Object.keys(data.providerInfo).length) {
+      aiTable = {
+        providerInfo: data.providerInfo,
+        suggestedModels: data.suggestedModels || {},
+        fixedCredProviders: data.fixedCredProviders || [],
+        logoMap: data.logoMap || {},
+      };
+    }
+  } catch { /* host 离线 → 兜底 */ }
+  if (!Object.keys(aiTable.providerInfo).length) {
+    // 拉取失败/离线：用内置兜底表，保证设置页可用
+    aiTable = { ...AI_FALLBACK };
+  }
+  if (!aiTable.providerInfo.custom) {
+    aiTable.providerInfo.custom = { label: '自定义', defaultBaseUrl: '' };
+  }
+  renderAiProviders();
+}
+
+/** 动态渲染 24 家服务商下拉（label + logo emoji） */
+function renderAiProviders() {
+  const sel = els.aiProvider;
+  if (!sel) return;
+  const current = sel.value;
+  sel.replaceChildren();
+  for (const [key, info] of Object.entries(aiTable.providerInfo)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${providerEmoji(key)} ${info.label || key}`;
+    if (key === 'custom') opt.textContent = '⚙️ 自定义';
+    sel.append(opt);
+  }
+  if (current && aiTable.providerInfo[current]) sel.value = current;
+  refreshAiModelOptions(sel.value);
+}
+
+/** 刷新模型推荐项（datalist：下拉选或自由输入） */
+function refreshAiModelOptions(provider) {
+  const dl = document.getElementById('ai-model-options');
+  if (!dl) return;
+  dl.replaceChildren();
+  const models = aiTable.suggestedModels?.[provider] || [];
+  for (const m of models) {
+    const o = document.createElement('option');
+    o.value = m;
+    dl.append(o);
+  }
+}
+
+/** 该服务商是否无需 API Key */
+function aiProviderNeedsKey(provider) {
+  return !(aiTable.fixedCredProviders || []).includes(String(provider || ''));
+}
 
 /** 按 baseURL 反查 provider（迁移旧配置时用） */
 function providerFromBase(baseURL) {
   const b = (baseURL || '').trim();
   if (!b) return 'custom';
-  for (const [key, p] of Object.entries(AI_PROVIDERS)) {
-    if (key !== 'custom' && b.startsWith(new URL(p.baseURL).origin)) return key;
+  for (const [key, info] of Object.entries(aiTable.providerInfo)) {
+    if (key === 'custom' || !info?.defaultBaseUrl) continue;
+    try {
+      if (b.startsWith(new URL(info.defaultBaseUrl).origin)) return key;
+    } catch { /* 非法 baseURL → 跳过 */ }
   }
   return 'custom';
 }
@@ -308,19 +394,36 @@ function setAiFeedback(msg, kind = '') {
   }
 }
 
+/** 按服务商切换 key 输入框状态（no-key 家置灰） */
+function applyAiKeyRequirement(provider) {
+  const needKey = aiProviderNeedsKey(provider);
+  if (els.aiKey) {
+    els.aiKey.disabled = !needKey;
+    els.aiKey.placeholder = needKey
+      ? '留空表示不修改（已保存的 key 不会显示）'
+      : '该服务商无需 API Key';
+  }
+  const hint = document.getElementById('ai-key-hint');
+  if (hint) hint.textContent = needKey ? '' : '该服务商无需 API Key（本地 / 云凭据登录）';
+}
+
 /** 读 host 配置 + 扩展 inferMode → 填表单（key 永不回显） */
 async function loadAiSettings() {
+  await loadAiTable();
   try {
     const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
     const data = (await res.json())?.data;
     if (data) {
       if (els.aiEnabled) els.aiEnabled.checked = Boolean(data.enabled);
       if (els.aiBase) els.aiBase.value = data.baseURL || '';
-      if (els.aiModel) els.aiModel.value = data.model || '';
       if (els.aiProvider) {
         // 反查 provider（不匹配预设时落到「自定义」，用户已填的 base/model 保留）
-        els.aiProvider.value = providerFromBase(data.baseURL);
+        const p = providerFromBase(data.baseURL);
+        els.aiProvider.value = aiTable.providerInfo[p] ? p : 'custom';
+        refreshAiModelOptions(els.aiProvider.value);
       }
+      if (els.aiModel) els.aiModel.value = data.model || '';
+      applyAiKeyRequirement(els.aiProvider?.value);
       renderAiStatus(data.configured);
     } else {
       renderAiStatus(false);
@@ -341,11 +444,23 @@ function renderAiStatus(configured) {
   if (els.aiLabel) els.aiLabel.textContent = configured ? '已配置' : '未配置';
 }
 
-/** 选 provider → 自动填 baseURL + model */
+/** 选 provider → 自动填 baseURL + 推荐模型 + key 置灰 */
 function onAiProviderChange() {
-  const p = AI_PROVIDERS[els.aiProvider.value] || AI_PROVIDERS.custom;
-  if (els.aiBase) els.aiBase.value = p.baseURL;
-  if (els.aiModel) els.aiModel.value = p.model;
+  const key = els.aiProvider?.value;
+  const info = aiTable.providerInfo[key] || { label: '自定义', defaultBaseUrl: '' };
+  if (els.aiBase) els.aiBase.value = info.defaultBaseUrl || '';
+  refreshAiModelOptions(key);
+  // 有推荐模型时自动选第一个，否则清空让用户输入
+  const models = aiTable.suggestedModels?.[key] || [];
+  if (els.aiModel) els.aiModel.value = models[0] || '';
+  applyAiKeyRequirement(key);
+  // 无默认 baseURL（vertexai/bedrock/edgeone）→ 提示需云厂商凭据
+  const hint = document.getElementById('ai-base-hint');
+  if (hint) {
+    hint.textContent = (key !== 'custom' && !info.defaultBaseUrl)
+      ? '该服务商需云厂商凭据（AK/SK、OAuth 等），请查阅其文档后自行填写'
+      : '';
+  }
 }
 
 /** 保存：PUT 到 host（key 只进 host）+ 扩展 inferMode */

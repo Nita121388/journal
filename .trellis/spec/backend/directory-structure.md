@@ -62,7 +62,15 @@ host/
 零依赖（`dependencies: {}`）的 LLM 代理层，供扩展通过 `/api/ai/*` 调用。
 
 - **配置**：`host/data/config.json`（`baseURL` / `model` / `apiKey` / `timeoutMs` / `enabled`）。真实文件被 `.gitignore` 忽略，模板 `config.example.json` 提交。**API key 永不进入响应或日志**。读写经端点 `GET /api/ai/config`（不返回 key）/ `PUT /api/ai/config`（合并写盘，`apiKey` 空串 = 不改）；用户经**选项页 AI 卡片**配置（不再手改文件）；key 只在 PUT body 出现一次，扩展不持久化。`writeConfig` 用 temp→rename 原子写。
-- **协议插槽**：`chatCompletions(config, body, fetchImpl)` 是唯一的网络调用点（裸 `fetch`，OpenAI 兼容 `/chat/completions`；国产模型全兼容，只换 `baseURL`）。未来接 Anthropic/Gemini 原生协议或换 Vercel AI SDK 时**只改此函数**，降级链与端点契约不动。
+- **协议插槽**：`chatCompletions(config, body, fetchImpl)` 是唯一的网络调用点（裸 `fetch`），由 `buildRequest(cfg, body, resolveProtocol(provider))` 按协议构造 url/headers/body：
+  | 协议 | 服务商 | 请求 | 认证 | 结构化方式 |
+  |---|---|---|---|---|
+  | `openai`（默认） | deepseek/qwen/kimi/glm/doubao/siliconflow… 20 家 | `{base}/chat/completions` | `Authorization: Bearer` | `response_format` json_schema → json_object → prompt-only |
+  | `anthropic` | anthropic、minimax | `{base}/messages` | `x-api-key` + `anthropic-version` | `tools`+`tool_choice` 强制 → prompt-only |
+  | `gemini` | google、vertexai | `{base}/models/{model}:generateContent` | `x-goog-api-key` | `generationConfig.responseSchema` → prompt-only |
+
+  响应解析统一经 `extractProtocolContent(data, protocol)`（anthropic 取 `tool_use.input` 或 text、gemini 取 `candidates[0].content.parts[].text`）。**三协议降级链均归一到 `normalizePropDef`**，对外统一出口 `{source:'llm'|'fallback'}`，扩展零感知。
+- **服务商数据表**（`lib/llm-providers.js`，host 单一来源）：`PROVIDER_INFO`（24 家 label+defaultBaseUrl）/ `SUGGESTED_MODELS`（推荐模型）/ `FIXED_CRED_PROVIDERS`（无需 key：bedrock/vertexai/ollama）/ `PROVIDER_LOGO_MAP`。经 `GET /api/ai/providers` 下发给扩展渲染，避免两端重复维护。`isConfigured`/`readConfig` 对 `FIXED_CRED_PROVIDERS` 放行空 key（本地模型无需 key）。本地适配：ollama 指向 `127.0.0.1:11434/v1`（参考项目为云端）。
 - **结构化输出三级降级链**：`response_format: json_schema` → `json_object` → prompt-only（`extractJson()` 去围栏 + 平衡括号扫描 + `normalizePropDef()` 校验修复）→ `source:'fallback'`。provider 不遵守 `response_format` 时仍能拿到结构化结果。
 - **静默降级**：LLM 故障/超时/未配置统一返回 `200 + source:'fallback'|'not_configured'` + 本地结果（见 `error-handling.md`），扩展 UI 永不因 AI 故障中断。
 - **可测试**：`fetchImpl` 注入 → `test/llm.test.mjs` + `test/ai.test.mjs` 纯单测/本地 mock，不联网（`quality-guidelines.md` 要求）。

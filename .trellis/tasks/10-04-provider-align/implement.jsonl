@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "LLM Proxy 章节：协议插槽/配置职责，新增多协议分派在此扩展"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "AI 端点静默降级契约（200+source:fallback），新协议沿用"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "host 零依赖 + node --test 门禁；key 不入响应/日志"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "表单控件（select/input 置灰）走既有 token"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "下拉动态渲染用 DOM API，不用 innerHTML"}

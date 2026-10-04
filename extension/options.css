@@ -15,6 +15,7 @@
   --color-accent-soft: #e7f4ec;
   --color-coral: #f2908f;
   --color-danger: #e5534b;
+  --color-warn: #b7791f;                   /* 提示文字（field-hint） */
   --color-code-bg: #eef3ef;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
@@ -578,3 +579,17 @@ h3:first-of-type { margin-top: 10px; }
   border-radius: 4px;
 }
 #ai-section .status-row { margin-left: auto; }
+
+/* ── AI 卡片：字段提示 / 禁用态 ── */
+.field-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--color-warn);
+  margin: -6px 0 4px;
+  min-height: 14px;
+}
+.field input:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  background: var(--color-surface-2);
+}

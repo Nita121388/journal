@@ -143,3 +143,98 @@ test('inferProp：围栏输出在 prompt_only 级被解析', async () => {
 test('PROP_TYPES 枚举完整性（与扩展对齐）', () => {
   assert.deepEqual(PROP_TYPES, ['text', 'textarea', 'number', 'select', 'multi', 'date', 'time', 'checkbox', 'schedule', 'tags', 'status']);
 });
+
+/* ── 协议分派（对齐参考项目：24 家服务商 / 三协议） ─────── */
+
+test('resolveProtocol：minimax→anthropic、google/vertexai→gemini、其余 openai', async () => {
+  const { resolveProtocol } = await import('../lib/llm-providers.js');
+  assert.equal(resolveProtocol('minimax'), 'anthropic');
+  assert.equal(resolveProtocol('anthropic'), 'anthropic');
+  assert.equal(resolveProtocol('google'), 'gemini');
+  assert.equal(resolveProtocol('vertexai'), 'gemini');
+  assert.equal(resolveProtocol('deepseek'), 'openai');
+  assert.equal(resolveProtocol('qwen'), 'openai');
+  assert.equal(resolveProtocol('glm'), 'openai');
+  assert.equal(resolveProtocol(''), 'openai');
+});
+
+test('PROVIDER_INFO 24 家 + ollama 本地地址 + FIXED_CRED 3 家', async () => {
+  const { PROVIDER_INFO, FIXED_CRED_PROVIDERS, SUGGESTED_MODELS } = await import('../lib/llm-providers.js');
+  assert.equal(Object.keys(PROVIDER_INFO).length, 24, '24 家服务商');
+  assert.equal(PROVIDER_INFO.ollama.defaultBaseUrl, 'http://127.0.0.1:11434/v1', 'ollama 本地地址');
+  assert.equal(PROVIDER_INFO.deepseek.defaultBaseUrl, 'https://api.deepseek.com/v1');
+  assert.deepEqual(FIXED_CRED_PROVIDERS, ['bedrock', 'vertexai', 'ollama']);
+  assert.ok(Array.isArray(SUGGESTED_MODELS.deepseek) && SUGGESTED_MODELS.deepseek.length > 0, 'deepseek 有推荐模型');
+});
+
+test('isConfigured：无需 key 的服务商（ollama）不要求 apiKey', async () => {
+  const { isConfigured } = await import('../lib/llm.js');
+  const ollama = { enabled: true, provider: 'ollama', baseURL: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:3b', apiKey: '' };
+  assert.equal(isConfigured(ollama), true, 'ollama 无 key 也算已配置');
+  const deepseek = { enabled: true, provider: 'deepseek', baseURL: 'https://api.deepseek.com', model: 'deepseek-chat', apiKey: '' };
+  assert.equal(isConfigured(deepseek), false, 'deepseek 无 key → 未配置');
+});
+
+test('anthropic 协议（minimax）：请求 /messages + x-api-key + anthropic-version + tool_choice', async () => {
+  const { inferProp } = await import('../lib/llm.js');
+  const cfg = { enabled: true, provider: 'minimax', baseURL: 'https://api.minimaxi.com/anthropic', model: 'MiniMax-M3', apiKey: 'sk-ant', timeoutMs: 500 };
+  let seen = null;
+  const fetchImpl = async (url, opts) => {
+    seen = { url, headers: opts.headers, body: JSON.parse(opts.body) };
+    return { ok: true, json: async () => ({ content: [{ type: 'tool_use', input: { type: 'select', options: ['高', '中'], icon: '⭐️' } }] }) };
+  };
+  const r = await inferProp(cfg, '重要度', { fetchImpl, log });
+  assert.equal(r.source, 'llm');
+  assert.equal(r.def.type, 'select');
+  assert.ok(seen.url.endsWith('/messages'), `anthropic url 应以 /messages 结尾，实际 ${seen.url}`);
+  assert.equal(seen.headers['x-api-key'], 'sk-ant');
+  assert.ok(seen.headers['anthropic-version'], 'anthropic-version header 缺失');
+  assert.ok(seen.body.tools && seen.body.tool_choice, 'anthropic 应带 tools/tool_choice');
+});
+
+test('gemini 协议（google）：请求 :generateContent + x-goog-api-key + responseSchema', async () => {
+  const { inferProp } = await import('../lib/llm.js');
+  const cfg = { enabled: true, provider: 'google', baseURL: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-3.1-pro', apiKey: 'gk', timeoutMs: 500 };
+  let seen = null;
+  const fetchImpl = async (url, opts) => {
+    seen = { url, headers: opts.headers, body: JSON.parse(opts.body) };
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({ type: 'number', options: null, icon: '🔢' }) }] } }] }) };
+  };
+  const r = await inferProp(cfg, '评分', { fetchImpl, log });
+  assert.equal(r.source, 'llm');
+  assert.equal(r.def.type, 'number');
+  assert.ok(seen.url.includes(':generateContent'), `gemini url 应含 :generateContent，实际 ${seen.url}`);
+  assert.equal(seen.headers['x-goog-api-key'], 'gk');
+  assert.equal(seen.body.generationConfig.responseMimeType, 'application/json');
+  assert.ok(seen.body.generationConfig.responseSchema, 'gemini 应带 responseSchema');
+});
+
+test('openai 协议（deepseek）：请求 /chat/completions + Bearer + response_format json_schema', async () => {
+  const { inferProp } = await import('../lib/llm.js');
+  const cfg = { enabled: true, provider: 'deepseek', baseURL: 'https://api.deepseek.com/v1', model: 'deepseek-chat', apiKey: 'sk-ds', timeoutMs: 500 };
+  let seen = null;
+  const fetchImpl = async (url, opts) => {
+    seen = { url, headers: opts.headers, body: JSON.parse(opts.body) };
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({ type: 'date', options: null, icon: '🗓️' }) } }] }) };
+  };
+  const r = await inferProp(cfg, '截止日期', { fetchImpl, log });
+  assert.equal(r.source, 'llm');
+  assert.ok(seen.url.endsWith('/chat/completions'));
+  assert.equal(seen.headers.Authorization, 'Bearer sk-ds');
+  assert.equal(seen.body.response_format.type, 'json_schema');
+});
+
+test('readConfig：no-key 服务商（ollama）允许空 apiKey', async () => {
+  const { readConfig } = await import('../lib/llm.js');
+  const dir = mkdtempSync(join(tmpdir(), 'jllm-'));
+  const p = join(dir, 'config.json');
+  try {
+    writeFileSync(p, JSON.stringify({ provider: 'ollama', baseURL: 'http://127.0.0.1:11434/v1', model: 'qwen2.5:3b', apiKey: '' }));
+    const cfg = readConfig(p);
+    assert.ok(cfg, 'ollama 无 key 应读取成功');
+    assert.equal(cfg.apiKey, '');
+    assert.equal(isConfigured(cfg), true, 'ollama 无 key 已配置');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
