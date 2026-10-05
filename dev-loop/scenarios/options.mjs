@@ -12,6 +12,10 @@ export async function runOptions({ page, extId }) {
   const add = (name, ok, detail) => checks.push([name, Boolean(ok), detail || '']);
 
   await page.goto(`chrome-extension://${extId}/options.html`, { waitUntil: 'domcontentloaded' });
+  // 深色快照：applyTheme 只在 theme==='auto' 时跟随系统，直接挂 data-theme 属性（暗色 token 即 CSS 变量）
+  if (process.env.DEV_LOOP_THEME === 'dark') {
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+  }
   await page.waitForTimeout(1000);
 
   // 1) 默认折叠：所有 collapsible 都无 open
@@ -72,7 +76,15 @@ export async function runOptions({ page, extId }) {
   await page.waitForTimeout(400);
 
   // 4) 保存配置 → host configured=true
-  await page.locator('#ai-enabled').check();
+  // 自定义 switch：原生 checkbox 视觉隐藏。用 el.click() 触发激活语义
+  // （等价于用户点击 label 行；Playwright 脚本滚动后 label 点击偶发 hit-test 抖动，
+  //  开关外观由 dev-loop 截图人工核验）。
+  const toggled = await page.evaluate(() => {
+    const el = document.getElementById('ai-enabled');
+    if (!el.checked) el.click(); // 仅在关闭时点击 → 幂等设成「开」（上一轮已保存 enabled=true 时不重复翻转）
+    return el.checked;
+  });
+  add('开关行绑定可切换启用', toggled);
   await page.locator('#ai-key').fill('sk-OPTIONS-SECRET');
   await page.locator('#ai-save').click();
   await page.waitForTimeout(1200);

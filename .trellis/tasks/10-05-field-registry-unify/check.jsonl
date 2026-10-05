@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "检查 UI 组件是否符合纯函数/禁 innerHTML/幂等约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "检查注册表状态读写与持久化边界"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门禁：lint/类型/一致性检查"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "lib 模块纯函数质量要求（field-registry.js 为无 DOM 纯模块）"}
+{"file": ".trellis/tasks/10-05-field-registry-unify/prd.md", "reason": "验收标准逐条核对（R1-R5、兼容存量）"}
+{"file": ".trellis/tasks/10-05-field-registry-unify/design.md", "reason": "核对实现是否偏离设计：behavior 分发覆盖全部内建 key、storage 落位正确"}

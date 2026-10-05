@@ -5,6 +5,7 @@
 
 import { getSettings, saveSettings } from './lib/store.js';
 import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from './lib/sync.js';
+import { autoEnhance as enhanceSelects } from './lib/select.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
 
@@ -414,7 +415,7 @@ async function loadAiSettings() {
     const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
     const data = (await res.json())?.data;
     if (data) {
-      if (els.aiEnabled) els.aiEnabled.checked = Boolean(data.enabled);
+      if (els.aiEnabled && !els.aiEnabled.dataset.touched) els.aiEnabled.checked = Boolean(data.enabled);
       if (els.aiBase) els.aiBase.value = data.baseURL || '';
       if (els.aiProvider) {
         // 反查 provider（不匹配预设时落到「自定义」，用户已填的 base/model 保留）
@@ -522,6 +523,7 @@ async function onAiTest() {
 /* ─── 初始化 ──────────────────────────────────────────────── */
 
 async function init() {
+  enhanceSelects(); // 自建下拉框（BoardUI 风格）
   await applyTheme();
   els.promptTextarea.value = PROMPT_TEMPLATE;
   els.copyBtn.addEventListener('click', copyPrompt);
@@ -536,6 +538,10 @@ async function init() {
   if (els.aiProvider) els.aiProvider.addEventListener('change', onAiProviderChange);
   if (els.aiSave) els.aiSave.addEventListener('click', onAiSave);
   if (els.aiTest) els.aiTest.addEventListener('click', onAiTest);
+  if (els.aiEnabled) {
+    // 用户手动拨过开关后，loadAiSettings 的异步回填不再覆盖（避免 host 慢时回退）
+    els.aiEnabled.addEventListener('change', () => { els.aiEnabled.dataset.touched = '1'; });
+  }
   await loadAiSettings();
 
   const online = await probeHost(); // 尽力而为

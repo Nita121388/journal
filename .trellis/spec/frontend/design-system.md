@@ -122,7 +122,9 @@
 | 进度条 | 高 3–4px、`--r-full`；轨道 surface；值 accent；旁标百分比 |
 | 空状态 | 图标/emoji + 一句原因 + **一个行动按钮**（如「新建卡片」「清除筛选」） |
 | 骨架屏 | 卡片池/时间线各 3 行，>300ms 显示 |
+| 下拉框 Select | 自建组件（`extension/select.css` + `lib/select.js`，BoardUI 风格）：隐藏原生 select 作数据源 + 代理触发器 + **自绘非模态 popover**（portal 到 body、z 150）。触发器：1px 弱描边 + 大圆角（sm 8px / md 10-12px）+ 极弱投影 `--select-shadow` + 200ms 过渡 + SVG chevron 展开旋转 + ring-offset 焦点环（`--color-focus`）。键盘：↑↓ Home End Enter Esc Tab + 字符 typeahead；`aria-activedescendant` 焦点不离开触发器；multiple 触发器显示「已选 N 项」。样式走两页各自 `:root` 的 `--select-*` token，不写 hex |
 | Toast | 顶部/底部居中，停留 3–5s，可关闭，z-toast |
+| 行级浮层（右键菜单/图标选择器） | 构建器弹窗之上、属性编辑弹窗之下：构建器 overlay=120、行级浮层=130、属性定义弹窗=140（高于通用 overlay=100）。浮层定位贴右边界防溢出，`max-width: calc(100vw - 16px)` |
 | 日历格 | 32–36px；today=accent 底+高对比字；日志日=cell 色阶；hover 显示日期+计数 |
 
 ## 7. 主题（暗色）
@@ -153,6 +155,7 @@
 - **token 桥接**：`@theme inline` 把既有语义变量映射为 Tailwind utility，右侧用 `var()` 引用而非字面值，使暗色切换自动跟随。颜色别名：`canvas`（页面底）/`surface`（卡片面）/`ink`（文字）/`muted`（次要文字）/`line`（描边）/`accent`（主色）。**必须用 `@theme inline`**：普通 `@theme` 会产生 `--color-accent: var(--color-accent)` 循环引用而失效。
 - **组件迁移规则**：简单高频区（按钮/chip/徽标/空状态/Toast）迁入 `@layer components` 并删除 `sidepanel.css` 对应规则（不双份维护）；复杂组件（时间线画布、周视图网格、日历、热力图、卡片编辑器）保留原生 CSS，因大量运行时计算定位（`scheduleHeight()` 等）无法 utility 化。
 - **迁移验收**：`node dev-loop/dev-loop.mjs --scenario tailwind-migrated --width 320,360,400,500` 全绿（校验 computed-style + 暗色跟随）。
+- **跨页共享组件样式**：`extension/select.css` 被 `sidepanel.html` 与 `options.html` 同时引入（自建下拉框组件）。不用 `src/tailwind.css`——其产物 `dist/sidepanel.css` 未被 options 页加载，引入会串入侧栏专属样式；组件样式在两页各自 `:root` 提供 `--select-*` token（含 `--color-focus`），暗色自动跟随。`data-select-size="md"` 显式指定标准尺寸档，其余默认 sm。
 
 ## 9. 验收清单（每轮改造后）
 

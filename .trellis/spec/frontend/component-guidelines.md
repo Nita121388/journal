@@ -141,6 +141,66 @@ async function switchToDate(newDate) {
 
 **原则**：给"靠状态类互斥的交互"（拖拽/缩放/悬停展开）写 CSS 时，逐条核对同特异性规则的出现顺序，并用更高特异性的门控规则显式关掉不需要的过渡。
 
+## Field Registry（字段注册表）
+
+所有卡片字段（内建必选 title/content/tags、内建可选 status/priority/progress/assignedDate/project/schedule、属性库自定义）**统一为一条 `FieldDef`**。真相源 = `extension/lib/field-registry.js`（纯函数模块，无 DOM/storage）。禁用 `BUILTIN_DEFS`/`findPropDef` 分叉；读取一律 `getFieldDef(key)`。
+
+### 三维度解耦（各管一件事）
+| 维度 | 回答 | 消费者 |
+|---|---|---|
+| `type` | 值怎么存、用什么控件 | `buildTplDefaultEditor` / `buildPropControl` |
+| `behavior` | 引擎拿到值后做什么（渲染/联动/归一化） | 卡片池徽标、时间线、建卡落位 |
+| `storage` | 值落卡片哪个字段 | `createFromTemplate` / `readValueFromCard` |
+
+`FieldDef = {key,label,icon,type,behavior,required,source,locked,options?,storage,empty}`。`source:'builtin'|'user'` 只决定可删改权限；`required:true` = 每卡必有的锁定行。behavior 取值：`none|tags|status|priority|progress|date|project|schedule`。
+
+### 签名
+```js
+initFieldRegistry({ getUserFields: () => propLibrary })  // loadPropLibrary() 之后调一次
+getFieldDef(key)                       // → FieldDef|null（替代 findPropDef）
+listFieldDefs({source?,behavior?,required?})  // → FieldDef[]（供下拉/渲染遍历）
+isReservedKey(key, RESERVED_PROPS)     // 内建 key + 保留字统一判定
+writeValueToCard(card,key,value)       // 按 storage 落位（建卡）
+readValueFromCard(card,key)            // 按 storage 读回
+```
+
+### 契约：writeValueToCard 语义
+- `storage.kind==='card'`：`fields.value` 存在则写一级字段 `v = value ?? empty`（无条件写）；`fields` 无 value（schedule）则按 `{start,end,duration}` 展开写 `startTime/endTime/duration`。
+- `storage.kind==='props'`（用户字段默认）：**仅当 value 非 undefined/null/'' 才写** `card.props[key]`。
+- **未登记 key**（旧模板里属性库已删除的字段）：`getFieldDef` 返回 null → 退化为 `props` 写入，保持旧 `default:` 分支行为，不得丢值。
+
+### 行为分发取代硬编码 key
+卡片池徽标按 `def.behavior` 遍历（**seed 数组顺序 = 渲染顺序**，改动顺序即改视觉顺序）；建卡用 `writeValueToCard` 取代 `switch(key)`。业务规则（如状态筛选 `statusMatches`、时间线布局）**不属于字段分发，不动**。
+
+## Gotcha: 显式 null 与 `??` 的陷阱
+
+**场景**：注册表 `empty` 可能是显式 `null`（progress/assignedDate 等“空即无值”的字段）。
+
+**陷阱**：`const empty = st.empty ?? def?.empty ?? defaultEmpty(type)` —— `??` 把显式 `null` 当“缺失”跳过，继续回退到 `defaultEmpty('number')`（`''`），于是建卡时空进度被写成空串而非 null。
+
+**正解**：用 `hasOwnProperty` 判断“属性是否存在”，而非 nullish 判断。
+```js
+const empty = Object.prototype.hasOwnProperty.call(st, 'empty') ? st.empty : defaultEmpty(def?.type);
+```
+
+**原则**：注册表/配置里的“可能为 null 的显式默认值”不能用 `??` 兜底，只能用属性存在性判断。
+
+## Gotcha: 共享 document 的 Esc 监听器竞争
+
+**场景**：多个浮层（属性行右键菜单 `propRowMenuEl`、行内图标 `rowIconPop`、字段选择 `fieldPickerEl`）各自在 `document` 上注册 keydown，且有一个全局 Esc handler 会关掉整个构建器/编辑器。
+
+**陷阱**：浮层自己的 `onKey`(Esc→close) 与全局 handler 同挂在 document；`stopPropagation` 无效（同节点，stopPropagation 不阻止兄弟监听器；只有 `stopImmediatePropagation` 有效但会破坏全局语义）。若浮层用 `setTimeout(0)` 注册，监听器顺序在全局之后 → Esc 先关浮层再关整个构建器。
+
+**正解**：全局 Esc handler 必须把每个浮层变量列入 early-return 列表，Esc 只关最上层浮层。
+```js
+if (propRowMenuEl && e.key==='Escape') { e.preventDefault(); closePropRowMenu(); return; }
+if (fieldPickerEl  && e.key==='Escape') { e.preventDefault(); closeFieldPicker();  return; }
+if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker(); return; }
+// 都不开时才落到：关整个构建器/编辑器
+```
+
+**原则**：新增同域浮层时，三件事成套做——① 声明模块级 `xxxEl` 变量；② 全局 Esc handler 加一行 early-return；③ 重建宿主（`render*()`）时先 `closeXxx()`。
+
 ## Unified Card Pool (统一卡片池，阶段 B)
 
 - **待办不是独立区块**：卡片池是唯一主视图，`status ∈ {todo,doing}` 即「待办」筛选（`statusMatches(c,'active')`），与其他筛选（标签/项目）AND 叠加。

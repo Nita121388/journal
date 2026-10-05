@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Journal — 设置</title>
   <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="select.css">
 </head>
 <body>
   <header id="header">
@@ -50,36 +51,67 @@
         <span class="collapse-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div class="section-body">
-        <p class="desc">AI 用于「模板属性推断」的增强：本地规则没把握的长尾属性名（如「客户满意度评分」）会交给大模型推断类型与选项。常见属性走本地规则，零延迟。API Key 只保存在本机 host 配置文件（<code>host/data/config.json</code>），不会写入扩展。</p>
+        <p class="desc">AI 用于「模板属性推断」的增强：本地规则没把握的长尾属性名（如「客户满意度评分」）交给大模型推断类型与选项，常见属性走本地规则、零延迟。</p>
+        <p class="desc ai-note">API Key 只保存在本机 host 配置文件 <code>host/data/config.json</code>，不会写入扩展。</p>
 
-        <label class="check-field">
-          <input type="checkbox" id="ai-enabled">
-          <span>启用 AI 增强推断</span>
+        <label class="switch-row">
+          <input type="checkbox" id="ai-enabled" class="switch-input">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span class="switch-text">
+            <span class="switch-title">启用 AI 增强推断</span>
+            <span class="switch-sub">关闭时只用本地规则，不影响正常使用</span>
+          </span>
         </label>
 
-        <label class="field">服务商
-          <select id="ai-provider">
-            <!-- 由 options.js 从 host /api/ai/providers 动态渲染（24 家） -->
-          </select>
-        </label>
+        <div class="sub-panel">
+          <div class="sub-panel-head">
+            <span class="sub-panel-title">连接配置</span>
+            <span class="sub-panel-hint">服务商 · 接口地址 · 模型</span>
+          </div>
 
-        <label class="field">Base URL<input id="ai-base" type="text" placeholder="https://api.deepseek.com/v1" autocomplete="off"></label>
-        <span id="ai-base-hint" class="field-hint"></span>
-        <label class="field">模型<input id="ai-model" type="text" list="ai-model-options" placeholder="选推荐模型或自行输入" autocomplete="off"></label>
-        <datalist id="ai-model-options"></datalist>
-        <label class="field">API Key<input id="ai-key" type="password" placeholder="留空表示不修改（已保存的 key 不会显示）" autocomplete="off"></label>
-        <span id="ai-key-hint" class="field-hint"></span>
+          <label class="field">服务商
+            <select id="ai-provider" data-select-size="md">
+              <!-- 由 options.js 从 host /api/ai/providers 动态渲染（24 家） -->
+            </select>
+          </label>
 
-        <label class="field">触发策略
-          <select id="ai-infer-mode">
-            <option value="auto">智能：仅长尾属性问 AI（推荐）</option>
-            <option value="always">总是：每次新建属性都问 AI</option>
-            <option value="never">从不：只用本地规则</option>
-          </select>
-        </label>
+          <div class="field-grid">
+            <div class="field-col">
+              <label class="field">Base URL
+                <input id="ai-base" type="text" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+              </label>
+              <span id="ai-base-hint" class="field-hint"></span>
+            </div>
+            <div class="field-col">
+              <label class="field">模型
+                <input id="ai-model" type="text" list="ai-model-options" placeholder="选推荐模型或自行输入" autocomplete="off">
+              </label>
+              <datalist id="ai-model-options"></datalist>
+            </div>
+          </div>
+
+          <label class="field">API Key
+            <input id="ai-key" type="password" placeholder="留空表示不修改（已保存的 key 不会显示）" autocomplete="off">
+          </label>
+          <span id="ai-key-hint" class="field-hint"></span>
+        </div>
+
+        <div class="sub-panel">
+          <div class="sub-panel-head">
+            <span class="sub-panel-title">触发策略</span>
+            <span class="sub-panel-hint">决定什么时候才去问 AI</span>
+          </div>
+          <label class="field">询问时机
+            <select id="ai-infer-mode" data-select-size="md">
+              <option value="auto">智能：仅长尾属性问 AI（推荐）</option>
+              <option value="always">总是：每次新建属性都问 AI</option>
+              <option value="never">从不：只用本地规则</option>
+            </select>
+          </label>
+        </div>
 
         <div class="btn-row">
-          <button id="ai-save" class="btn" type="button">保存配置</button>
+          <button id="ai-save" class="btn btn-primary" type="button">保存配置</button>
           <button id="ai-test" class="btn" type="button">连接测试</button>
         </div>
         <span id="ai-feedback" class="copy-feedback"></span>
@@ -161,7 +193,7 @@
       <div id="sync-meta" class="desc"></div>
 
       <label class="field">同步方式
-        <select id="sync-provider">
+        <select id="sync-provider" data-select-size="md">
           <option value="off">关闭</option>
           <option value="local">本地文件夹</option>
           <option value="webdav">WebDAV（坚果云等）</option>

@@ -1,0 +1,191 @@
+/* select.css — 自建下拉框（BoardUI Select 风格）
+ * 被 sidepanel.html 与 options.html 同时引入。
+ * 颜色/尺寸全部走各页面 :root 提供的语义 token，本文件不写 hex。
+ * 对应任务：.trellis/tasks/09-30-custom-select-component */
+
+/* ── 原生 select 降级隐藏（仍为数据源 / 表单语义 / 无 JS 兜底） ── */
+
+.js-select-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── 包裹层 ────────────────────────────────────────────── */
+
+.js-select {
+  position: relative;
+  min-width: 0;
+}
+
+/* ── 触发器 ────────────────────────────────────────────── */
+
+.js-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1;
+  height: var(--select-h-sm);
+  padding: 0 8px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--select-radius-sm);
+  box-shadow: var(--select-shadow);
+  cursor: pointer;
+  transition: background-color var(--select-dur) var(--select-ease),
+              border-color var(--select-dur) var(--select-ease),
+              box-shadow var(--select-dur) var(--select-ease);
+}
+
+.js-select[data-size="md"] .js-select-trigger {
+  font-size: 13px;
+  height: var(--select-h-md);
+  padding: 0 11px;
+  border-radius: var(--select-radius-md);
+}
+
+.js-select-trigger:hover:not(:disabled) {
+  background: var(--color-surface);
+  border-color: var(--select-hover-border);
+}
+
+/* BoardUI: ring-2 + ring-offset-2 */
+.js-select-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--select-shadow),
+              0 0 0 2px var(--color-bg),
+              0 0 0 4px var(--color-focus);
+}
+
+.js-select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.js-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.js-select-value.is-placeholder { color: var(--color-muted); }
+
+.js-select-chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--color-muted);
+  transition: transform var(--select-dur) var(--select-ease);
+}
+.js-select-trigger[aria-expanded="true"] .js-select-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── 浮层（非模态：页面仍可滚动） ──────────────────────── */
+
+.js-select-pop {
+  position: fixed;
+  z-index: 150; /* > 属性弹窗 140 / 模板构建器 120，< toast 200 */
+  box-sizing: border-box;
+  padding: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-width: calc(100vw - 16px); /* MARGIN×2：320px 侧栏 + 长选项也不横向溢出视口 */
+  overscroll-behavior: contain;
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--select-radius-md);
+  box-shadow: var(--select-pop-shadow);
+  animation: js-select-pop-in var(--select-dur) var(--select-ease);
+}
+.js-select-pop[hidden] { display: none; }
+
+@keyframes js-select-pop-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── 选项 ──────────────────────────────────────────────── */
+
+.js-select-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.js-select-item.is-active { background: var(--color-surface); }
+.js-select-item.is-selected { color: var(--color-accent); font-weight: 500; }
+.js-select-pop[data-multi="true"] .js-select-item.is-selected {
+  background: var(--color-accent-light);
+}
+
+.js-select-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.js-select-check {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1;
+  visibility: hidden;
+}
+.js-select-item.is-selected .js-select-check { visibility: visible; }
+
+/* 真实 <button>：需重置 UA 默认外观（按钮不继承 font/color，自带 buttonface 底） */
+.js-select-clear {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--color-muted);
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+.js-select-clear:hover { background: var(--color-surface); color: var(--color-text); }
+.js-select-clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-focus);
+}
+
+/* ── 动效降级 ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .js-select-pop { animation: none; }
+  .js-select-trigger,
+  .js-select-chevron { transition: none; }
+}

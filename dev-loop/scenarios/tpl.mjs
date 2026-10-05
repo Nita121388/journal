@@ -42,7 +42,8 @@ export async function runTpl({ page }) {
     await page.locator('#tpl-prop-list .tpl-prop-name-input').fill('重要度');
     await page.waitForTimeout(200);
     const inferred = await page.evaluate(() => {
-      const row = document.querySelector('.tpl-extra-row:last-of-type');
+      const rows = document.querySelectorAll('#tpl-prop-list .tpl-extra-row');
+      const row = rows[rows.length - 1];
       if (!row) return null;
       const icon = row.querySelector('.tpl-prop-icon')?.textContent;
       const typeEl = row.querySelector('.tpl-prop-value select');
@@ -58,9 +59,10 @@ export async function runTpl({ page }) {
   await page.locator('#tpl-prop-list .tpl-prop-name-input').press('Enter');
   await page.waitForTimeout(300);
   const committed = await page.evaluate(() => {
-    const row = document.querySelector('.tpl-extra-row:last-of-type');
+    const rows = document.querySelectorAll('#tpl-prop-list .tpl-extra-row');
+    const row = rows[rows.length - 1];
     const name = row?.querySelector('.tpl-prop-name')?.textContent;
-    return { name, rows: document.querySelectorAll('.tpl-extra-row').length };
+    return { name, rows: rows.length };
   });
   add('回车确认 → 行以「重要度」命名保留', committed?.name === '重要度', JSON.stringify(committed));
 
@@ -86,7 +88,7 @@ export async function runTpl({ page }) {
   add('拦截后 Esc 取消 → 草稿行移除', afterCancel === 1, `rows=${afterCancel}`);
 
   // Right-click menu on the row
-  await page.locator('.tpl-extra-row:last-of-type').click({ button: 'right', timeout: 3000 });
+  await page.locator('#tpl-prop-list .tpl-extra-row').last().click({ button: 'right', timeout: 3000 });
   await page.waitForTimeout(300);
   const menu = await page.evaluate(() => {
     const m = document.querySelector('#tpl-prop-menu');
@@ -125,6 +127,45 @@ export async function runTpl({ page }) {
     return { name: row?.querySelector('.tpl-prop-name')?.textContent, key: row?.dataset.key };
   });
   add('内置行可改名且 key 不变', reqRenamed?.name === '标题（改）' && reqRenamed?.key === 'title', JSON.stringify(reqRenamed));
+
+  // ▾ 现有字段选择浮层：列出内建可选 + 属性库；选中加入 + 重复项置灰
+  await page.locator('.tpl-add-caret').click({ timeout: 3000 });
+  await page.waitForTimeout(300);
+  const pickerOpen = await page.evaluate(() => {
+    const m = document.querySelector('.tpl-field-picker');
+    if (!m) return null;
+    const items = [...m.querySelectorAll('.tpl-ctx-item')].map((el) => ({ text: el.textContent.trim(), disabled: el.disabled }));
+    return {
+      groups: [...m.querySelectorAll('.tpl-picker-group')].map((g) => g.textContent.trim()),
+      hasNew: items.some((i) => /新建自定义属性/.test(i.text)),
+      hasPriority: items.some((i) => /^⭐.*优先级/.test(i.text)),
+      statusDisabled: items.find((i) => /📌.*状态/.test(i.text))?.disabled,
+      libHasImp: items.some((i) => /重要度/.test(i.text)), // 前置步骤已把「重要度」存入属性库
+    };
+  });
+  add('▾ 浮层打开：新建入口 + 内建可选 + 属性库(含已存字段)',
+    Boolean(pickerOpen?.hasNew && pickerOpen?.hasPriority && pickerOpen?.statusDisabled === false && pickerOpen?.libHasImp),
+    JSON.stringify(pickerOpen));
+
+  // 选中「优先级」→ 行加入模板；再开浮层该项应置灰
+  await page.locator('.tpl-field-picker .tpl-ctx-item', { hasText: '优先级' }).first().click({ timeout: 3000 });
+  await page.waitForTimeout(400);
+  const addedPrio = await page.evaluate(() => {
+    const rows = document.querySelectorAll('#tpl-prop-list .tpl-extra-row');
+    const last = rows[rows.length - 1];
+    return { key: last?.dataset.key, name: last?.querySelector('.tpl-prop-name')?.textContent };
+  });
+  add('选中现有字段「优先级」→ 直接加入模板', addedPrio?.key === 'priority', JSON.stringify(addedPrio));
+  await page.locator('.tpl-add-caret').click({ timeout: 3000 });
+  await page.waitForTimeout(300);
+  const prioNowDisabled = await page.evaluate(() => {
+    const m = document.querySelector('.tpl-field-picker');
+    const item = [...(m?.querySelectorAll('.tpl-ctx-item') || [])].find((el) => /优先级/.test(el.textContent));
+    return Boolean(item?.disabled);
+  });
+  add('已加入字段在浮层中置灰', prioNowDisabled, `disabled=${prioNowDisabled}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
 
   // 保存 → 直读 host API 验证内置覆盖已持久化
   await page.locator('#tpl-builder-name').fill('回归测试模板');

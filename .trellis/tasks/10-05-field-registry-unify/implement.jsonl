@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "字段注册表 UI（模板构建器选择下拉浮层）必须遵循组件约定：纯函数构建 DOM、禁 innerHTML 插用户内容、幂等渲染"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "注册表是持久化状态（host meta propertyLibrary）+ 派生状态（builtin 种子合并），需遵循无框架的 store 约定"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "FieldDef 结构定义与 behavior/storage 枚举的类型约束"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "浮层/菜单样式复用 tpl-ctx-menu 体系、focus 样式、token 引用（--color-accent/--color-focus）不得写 hex"}
+{"file": ".trellis/tasks/10-05-field-registry-unify/design.md", "reason": "本任务技术设计：FieldDef 结构、type/behavior/storage 解耦、注册表 API、分发改造点、分阶段与回滚"}

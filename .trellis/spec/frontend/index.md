@@ -34,6 +34,7 @@ Before writing any extension code, confirm:
 - [ ] New file is in the right place per [Directory Structure](./directory-structure.md)
 - [ ] No DOM + storage mixing (see [Hook Guidelines](./hook-guidelines.md) dependency graph)
 - [ ] Render functions are pure + idempotent per [Component Guidelines](./component-guidelines.md)
+- [ ] Touching card fields (add/rename/type/建卡落位)? Field data flows through the **Field Registry** — see Field Registry section in [Component Guidelines](./component-guidelines.md); never reintroduce `findPropDef`/`BUILTIN_DEFS` dispatch or `switch(key)` for field values
 - [ ] Any new storage field is documented in the [State Management](./state-management.md) schema and validated in `lib/store.js`
 - [ ] JSDoc added per [Type Safety](./type-safety.md)
 

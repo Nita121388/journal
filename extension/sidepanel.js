@@ -20,6 +20,11 @@ import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/hos
 import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
 import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from './lib/prop-infer.js';
 import { inferPropWithLLM } from './lib/prop-llm.js';
+import { autoEnhance as enhanceSelects } from './lib/select.js';
+import {
+  initFieldRegistry, getFieldDef, listFieldDefs, isReservedKey,
+  writeValueToCard, readValueFromCard,
+} from './lib/field-registry.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -1880,8 +1885,10 @@ async function renderCardPool() {
 
   for (const card of pool) {
     const li = document.createElement('li');
-    li.className = 'cardpool-item status-' + (card.status || 'none');
-    if (card.status === 'done') li.classList.add('is-done');
+    // 状态灯类：按注册表 behavior:'status' 读取（等价于 card.status，集中声明）
+    const statusVal = readValueFromCard(card, 'status') ?? card.status;
+    li.className = 'cardpool-item status-' + (statusVal || 'none');
+    if (statusVal === 'done') li.classList.add('is-done');
     li.dataset.id = card.id;
     // 键盘可达：卡片可 Tab 聚焦，Enter/空格打开编辑器
     li.tabIndex = 0;
@@ -1912,20 +1919,40 @@ async function renderCardPool() {
 
     li.append(icon, text);
 
-    // 状态 + 进度 + 优先级
+    // 状态 + 进度 + 优先级：按注册表 behavior 分发（种子顺序 = 渲染顺序）
     const metaRow = document.createElement('span');
     metaRow.className = 'cardpool-meta';
-    metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[card.status] || card.status || '纯记录'));
-    if (card.priority && card.priority !== 'medium') metaRow.append(chipSpan('cardpool-prio', card.priority === 'high' ? '🔴' : '🟢'));
-    if (card.progress != null) metaRow.append(chipSpan('cardpool-progress', `${card.progress}%`));
+    for (const def of listFieldDefs({ source: 'builtin' })) {
+      const b = def.behavior;
+      if (!b || b === 'none' || def.required) continue;
+      if (b !== 'status' && b !== 'priority' && b !== 'progress') continue;
+      const v = readValueFromCard(card, def.key);
+      if (b === 'status') {
+        metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[v] || v || '纯记录'));
+      } else if (b === 'priority') {
+        if (v && v !== 'medium') metaRow.append(chipSpan('cardpool-prio', v === 'high' ? '🔴' : '🟢'));
+      } else if (b === 'progress') {
+        if (v != null) metaRow.append(chipSpan('cardpool-progress', `${v}%`));
+      }
+    }
     li.append(metaRow);
 
-    // 日期 / 项目 / 自定义属性
+    // 日期 / 项目 / 自定义属性：按注册表 behavior 分发（种子顺序 = 渲染顺序）
     const chips = document.createElement('span');
     chips.className = 'cardpool-chips';
-    if (card.assignedDate) chips.append(chipSpan('cardpool-chip', shortDate(card.assignedDate)));
-    if (card.project) chips.append(chipSpan('cardpool-chip', '📁 ' + card.project));
-    if (card.duration != null && card.duration > 0) chips.append(chipSpan('cardpool-chip', `⏱️ ${card.duration}分`));
+    for (const def of listFieldDefs({ source: 'builtin' })) {
+      const b = def.behavior;
+      if (b !== 'date' && b !== 'project' && b !== 'schedule') continue;
+      const v = readValueFromCard(card, def.key);
+      if (b === 'date') {
+        if (v) chips.append(chipSpan('cardpool-chip', shortDate(v)));
+      } else if (b === 'project') {
+        if (v) chips.append(chipSpan('cardpool-chip', '📁 ' + v));
+      } else if (b === 'schedule') {
+        const d = v && typeof v === 'object' ? v.duration : v;
+        if (d != null && d > 0) chips.append(chipSpan('cardpool-chip', `⏱️ ${d}分`));
+      }
+    }
     for (const [k, v] of Object.entries(card.props ?? {})) {
       if (v === null || v === undefined || v === '') continue;
       chips.append(chipSpan('cardpool-chip', `•${k}: ${v}`));
@@ -2169,20 +2196,9 @@ function applyView(view) {
 
 /* ─── 模板构建器 ───────────────────────────────────── */
 
-const REQUIRED_DEFS = [
-  { key: 'title', icon: '🏷️', label: '标题', type: 'text' },
-  { key: 'content', icon: '📄', label: '内容', type: 'textarea' },
-  { key: 'tags', icon: '#️⃣', label: '标签', type: 'tags' },
-];
-const OPTIONAL_DEFS = [
-  { key: 'status', icon: '📌', label: '状态', type: 'status', options: ['none', 'todo', 'doing', 'done'] },
-  { key: 'progress', icon: '📊', label: '进度', type: 'number', min: 0, max: 100 },
-  { key: 'priority', icon: '⭐️', label: '优先级', type: 'select', options: ['high', 'medium', 'low'] },
-  { key: 'assignedDate', icon: '🗓️', label: '日期', type: 'date' },
-  { key: 'schedule', icon: '⏱️', label: '起止时间/时长', type: 'schedule' },
-  { key: 'project', icon: '📁', label: '项目', type: 'text' },
-];
-const BUILTIN_DEFS = [...REQUIRED_DEFS, ...OPTIONAL_DEFS];
+const REQUIRED_DEFS = listFieldDefs({ required: true });
+/** 是否内建字段（注册表 source==='builtin'） */
+function isBuiltinKey(key) { return getFieldDef(key)?.source === 'builtin'; }
 
 const tplBuilderName = document.getElementById('tpl-builder-name');
 const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
@@ -2244,13 +2260,8 @@ let tplEditingId = null;   // 编辑既有模板时的 id
 let tplEditKey = null;     // 编辑属性定义时的 key
 let tplDragKey = null;     // 排序拖拽中的 key
 
-/** 找属性定义：内建 或 属性库 */
-function findPropDef(key) {
-  const b = BUILTIN_DEFS.find(d => d.key === key);
-  if (b) return b;
-  const c = propLibrary[key];
-  return c ? { key, icon: c.icon || '•', label: c.label || key, type: c.type || 'text', options: c.options } : null;
-}
+/** 找属性定义：统一走注册表（内建 + 属性库） */
+function findPropDef(key) { return getFieldDef(key); }
 
 /** 模板 → 有序 fields（兼容旧扁平 propsDefaults 结构；确保必备三件套 title/content/tags 在最前） */
 function normalizeTemplateFields(tpl) {
@@ -2342,6 +2353,7 @@ function typeLabel(v) { return PROP_TYPES.find(t => t.value === v)?.label || v |
 function renderTemplateBuilder() {
   if (!tplPropList) return;
   closePropRowMenu();
+  closeFieldPicker();
   closeRowIconPicker();
   tplPropList.replaceChildren();
   for (const def of REQUIRED_DEFS) tplPropList.append(buildPropRow(def.key, effectiveDef(def), true));
@@ -2489,10 +2501,8 @@ function startNewNameEdit(row, nameEl, entry) {
     },
     onCommit: (next) => {
       // 保留字段拦截：用户命名本身就是保留字时，提示且不采用
-      // （dedupeKey 会加后缀绕过，故这里先判原始名）
-      const reservedHit = [...REQUIRED_DEFS.map(d => d.key), ...OPTIONAL_DEFS.map(d => d.key), ...RESERVED_PROPS]
-        .find((r) => next === r);
-      if (reservedHit) {
+      // （dedupeKey 会加后缀绕过，故这里先判原始名；isReservedKey 统一覆盖内建 key + RESERVED_PROPS）
+      if (isReservedKey(next, RESERVED_PROPS)) {
         showToast(`「${next}」是保留字段，不能用作属性名`, 'error');
         return false;
       }
@@ -2504,7 +2514,7 @@ function startNewNameEdit(row, nameEl, entry) {
         entry.def.key = finalKey;
       }
       entry.def.label = next;
-      if (!BUILTIN_DEFS.find(d => d.key === finalKey)) {
+      if (!isBuiltinKey(finalKey)) {
         propLibrary = { ...propLibrary, [finalKey]: { ...entry.def } };
         void savePropLibrary();
       }
@@ -2615,16 +2625,121 @@ function applyLlmSuggestion(row, entry, llmDef) {
 /* ── 一行式添加行 ─────────────────────────────────────────── */
 
 function buildAddRow() {
-  const row = document.createElement('button');
-  row.type = 'button';
-  row.className = 'tpl-prop-row tpl-add-row';
-  row.title = '新增一行属性';
-  row.setAttribute('aria-label', '添加属性');
+  // 分裂按钮：主体 = 新建属性（行为不变）；▾ = 从现有字段选择
+  const wrap = document.createElement('div');
+  wrap.className = 'tpl-add-row-wrap';
+
+  const main = document.createElement('button');
+  main.type = 'button';
+  main.className = 'tpl-prop-row tpl-add-row tpl-add-main';
+  main.title = '新增一行属性';
+  main.setAttribute('aria-label', '添加属性');
   const ico = document.createElement('span'); ico.className = 'tpl-add-ico'; ico.textContent = '＋';
   const txt = document.createElement('span'); txt.className = 'tpl-add-text'; txt.textContent = '添加属性';
-  row.append(ico, txt);
-  row.addEventListener('click', startAddProp);
-  return row;
+  main.append(ico, txt);
+  main.addEventListener('click', startAddProp);
+
+  const caret = document.createElement('button');
+  caret.type = 'button';
+  caret.className = 'tpl-add-caret';
+  caret.title = '从现有属性选择';
+  caret.setAttribute('aria-label', '从现有属性选择');
+  caret.innerHTML = '<span aria-hidden="true">▾</span>';
+  caret.addEventListener('click', (e) => { e.stopPropagation(); openFieldPicker(caret); });
+
+  wrap.append(main, caret);
+  return wrap;
+}
+
+/* ── 现有字段选择浮层（内建可选 + 属性库）─────────────────── */
+
+let fieldPickerEl = null;
+let fieldPickerCleanup = null;
+
+function closeFieldPicker() {
+  fieldPickerCleanup?.();
+  fieldPickerCleanup = null;
+  fieldPickerEl?.remove();
+  fieldPickerEl = null;
+}
+
+/** 模板里已占用的 key（必选锁定行 + 已加入的 extra） */
+function tplUsedKeys() {
+  return new Set([...REQUIRED_DEFS.map(d => d.key), ...tplBuilderState.extra.map(e => e.key)]);
+}
+
+/** 选中一个现有字段 → 加入模板 */
+function addExistingPropToTemplate(def) {
+  if (tplBuilderState.extra.some(e => e.key === def.key)) { showToast(`「${def.label}」已在模板中`, ''); return; }
+  tplBuilderState.extra.push({ key: def.key, def: { ...def } });
+  tplBuilderState.values[def.key] = defaultValueForType(def.type);
+  closeFieldPicker();
+  renderTemplateBuilder();
+  showToast(`已添加属性「${def.label || def.key}」`, 'success');
+}
+
+function openFieldPicker(anchor) {
+  closeFieldPicker();
+  const menu = document.createElement('div');
+  menu.className = 'tpl-ctx-menu tpl-field-picker';
+  fieldPickerEl = menu;
+
+  const used = tplUsedKeys();
+  const group = (title) => {
+    const h = document.createElement('div');
+    h.className = 'tpl-picker-group';
+    h.textContent = title;
+    return h;
+  };
+  const defItem = (def) => {
+    const added = used.has(def.key);
+    const label = `${def.icon || ''} ${def.label || def.key}`;
+    const item = ctxItem(added ? `${label}  ✓` : label, () => {
+      if (added) { showToast(`「${def.label || def.key}」已在模板中`, ''); return; }
+      addExistingPropToTemplate(def);
+    });
+    if (added) item.disabled = true;
+    return item;
+  };
+
+  // 顶部：新建（默认高亮）
+  const newItem = ctxItem('＋ 新建自定义属性…', () => { closeFieldPicker(); startAddProp(); });
+  newItem.classList.add('is-active');
+  menu.append(newItem, menuSep());
+
+  // 内建可选
+  const optional = listFieldDefs({ source: 'builtin', required: false });
+  if (optional.length) {
+    menu.append(group('内建可选'));
+    for (const def of optional) menu.append(defItem(def));
+  }
+
+  // 属性库
+  const userDefs = listFieldDefs({ source: 'user' });
+  menu.append(menuSep(), group('属性库'));
+  if (userDefs.length) for (const def of userDefs) menu.append(defItem(def));
+  else {
+    const empty = document.createElement('div');
+    empty.className = 'tpl-picker-empty';
+    empty.textContent = '（空）';
+    menu.append(empty);
+  }
+
+  document.body.append(menu);
+  // 定位：贴 anchor 下方，超出视口则上翻
+  const r = anchor.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+  menu.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + 'px';
+  const onDown = (e) => { if (!menu.contains(e.target) && e.target !== anchor) closeFieldPicker(); };
+  const onKey = (e) => { if (e.key === 'Escape') closeFieldPicker(); };
+  setTimeout(() => {
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+  }, 0);
+  fieldPickerCleanup = () => {
+    document.removeEventListener('mousedown', onDown);
+    document.removeEventListener('keydown', onKey);
+  };
 }
 
 /** 新增属性：先给一个默认行，再进入命名编辑（输入即自动推断） */
@@ -2932,7 +3047,7 @@ function openTplEditProp(key) {
   const entry = tplBuilderState.extra.find(x => x.key === key);
   if (!entry) return;
   tplEditKey = key;
-  const isBuiltin = !!BUILTIN_DEFS.find(d => d.key === key);
+  const isBuiltin = isBuiltinKey(key);
   const disp = entry.def.label && entry.def.label !== key ? entry.def.label : '';
   if (tplNpLabel) tplNpLabel.value = disp;
   if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = true; tplNpKey.title = '属性键在编辑时不可改（避免破坏已有数据）'; }
@@ -2955,7 +3070,7 @@ function onTplNewPropOk() {
     const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
     const entry = tplBuilderState.extra.find(x => x.key === key);
     if (entry) entry.def = def;
-    if (!BUILTIN_DEFS.find(d => d.key === key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+    if (!isBuiltinKey(key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
     closeTplPropDialog();
     renderTemplateBuilder();
     showToast(`已更新属性「${key}」`, 'success');
@@ -3006,30 +3121,12 @@ function closeTemplateMenu() {
   document.getElementById('template-menu')?.remove();
 }
 
-/** 用模板新建卡片：按模板 fields（内建 key 映射到卡片字段，自定义 key → card.props） */
+/** 用模板新建卡片：按注册表 storage 把模板字段落到卡片一级字段或 card.props */
 async function createFromTemplate(tpl) {
   const fields = normalizeTemplateFields(tpl);
   const patch = { content: '', emoji: tpl.emoji || '', props: {}, provenance: { origin: 'human' } };
   for (const f of fields) {
-    const v = f?.value;
-    switch (f?.key) {
-      case 'title': patch.title = v ?? ''; break;
-      case 'content': patch.content = v ?? ''; break;
-      case 'status': patch.status = v ?? 'none'; break;
-      case 'progress': patch.progress = v ?? null; break;
-      case 'priority': patch.priority = v ?? 'medium'; break;
-      case 'assignedDate': patch.assignedDate = v ?? null; break;
-      case 'schedule':
-        if (v && typeof v === 'object') {
-          patch.startTime = v.start || null;
-          patch.endTime = v.end || null;
-          patch.duration = v.duration ?? null;
-        }
-        break;
-      case 'project': patch.project = v ?? null; break;
-      case 'tags': patch.tags = Array.isArray(v) ? v : []; break;
-      default: if (v !== undefined && v !== null && v !== '') patch.props[f.key] = v; break;
-    }
+    writeValueToCard(patch, f?.key, f?.value);
   }
   const card = await createCardEntry(patch);
   await refreshAll();
@@ -3234,6 +3331,9 @@ function updateWideButton() {
 }
 
 async function init() {
+  // 自建下拉框（BoardUI 风格）：增强静态 select；动态生成由全局 observer 自动接管
+  enhanceSelects();
+
   // 主题
   const settings = await getSettings();
   if (settings.theme === 'dark' ||
@@ -3399,9 +3499,12 @@ async function init() {
     const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
     const tplOpen = tplOv && !tplOv.classList.contains('hidden');
     if (!cardOpen && !tplOpen) return;
-    // 属性行右键菜单 / 图标浮层开着时，Esc 只关浮层
+    // 属性行右键菜单 / 图标浮层 / 字段选择浮层开着时，Esc 只关浮层
     if (propRowMenuEl && e.key === 'Escape') {
       e.preventDefault(); closePropRowMenu(); return;
+    }
+    if (fieldPickerEl && e.key === 'Escape') {
+      e.preventDefault(); closeFieldPicker(); return;
     }
     if (rowIconPop && e.key === 'Escape') {
       e.preventDefault(); closeRowIconPicker(); return;
@@ -3462,6 +3565,8 @@ async function init() {
     if (e.target === editorOverlay) saveEditor();
   });
   await loadPropLibrary();
+  // 字段注册表：用户字段走 getter 实时读 propLibrary，变更后无需重新 init
+  initFieldRegistry({ getUserFields: () => propLibrary });
 
   // ── 卡片池新建 ──
   els.btnNewCard.addEventListener('click', () => {

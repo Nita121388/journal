@@ -163,3 +163,14 @@ test('PUT /api/ai/config：省略 apiKey 不改已有 key', async () => {
   const raw = JSON.parse(readFileSync(missingConfig, 'utf-8'));
   assert.equal(raw.apiKey, 'sk-PUT-SECRET');
 });
+
+test('GET /api/ai/providers：返回 24 家 + 推荐模型 + no-key 列表 + logo', async () => {
+  const r = await api('GET', '/api/ai/providers');
+  assert.equal(r.status, 200);
+  const d = r.json.data;
+  assert.equal(Object.keys(d.providerInfo).length, 24, '24 家服务商');
+  assert.ok(Array.isArray(d.suggestedModels.deepseek) && d.suggestedModels.deepseek.length > 0, 'deepseek 推荐模型');
+  assert.deepEqual(d.fixedCredProviders, ['bedrock', 'vertexai', 'ollama']);
+  assert.ok(d.logoMap.deepseek, 'logo 映射存在');
+  assert.equal(d.providerInfo.ollama.defaultBaseUrl, 'http://127.0.0.1:11434/v1', 'ollama 本地地址');
+});

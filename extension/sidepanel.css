@@ -19,6 +19,19 @@
   --color-danger: #d32f2f;                 /* 危险（Toast error） */
   --color-warn: #ef6c00;                   /* 警告（Toast warn） */
   --color-on-accent: #fff;                 /* 主色底上的前景色（按钮/成功 Toast） */
+  /* 自建下拉框（select.css）：BoardUI 风格令牌。
+   * 侧栏控件密度小（11px 字号 / 24px 高），故圆角取 10px 而非 BoardUI 的 2lg(~12-14px)，
+   * 否则 24px 高的控件会呈胶囊状。 */
+  --select-radius-sm: 8px;
+  --select-radius-md: 10px;
+  --select-h-sm: 24px;
+  --select-h-md: 32px;
+  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);      /* 极弱投影（BoardUI shadow-xs） */
+  --select-pop-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);  /* 浮层投影 */
+  --select-hover-border: var(--color-muted);
+  --select-dur: 200ms;
+  --select-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环（design-system §4） */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
@@ -1716,15 +1729,11 @@ html.wide-mode .timeline-card { max-width: 300px; }
   margin: 6px 0;
 }
 /* .chip / .empty-state / .toast 已迁移到 src/tailwind.css */
-.pool-project-select {
-  font-family: var(--font);
-  font-size: 11px;
-  max-width: 140px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
+
+/* 下拉框视觉已全部改由自建组件（select.css）接管。
+ * 这里只保留「布局占位」：自建组件的 copyLayout() 会读取原生 select 的
+ * computed max-width / display / flex 并搬运到包裹层 .js-select 上。 */
+.pool-project-select { max-width: 140px; }
 
 /* header 工具按钮 + 视图下拉 */
 .pool-tool-btn {
@@ -1736,15 +1745,8 @@ html.wide-mode .timeline-card { max-width: 300px; }
   padding: 0 2px;
 }
 .pool-tool-btn:hover { color: var(--color-accent); }
-.pool-view-select {
-  font-family: var(--font);
-  font-size: 11px;
-  max-width: 96px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
+/* 同上：仅布局（max-width），视觉由 select.css 接管 */
+.pool-view-select { max-width: 96px; }
 
 .cardpool-actions { display: flex; gap: 6px; }
 .cardpool-actions .cardpool-add-btn { flex: 1; margin-top: 6px; }
@@ -1817,11 +1819,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   margin-bottom: 6px;
 }
 .card-editor-workflow .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-muted); }
-.card-editor-workflow select {
-  font-family: var(--font); font-size: 12px;
-  border: 1px solid var(--color-border); border-radius: 6px;
-  background: var(--color-bg); color: var(--color-text); padding: 2px 4px;
-}
+/* select 视觉由 select.css 接管（原生节点已隐藏，仅保留布局由组件搬运） */
 .card-editor-workflow .prog { flex: 1; }
 .card-editor-workflow input[type=range] { flex: 1; }
 .card-editor-progress-label { font-size: 12px; color: var(--color-accent); min-width: 34px; text-align: right; }
@@ -1859,11 +1857,12 @@ html.wide-mode .timeline-card { max-width: 300px; }
 /* 属性表单：窄栏纵向堆叠（避免多字段 inline 挤压），宽屏可两列 */
 .prop-form-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .prop-form-row label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-muted); }
-.prop-form-row input, .prop-form-row select {
+.prop-form-row input {
   font-family: var(--font); font-size: 12px;
   border: 1px solid var(--color-border); border-radius: 4px;
   padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
 }
+/* select 视觉由 select.css 接管（原生节点已隐藏） */
 /* 字段：label 在上、控件在下、占满宽。
    用 .prop-form-row label.prop-field 提升特异性（0,2,1 > 0,1,1）压过
    .prop-form-row label 的 align-items:center，避免 !important（设计系统反模式）。 */
@@ -1875,8 +1874,11 @@ html.wide-mode .timeline-card { max-width: 300px; }
   flex: 1 1 100%;
   min-width: 0;
 }
+/* 满宽字段（含自建下拉框的包裹层）：保持整行占满 */
 .prop-field > input,
+.prop-field > .js-select,
 .prop-field > select { width: 100%; min-height: 28px; }
+.prop-field > .js-select .js-select-trigger { width: 100%; min-height: 28px; }
 /* 图标选择瓦片 */
 .prop-icon-pick { display: inline-flex; align-items: center; gap: 6px; }
 .prop-icon-pick .ce-emoji-tile { width: 32px; height: 32px; font-size: 15px; }
@@ -2326,6 +2328,16 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-builder-heading { font-size: 12px; font-weight: 600; color: var(--color-muted); letter-spacing: .3px; }
 .tpl-builder-header .card-editor-title { font-size: 16px; }
 
+/* 模板名输入：常态细灰下划线，聚焦仅保留一条绿色下划线（去掉叠加的彩色焦点环） */
+.tpl-builder-header .card-editor-title {
+  border-bottom: 1px solid var(--color-border);
+}
+.tpl-builder-header .card-editor-title:focus,
+.tpl-builder-header .card-editor-title:focus-visible {
+  outline: none;
+  border-bottom: 2px solid var(--color-accent);
+}
+
 .tpl-builder-body { padding: 12px 16px 14px; gap: 10px; }
 
 
@@ -2353,7 +2365,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-prop-row:hover { background: var(--color-cell-empty); }
 .tpl-prop-check { accent-color: var(--color-accent); }
 .tpl-prop-label { font-size: 13px; }
-.tpl-prop-value .prop-input { padding: 4px 8px; border-radius: 7px; }
+.tpl-prop-value .prop-input { width: 100%; padding: 4px 8px; border-radius: 7px; }
 .tpl-prop-row.is-locked { background: rgba(0,0,0,0.02); }
 .tpl-prop-row.is-locked .tpl-prop-label { font-weight: 600; }
 
@@ -2475,6 +2487,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* 标题输入框（卡片/模板）：焦点已由下划线指示，不再叠加彩色焦点环 */
+.card-editor-title:focus-visible { outline: none; }
 
 /* 拖拽排序反馈 */
 .tpl-drag { opacity: .55; transition: opacity .12s; }
@@ -2607,6 +2622,40 @@ body.tpl-dragging { user-select: none; }
 .tpl-add-ico { font-size: 14px; line-height: 1; }
 .tpl-add-text { color: inherit; }
 
+/* 分裂添加行：主体新建 + ▾ 现有字段选择 */
+.tpl-add-row-wrap { display: flex; gap: 6px; width: 100%; }
+.tpl-add-row-wrap .tpl-add-row { flex: 1; }
+.tpl-add-caret {
+  flex: 0 0 auto;
+  width: 30px;
+  justify-content: center;
+  padding: 0;
+  font-family: var(--font); font-size: 12px;
+  color: var(--color-muted);
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  border-radius: 8px;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.tpl-add-caret:hover { background: var(--color-cell-empty); border-color: var(--color-accent); color: var(--color-accent); }
+
+/* 现有字段选择浮层 */
+.tpl-field-picker { max-height: 70vh; overflow-y: auto; }
+.tpl-picker-group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  padding: 6px 10px 2px;
+  letter-spacing: .3px;
+}
+.tpl-picker-empty {
+  font-size: 12px;
+  color: var(--color-muted);
+  padding: 6px 10px;
+}
+
 /* 行右键菜单：高于模板构建器(120)，低于属性定义弹窗(140) */
 .tpl-ctx-menu {
   position: fixed;
@@ -2633,7 +2682,7 @@ body.tpl-dragging { user-select: none; }
 .tpl-ctx-item:hover:not(:disabled) { background: var(--color-cell-empty); }
 .tpl-ctx-item:disabled { opacity: .4; cursor: default; }
 .tpl-ctx-item.is-active { color: var(--color-accent); font-weight: 600; }
-.tpl-ctx-item.tpl-ctx-del { color: var(--color-danger); }
+.tpl-ctx-item.tpl-ctx-del { color: var(--color-danger, #d9534f); }
 .tpl-ctx-item.tpl-ctx-back { color: var(--color-muted); }
 .tpl-ctx-sep { height: 1px; margin: 4px 2px; background: var(--color-border); }
 
@@ -2760,40 +2809,13 @@ body.tpl-dragging { user-select: none; }
   }
 }
 
-/* ─── 下拉框统一简约美化（无彩色，仅 token 中性色） ──────────
- * 覆盖浏览器原生 select 外观：柔和边框、细圆角、自定义下拉箭头。 */
-
-select {
-  font-family: var(--font);
-  font-size: 12px;
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 4px 22px 4px 8px;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
-    linear-gradient(135deg, var(--color-muted) 50%, transparent 50%);
-  background-position: calc(100% - 12px) 55%, calc(100% - 7px) 55%;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-}
-select:hover { border-color: var(--color-muted); }
-select:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
-}
-select:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* 特定小 select 保持紧凑（不重复 padding，仅对齐已有尺寸） */
-.pool-view-select,
-.pool-project-select {
-  padding-top: 3px; padding-bottom: 3px;
-}
+/* ─── 下拉框 ──────────────────────────────────────────
+ * 视觉与交互已全面改由自建组件接管（BoardUI 风格）：
+ *   extension/select.css + extension/lib/select.js
+ * 原生 <select> 保留在 DOM 中作为数据源 / 表单语义 / 无 JS 兜底，
+ * 由 .js-select-native 隐藏，因此不再需要 appearance / 箭头覆盖规则。
+ * 尺寸与布局约束请写 .js-select 包裹层（或用 max-width 供 copyLayout 搬运）。
+ */
 
 /* ─── 属性定义编辑弹窗 ───────────────────────────────────
  * 独立弹窗（不再内嵌构建器 body），解决窄栏下空间局限；
