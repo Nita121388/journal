@@ -6,33 +6,41 @@
  */
 
 import {
-  todayKey, currentTime, aggregateHeatmap,
-  countCardsByDay, groupCardsForTimeline, getCardTypeCounts,
-  todoSummary, getMonthMatrix, toDayKey,
-  timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
-  getCardStartTime, getCardEndTime, layoutScheduleLanes,
-  RESERVED_PROPS, normalizeProgress,
+  todayKey, currentTime,
+  countCardsByDay,
+  RESERVED_PROPS,
 } from '../shared/model.js';
 import {
   getAllCards,
-  createCardEntry, updateCardEntry,
+  createCardEntry,
 } from '../state/repository.js';
 import { getSettings } from '../state/settings.js';
 import { pullFromHost, startHostSync } from '../state/sync-bridge.js';
 import { getHostMeta, setHostMeta } from '../state/host-client.js';
-import { vs, monthOf, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
+import {
+  getPropLibrary, upsertPropDef,
+  loadPropLibrary, savePropLibrary,
+} from '../state/prop-library.js';
+import { vs, monthOf } from '../state/view-state.js';
 import { actions } from '../state/actions.js';
-import { formatDateLabel, typeIcon, formatProvenance } from '../shared/format.js';
+import {
+  openEditor, closeEditor, saveEditor, updateEditorDuration,
+  onEditorDurationInput, onEditorStatusChange, updateStatusSeg, onStatusClicked,
+  onEditorProgressChange, openEmojiPicker, addEditorTag,
+  openPropForm, closePropForm, onPropFormOk, openPropLibrary,
+  editorEmoji, editingCardId,
+} from '../features/card-editor.js';
 import { renderHeatmap } from '../views/heatmap.js';
 import { renderCalendarView, updateHeaderDate } from '../views/calendar.js';
 import { renderCardPool } from '../views/pool.js';
-import {
-  renderTimeline, renderTimelineCard, scheduleHeight, SLOT_HEIGHT,
-  escapeHtml, startNowMarkerTimer,
-} from '../views/timeline.js';
+import { startNowMarkerTimer } from '../views/timeline.js';
+import { addDays, markViewMode, requestFocusScroll, renderRightView } from '../views/rightview.js';
 import { getPort } from '../platform/index.js';
 import { DEFAULT_HOST_BASE, ROUTES } from '../shared/protocol.js';
-import { els } from '../components/dom-refs.js';
+import {
+  els,
+  editorOverlay, editorStart, editorEnd, editorStatus, editorProgress, editorProgressNumber, editorStatusCustom, editorDurationMin, btnAddProp, btnPropLib, propType, propOptions, propFormOk, propFormCancel, saveTemplateBtn, editorSave, editorCancel, editorClose, editorTagInput,
+} from '../components/dom-refs.js';
 import { showToast } from '../features/toast.js';
 import { renderEmojiPicker, recordRecentEmoji } from '../features/emoji.js';
 import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from '../shared/prop-infer.js';
@@ -66,40 +74,6 @@ function isOverdue(due) { return due != null && due < todayKey(); }
 
 /* ─── 卡片编辑器 ──────────────────────────────────────── */
 
-const editorOverlay = document.getElementById('card-editor-overlay');
-const editorDate = document.getElementById('card-editor-date');
-const editorType = document.getElementById('card-editor-type');
-const editorContent = document.getElementById('card-editor-content');
-const editorStart = document.getElementById('card-editor-start');
-const editorEnd = document.getElementById('card-editor-end');
-const editorDuration = document.getElementById('card-editor-duration');
-const editorTitle = document.getElementById('card-editor-title');
-const editorStatus = document.getElementById('card-editor-status');
-const editorProgress = document.getElementById('card-editor-progress');
-const editorProgressNumber = document.getElementById('card-editor-progress-number');
-const editorStatusCustom = document.getElementById('card-editor-status-custom');
-const editorDurationMin = document.getElementById('card-editor-duration-min');
-const propsList = document.getElementById('card-editor-props-list');
-const btnAddProp = document.getElementById('btn-add-prop');
-const btnPropLib = document.getElementById('btn-prop-lib');
-const propForm = document.getElementById('prop-form');
-const propKey = document.getElementById('prop-key');
-const propIcon = document.getElementById('prop-icon');
-const propType = document.getElementById('prop-type');
-const propOptions = document.getElementById('prop-options');
-const propFormOk = document.getElementById('prop-form-ok');
-const propFormCancel = document.getElementById('prop-form-cancel');
-const saveTemplateBtn = document.getElementById('card-editor-save-template');
-const editorSave = document.getElementById('card-editor-save');
-const editorCancel = document.getElementById('card-editor-cancel');
-const editorClose = document.getElementById('card-editor-close');
-const editorTagInput = document.getElementById('card-editor-tag-input');
-const editorProjectInput = document.getElementById('card-editor-project');
-const editorMetaEl = document.getElementById('card-editor-meta');
-const projectSuggest = document.getElementById('project-suggest');
-const emojiPreview = document.getElementById('emoji-preview');
-const emojiPicker = document.getElementById('emoji-picker');
-const emojiFreeInput = null; // 已移除自由输入框（图标选择由头部瓦片负责），保留占位兼容 setEditorEmoji
 editorTagInput?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
@@ -108,449 +82,10 @@ editorTagInput?.addEventListener('keydown', (e) => {
 });
 
 /** 编辑器当前选择的 emoji（'' = 用类型默认图标） */
-let editorEmoji = '';
-let emojiPickerCleanup = null;
+/* ─── 卡片编辑器 ──────────────────────────────────────── */
+// 已提取到 features/card-editor.js（见顶部 import）。
 
-/** 编辑器自定义属性：key → 值 */
-let editorProps = {};
-/** 属性定义库（host meta）缓存 */
-let propLibrary = {};
-/** 卡片编辑器：勾选完成 ⇒ 进度100 联动开关 */
-let editorStatusValue = 'none';
-let editorProgressValue = 0;
 
-function setEditorEmoji(emoji) {
-  editorEmoji = emoji || '';
-  if (emojiPreview) emojiPreview.textContent = editorEmoji || typeIcon(editorType.value);
-  if (emojiFreeInput) emojiFreeInput.value = editorEmoji;
-}
-
-function openEmojiPicker() {
-  if (!emojiPicker) return;
-  emojiPicker.classList.remove('hidden');
-  emojiPickerCleanup?.();
-  emojiPickerCleanup = renderEmojiPicker(emojiPicker, (char) => {
-    setEditorEmoji(char);
-    recordRecentEmoji(char);
-    closeEmojiPicker();
-  }, { selected: editorEmoji });
-}
-
-function closeEmojiPicker() {
-  if (emojiPicker) emojiPicker.classList.add('hidden');
-  emojiPickerCleanup?.();
-  emojiPickerCleanup = null;
-}
-
-editorType?.addEventListener('change', () => {
-  // 未设置自定义 emoji 时，预览跟随类型默认图标
-  if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
-});
-// 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
-// 后被点击元素脱离文档导致 closest() 失效、误关 picker）
-editorOverlay?.addEventListener('click', (e) => {
-  const path = e.composedPath ? e.composedPath() : [e.target];
-  if (path.some(el => el?.classList?.contains('ce-tile-wrap'))) return;
-  closeEmojiPicker();
-});
-
-/** 正在编辑的卡片 ID（null = 新建模式） */
-let editingCardId = null;
-
-/**
- * 打开卡片编辑器
- * @param {object|null} card — null = 新建，否则编辑
- * @param {string|null} time — HH:MM（新建时作为开始时间的种子；null/空 = 不排具体时间）
- * @param {string|null} date — YYYY-MM-DD
- * @param {string|null} [assignedDate] — 新建时指定安排日期；null = 未安排（卡片池）
- */
-let editorTags = [];
-
-function renderEditorTags() {
-  const box = document.getElementById('card-editor-tag-chips');
-  if (!box) return;
-  box.replaceChildren();
-  for (const name of editorTags) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'tag-chip';
-    chip.textContent = name + ' ×';
-    chip.addEventListener('click', () => {
-      editorTags = editorTags.filter(t => t !== name);
-      renderEditorTags();
-    });
-    box.append(chip);
-  }
-}
-
-function addEditorTag(raw) {
-  const name = String(raw ?? '').trim().toLowerCase();
-  if (!name || editorTags.includes(name)) return;
-  editorTags.push(name);
-  renderEditorTags();
-}
-
-// ORIGIN_LABEL / formatProvenance 已提取到 shared/format.js（纯展示）。
-
-/** 历史项目目录（用于 datalist 建议） */
-function collectProjects() {
-  const set = new Set();
-  for (const c of vs.allCardsCache ?? []) {
-    const p = c.meta?.createdBy?.project ?? c.meta?.updatedBy?.project;
-    if (p) set.add(p);
-  }
-  return [...set].sort();
-}
-
-function renderProjectSuggest() {
-  if (!projectSuggest) return;
-  projectSuggest.replaceChildren();
-  for (const p of collectProjects()) {
-    const o = document.createElement('option');
-    o.value = p;
-    projectSuggest.append(o);
-  }
-}
-
-function openEditor(card, time, date, assignedDate = undefined) {
-  editingCardId = card?.id ?? null;
-  editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
-  renderEditorTags();
-  let start, end;
-  if (card) {
-    // 已有卡片：读其时间；全天卡片（无 startTime）保持时间框为空
-    start = getCardStartTime(card) ?? null;
-    end = getCardEndTime(card) ?? null;
-  } else {
-    // 新建：有种子时间则预填，否则留空（= 不排具体时间，全天卡片）
-    start = time ? snapUpToQuarter(time) : null;
-    end = start ? addMinutes(start, 15) : null;
-  }
-  if (editorStart) editorStart.value = start ?? '';
-  if (editorEnd) editorEnd.value = end ?? '';
-  updateEditorDuration();
-  // 日期：编辑时读卡片 assignedDate；新建时用传入日期/选中日期；未安排(卡片池)则留空
-  if (editorDate) {
-    const d = card ? card.assignedDate ?? '' : (assignedDate === null ? '' : (date ?? vs.selectedDate));
-    editorDate.value = d ?? '';
-    // 未安排标记：卡片无日期时占位提示
-    editorDate.title = d ? '' : '未安排（保存在卡片池）';
-  }
-  editorType.value = card?.type ?? 'text';
-  editorContent.value = card?.content ?? '';
-  // 阶段 C：标题 / 状态 / 进度 / 时长 / 自定义属性
-  if (editorTitle) editorTitle.value = card?.title ?? '';
-  if (editorStatus) updateStatusSeg(card?.status ?? 'none');
-  if (editorProgress) editorProgress.value = card?.progress ?? 0;
-  if (editorDurationMin) editorDurationMin.value = card?.duration ?? '';
-  updateEditorProgressLabel();
-  editorProps = { ...(card?.props ?? {}) };
-  renderEditorProps();
-  setEditorEmoji(card?.emoji ?? '');
-  closeEmojiPicker();
-
-  // 项目：已有卡片取现有值，否则取上次用过的
-  const lastProject = getPort().prefGet('journal.lastProject') ?? '';
-  const cardProject = (editingCardId ? (vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.updatedBy ?? null) : null)
-    ?.project ?? (editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.createdBy?.project ?? null : null);
-  if (editorProjectInput) editorProjectInput.value = cardProject ?? lastProject ?? '';
-  renderProjectSuggest();
-
-  // 来源：仅编辑已有卡片时展示
-  if (editorMetaEl) {
-    const existing = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) : null;
-    const m = existing?.meta ?? null;
-    editorMetaEl.textContent = m
-      ? `创建：${formatProvenance(m.createdBy)}　修改：${formatProvenance(m.updatedBy)}`
-      : '';
-  }
-
-  editorOverlay.classList.remove('hidden');
-  editorContent.focus();
-}
-
-/** 编辑器持续时长显示（起止 → 时长 双向） */
-function updateEditorDuration() {
-  const s = editorStart?.value;
-  const e = editorEnd?.value;
-  if (!s || !e) {
-    if (editorDuration) editorDuration.textContent = '';
-    if (editorDurationMin) editorDurationMin.value = '';
-    return;
-  }
-  const dur = Math.max(0, timeToMinutes(e) - timeToMinutes(s));
-  if (editorDuration) editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
-  if (editorDurationMin) editorDurationMin.value = dur > 0 ? dur : '';
-}
-
-/** 时长输入 → 反推结束时间（起止 ↔ 时长 双向） */
-function onEditorDurationInput() {
-  const s = editorStart?.value;
-  const dur = Number(editorDurationMin?.value || 0);
-  if (s && editorEnd && Number.isFinite(dur) && dur >= 0) {
-    editorEnd.value = addMinutes(s, dur);
-    if (editorDuration) editorDuration.textContent = `${dur} 分钟`;
-  }
-}
-
-/** 状态 → 进度 联动：勾选完成 ⇒ 进度100 */
-function onEditorStatusChange() {
-  const s = editorStatus?.value ?? 'none';
-  if (s === 'done' && editorProgress && editorProgress.value !== '100') editorProgress.value = 100;
-  if (s === 'none' && editorProgress && editorProgress.value === '100') editorProgress.value = 0;
-  updateEditorProgressLabel();
-}
-
-const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
-
-/** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
-function updateStatusSeg(value) {
-  const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
-  if (editorStatus) editorStatus.value = v;
-  const seg = document.getElementById('card-editor-status-seg');
-  if (seg) {
-    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
-  }
-  if (editorStatusCustom) {
-    editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
-  }
-}
-
-/** 点击分段胶囊：设状态 + 进度联动 */
-function onStatusClicked(value) {
-  updateStatusSeg(value);
-  onEditorStatusChange();
-}
-
-/** 进度 → 状态 联动：拖到 100% ⇒ 完成；回退 ⇒ 进行中/待办 */
-function onEditorProgressChange() {
-  const val = Number(editorProgress?.value ?? 0);
-  updateEditorProgressLabel();
-  if (editorStatus) {
-    if (val >= 100 && editorStatus.value !== 'done') { editorStatus.value = 'done'; updateStatusSeg('done'); }
-    else if (val < 100 && editorStatus.value === 'done') { editorStatus.value = val > 0 ? 'doing' : 'todo'; updateStatusSeg(editorStatus.value); }
-  }
-}
-
-function updateEditorProgressLabel() {
-  const p = Number(editorProgress?.value ?? 0);
-  if (editorProgressNumber && editorProgressNumber.value !== String(p)) editorProgressNumber.value = p;
-  if (editorProgress) editorProgress.style.setProperty('--ce-prog', p + '%');
-}
-
-/* ─── 自定义属性（编辑器） ───────────────────────────────── */
-
-async function loadPropLibrary() { propLibrary = (await getHostMeta('propertyLibrary')) || {}; }
-async function savePropLibrary() { await setHostMeta('propertyLibrary', propLibrary); }
-
-/** 渲染当前卡的属性行 */
-function renderEditorProps() {
-  if (propsList) propsList.replaceChildren();
-  const keys = Object.keys(editorProps);
-  if (!keys.length && propsList) {
-    const hint = document.createElement('div');
-    hint.className = 'props-empty';
-    hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」';
-    propsList.append(hint);
-    return;
-  }
-  for (const [key, val] of Object.entries(editorProps)) {
-    const def = propLibrary[key];
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    row.dataset.key = key;
-    const label = document.createElement('span');
-    label.className = 'prop-label';
-    label.textContent = (def?.icon ? def.icon + ' ' : '') + (def?.label || key);
-    label.title = key;
-    const ctrl = buildPropControl(key, def, val);
-    const edit = document.createElement('button');
-    edit.type = 'button'; edit.className = 'prop-edit'; edit.textContent = '✎';
-    edit.title = '编辑属性定义（保存到属性库）';
-    edit.addEventListener('click', () => openPropForm(key));
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
-    del.title = '从当前卡片删除该属性（保留属性库定义）';
-    del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
-    row.append(label, ctrl, edit, del);
-    propsList.append(row);
-  }
-}
-
-/** 按属性类型构建编辑控件，改动即写回 editorProps */
-function buildPropControl(key, def, val) {
-  const type = def?.type ?? 'text';
-  if (type === 'checkbox') {
-    const input = document.createElement('input');
-    input.type = 'checkbox'; input.className = 'prop-input';
-    input.checked = Boolean(val);
-    input.addEventListener('change', () => { editorProps[key] = input.checked; });
-    return input;
-  }
-  if (type === 'select' || type === 'multi') {
-    const sel = document.createElement('select');
-    sel.className = 'prop-input';
-    const opts = def?.options ?? [];
-    if (!opts.length) sel.append(new Option('', ''));
-    for (const o of opts) sel.append(new Option(o, o));
-    if (type === 'multi') sel.multiple = true;
-    if (type === 'select') sel.value = (val === null || val === undefined) ? '' : String(val);
-    if (type === 'multi' && Array.isArray(val)) {
-      for (const opt of sel.options) opt.selected = val.includes(opt.value);
-    }
-    sel.addEventListener('change', () => {
-      editorProps[key] = type === 'multi'
-        ? [...sel.selectedOptions].map(o => o.value)
-        : sel.value;
-    });
-    return sel;
-  }
-  const input = document.createElement('input');
-  input.className = 'prop-input';
-  if (type === 'number') input.type = 'number';
-  else if (type === 'date') input.type = 'date';
-  else if (type === 'time') input.type = 'time';
-  else input.type = 'text';
-  input.value = (val === null || val === undefined) ? '' : String(val);
-  input.addEventListener('change', () => {
-    editorProps[key] = input.type === 'number' ? Number(input.value) : input.value;
-  });
-  return input;
-}
-
-let propEditKey = null;
-
-/** 打开属性表单；defKey 传人则编辑属性库中既有定义 */
-function openPropForm(defKey = null) {
-  if (!propForm) return;
-  propEditKey = defKey;
-  const d = defKey ? propLibrary[defKey] : null;
-  if (propKey) propKey.value = d?.key ?? '';
-  if (propIcon) propIcon.value = d?.icon && d.icon !== '•' ? d.icon : '';
-  if (propType) propType.value = d?.type ?? 'text';
-  if (propOptions) propOptions.value = (d?.options || []).join(',');
-  const wrap = propOptions?.closest('.prop-options-wrap');
-  if (wrap) wrap.classList.toggle('hidden', d?.type !== 'select' && d?.type !== 'multi');
-  propForm.classList.remove('hidden');
-  propKey?.focus();
-}
-function closePropForm() {
-  if (propForm) propForm.classList.add('hidden');
-  propEditKey = null;
-}
-
-/** 添加/编辑属性：校验保留字 → 加入当前卡（自动保存到属性库，便于复用/编辑） */
-function onPropFormOk() {
-  const key = (propKey.value || '').trim().replace(/\s+/g, '_');
-  if (!key) { showToast('属性名不能为空', 'error'); return; }
-  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
-  const opts = propOptions.value ? propOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
-  const def = { key, label: key, icon: propIcon.value || '•', type: propType.value, ...(opts.length ? { options: opts } : {}) };
-  if (propEditKey && propEditKey !== key) {
-    // 编辑且改名：迁移库定义 + 迁移当前卡值
-    const oldKey = propEditKey;
-    if (oldKey in editorProps) { editorProps[key] = editorProps[oldKey]; delete editorProps[oldKey]; }
-    propLibrary = { ...propLibrary };
-    delete propLibrary[oldKey];
-  }
-  if (!(key in editorProps)) editorProps[key] = '';
-  propLibrary = { ...propLibrary, [key]: def };
-  void savePropLibrary();
-  const wasEdit = propEditKey !== null;
-  renderEditorProps();
-  closePropForm();
-  propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
-  showToast(wasEdit ? `已更新属性「${key}」` : `已添加属性「${key}」（已入库）`, 'success');
-}
-
-/** 从属性库复用属性到当前卡 */
-function openPropLibrary() {
-  const keys = Object.keys(propLibrary);
-  if (!keys.length) { showToast('属性库为空', ''); return; }
-  const lines = keys.map((k, i) => `${i}. ${propLibrary[k].icon || ''} ${propLibrary[k].label || k}`).join('\n');
-  const pick = prompt('从属性库选择（多个用逗号分隔）：\n' + lines, '0');
-  if (pick === null) return;
-  const idxs = pick.split(/[,，\s]+/).map(s => parseInt(s, 10))
-    .filter(n => !Number.isNaN(n) && n >= 0 && n < keys.length);
-  for (const i of idxs) { const k = keys[i]; if (!(k in editorProps)) editorProps[k] = ''; }
-  renderEditorProps();
-}
-
-function closeEditor() {
-  editorOverlay.classList.add('hidden');
-  editingCardId = null;
-  editorContent.value = '';
-  editorTags = [];
-  renderEditorTags();
-  const tagInput = document.getElementById('card-editor-tag-input');
-  if (tagInput) tagInput.value = '';
-  if (editorDate) { editorDate.value = ''; editorDate.title = '未安排（保存在卡片池）'; }
-  if (editorStart) editorStart.value = '';
-  if (editorEnd) editorEnd.value = '';
-  if (editorDuration) editorDuration.textContent = '';
-  if (editorDurationMin) editorDurationMin.value = '';
-  if (editorTitle) editorTitle.value = '';
-  if (editorStatus) updateStatusSeg('none');
-  if (editorProgress) { editorProgress.value = 0; }
-  updateEditorProgressLabel();
-  if (editorMetaEl) editorMetaEl.textContent = '';
-  editorProps = {};
-  renderEditorProps();
-  closePropForm();
-  setEditorEmoji('');
-  closeEmojiPicker();
-}
-
-async function saveEditor() {
-  const content = editorContent.value.trim();
-  const type = editorType.value;
-  const pendingTag = document.getElementById('card-editor-tag-input')?.value;
-  if (pendingTag) addEditorTag(pendingTag);
-  if (!content && !editingCardId) { closeEditor(); return; }
-
-  // 时间：开始时间为空 → 不排具体时间（全天卡片，startTime/endTime = null）
-  const startRaw = (editorStart?.value || '').trim();
-  const endRaw = (editorEnd?.value || '').trim();
-  let start = null, end = null;
-  if (startRaw) {
-    start = snapToQuarter(startRaw);
-    end = snapToQuarter(endRaw || addMinutes(start, 15));
-    if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
-  }
-
-  // 日期：date input 的值；空 = 未安排（卡片池）
-  const assignedDate = editorDate?.value || null;
-
-  try {
-    // 项目目录：本次填写的（记住供下次预填）
-    const project = editorProjectInput?.value?.trim() ?? '';
-    if (project) getPort().prefSet('journal.lastProject', project);
-    const provenance = { origin: 'human', project };
-
-    // 阶段 C：状态 / 进度 / 时长 / 标题 / 自定义属性
-    const status = editorStatus?.value ?? 'none';
-    const progress = status === 'done' ? 100 : Number(editorProgress?.value || 0);
-    const duration = (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null;
-    const title = editorTitle?.value?.trim() ?? '';
-    const props = editorProps;
-    const basePatch = {
-      content, type, title, status, progress, duration: duration ?? undefined, props,
-      assignedDate, time: start, startTime: start, endTime: end,
-      tags: editorTags, emoji: editorEmoji, provenance,
-    };
-
-    if (editingCardId) {
-      await updateCardEntry(editingCardId, basePatch);
-    } else {
-      await createCardEntry(basePatch);
-    }
-    closeEditor();
-    await refreshAll();
-  } catch (e) {
-    console.error('[journal] save card failed:', e);
-    showToast(`保存失败：host 服务未连接（${DEFAULT_HOST_BASE}）`, 'error');
-  }
-}
 
 /* ─── Toast 提示 ────────────────────────────────────── */
 // 已提取到 features/toast.js（见顶部 import）。
@@ -627,424 +162,10 @@ async function startHost() {
 /* ─── 渲染：右视图（月历 / 周历 / 日程） ──────────────────────────────── */
 
 /** dayKey ± n 天 → dayKey（本地时区） */
-function addDays(dayKey, n) {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + n);
-  return toDayKey(dt);
-}
+/* ─── 渲染：右视图（月历 / 周历 / 日程调度）───────────────── */
+// 已提取到 views/rightview.js（见顶部 import）。
 
-/** 右侧头部标题文案 */
-function viewHeaderLabel() {
-  if (vs.viewMode === 'month') {
-    const { year, month } = vs.calendarMonth;
-    return `${year}年${month + 1}月`;
-  }
-  if (vs.viewMode === 'week') {
-    const [y, m, d] = vs.weekAnchor.split('-').map(Number);
-    const sun = new Date(y, m - 1, d); sun.setDate(sun.getDate() - sun.getDay());
-    const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
-    return `${toDayKey(sun).slice(5).replace('-', '/')} – ${toDayKey(sat).slice(5).replace('-', '/')} · ${toDayKey(sun).slice(0, 4)}`;
-  }
-  const date = vs.selectedDate;
-  const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
-  const parts = [];
-  if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
-  if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
-  return `📅 ${formatDateLabel(date)}${countStr}`;
-}
 
-/** 同步取某天卡片（从缓存，按时间排序） */
-function getCardsByDaySync(date) {
-  if (!Array.isArray(vs.allCardsCache)) return [];
-  return vs.allCardsCache
-    .filter(c => c.assignedDate === date)
-    .sort((a, b) => {
-      const sa = getCardStartTime(a), sb = getCardStartTime(b);
-      if (sa && sb) return sa.localeCompare(sb);
-      if (sa) return -1;
-      if (sb) return 1;
-      return 0;
-    });
-}
-
-/** 高亮当前视图模式按钮 */
-function markViewMode() {
-  els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === vs.viewMode));
-}
-
-/** 右侧视图统一入口 */
-/**
- * 一次性聚焦滚动：打开面板 / 切换日期 / 切换视图后，让「当前时刻」垂直居中。
- * 不足以居中时钳制到边界（顶部 0 / 底部 maxScroll），不强拽；非今天则聚焦
- * 当天最早一张定时卡（无卡则不滚）。消费后不再干预用户滚动与每分钟 marker 刷新。
- */
-// pendingFocusScroll 已并入 state/view-state.js 的 vs.pendingFocusScroll
-function requestFocusScroll() { vs.pendingFocusScroll = true; }
-
-function scrollTimelineToFocus(container, prevScroll = 0) {
-  if (!container) return;
-  if (vs.viewMode === 'month') return; // 月视图无时间轴，也不恢复（整月网格）
-
-  if (vs.pendingFocusScroll) {
-    vs.pendingFocusScroll = false;
-    let targetY = null;
-    if (vs.selectedDate === todayKey()) {
-      const now = new Date();
-      const nowMin = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, now.getHours() * 60 + now.getMinutes()));
-      targetY = scheduleHeight(nowMin);
-    } else {
-      // 非今天：聚焦当天最早一张定时卡
-      const cards = getCardsByDaySync(vs.selectedDate).filter((c) => getCardStartTime(c));
-      if (cards.length) {
-        const s = timeToMinutes(getCardStartTime(cards[0]));
-        targetY = scheduleHeight(Math.max(vs.viewStartMin, s));
-      }
-    }
-    if (targetY === null) { container.scrollTop = 0; return; }
-    const clientH = container.clientHeight;
-    const maxScroll = Math.max(0, container.scrollHeight - clientH);
-    if (maxScroll === 0) return; // 内容不足一屏，不滚
-    // 钳制到边界：贴顶/贴底时停在自然位置，不强行居中
-    container.scrollTop = Math.max(0, Math.min(maxScroll, targetY - clientH / 2));
-    return;
-  }
-
-  // 常规重渲染（host 同步/数据变化）：恢复此前滚动位置，避免 replaceChildren 重置回顶部
-  const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-  container.scrollTop = Math.min(Math.max(0, prevScroll), maxScroll);
-}
-
-async function renderRightView() {
-  markViewMode();
-  if (els.timelineDateHeader) els.timelineDateHeader.textContent = viewHeaderLabel();
-  const container = els.timelineContainer;
-  const prevScroll = container.scrollTop; // 渲染前捕获，供恢复（replaceChildren 会重置滚动）
-  container.replaceChildren();
-  container.classList.toggle('calview-week-wrap', vs.viewMode === 'week');
-  if (vs.viewMode === 'month') { renderMonthGrid(container); return; }
-  if (vs.viewMode === 'week') { renderWeekGrid(container); scrollTimelineToFocus(container, prevScroll); return; }
-  await renderTimeline();
-  scrollTimelineToFocus(container, prevScroll);
-}
-
-/** 月历网格 */
-function renderMonthGrid(container) {
-  const matrix = getMonthMatrix(vs.calendarMonth.year, vs.calendarMonth.month);
-  const weekday = document.createElement('div');
-  weekday.className = 'calview-weekdays';
-  for (const name of ['日', '一', '二', '三', '四', '五', '六']) {
-    const s = document.createElement('span');
-    s.textContent = name;
-    weekday.append(s);
-  }
-  const grid = document.createElement('div');
-  grid.className = 'calview-month-grid';
-  const today = todayKey();
-  for (const week of matrix) {
-    for (const cell of week) {
-      const dayEl = document.createElement('div');
-      dayEl.className = 'calview-day';
-      dayEl.dataset.day = cell.dayKey;
-      if (!cell.isCurrentMonth) dayEl.classList.add('is-out-month');
-      if (cell.isToday) dayEl.classList.add('is-today');
-      if (cell.dayKey === vs.selectedDate) dayEl.classList.add('is-selected');
-      const num = document.createElement('div');
-      num.className = 'calview-day-num';
-      num.textContent = String(cell.day);
-      dayEl.append(num);
-      const cards = getCardsByDaySync(cell.dayKey);
-      const list = document.createElement('div');
-      list.className = 'calview-day-cards';
-      for (const card of cards.slice(0, 3)) list.append(buildCalSummary(card));
-      if (cards.length > 3) {
-        const more = document.createElement('div');
-        more.className = 'calview-more';
-        more.textContent = `+${cards.length - 3}`;
-        list.append(more);
-      }
-      dayEl.append(list);
-      dayEl.addEventListener('click', async (e) => {
-        if (e.target.closest('.calview-summary')) return;
-        vs.selectedDate = cell.dayKey;
-        vs.weekAnchor = cell.dayKey;
-        vs.calendarMonth = monthOf(cell.dayKey);
-        vs.viewMode = 'timeline';
-        await refreshAll();
-      });
-      grid.append(dayEl);
-    }
-  }
-  container.append(weekday, grid);
-}
-
-/** 周历 7 列 */
-/**
- * 绑定「拖动框选创建时间范围」交互（周视图列 body）。
- * mousedown 起点 → mousemove 实时选区 → mouseup 松手以选中起止时间创建。
- * 纯点击（拖动 < 3px）不触发，由调用方的 click 处理单格创建。
- * @param {HTMLElement} el 容器
- * @param {(startMin:number, endMin:number)=>void} onRange 框选完成回调（分钟）
- */
-function bindRangeSelect(el, onRange) {
-  let sel = null; // { startM, overlay, dragging }
-  let suppressClick = false; // 框选后抑制随后的 click（避免又开一个编辑器）
-
-  const removeSel = () => {
-    if (sel?.overlay) sel.overlay.remove();
-    sel = null;
-  };
-
-  el.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // 仅左键
-    if (e.target.closest('.timeline-card, .timeline-now-marker, .card-add-btn')) return;
-    const rect = el.getBoundingClientRect();
-    const startMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const startM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, startMin));
-    const overlay = document.createElement('div');
-    overlay.className = 'selection-overlay';
-    overlay.style.top = `${scheduleHeight(Math.floor(startM / 15) * 15)}px`;
-    overlay.style.height = '0px';
-    el.append(overlay);
-    sel = { startM, overlay, dragging: false };
-  });
-
-  el.addEventListener('mousemove', (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = el.getBoundingClientRect();
-    const endMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    if (Math.abs(endM - sel.startM) * (SLOT_HEIGHT / 15) < 3) return; // 拖动 < 3px 不算框选
-    sel.dragging = true;
-    const s = Math.floor(Math.min(sel.startM, endM) / 15) * 15;
-    const eSlot = Math.ceil(Math.max(sel.startM, endM) / 15) * 15;
-    sel.overlay.style.top = `${scheduleHeight(s)}px`;
-    sel.overlay.style.height = `${scheduleHeight(eSlot) - scheduleHeight(s)}px`;
-    sel.endM = endM;
-  });
-
-  el.addEventListener('mouseup', (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = el.getBoundingClientRect();
-    const endMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    const { startM, dragging } = sel;
-    removeSel();
-    if (!dragging) return; // 纯点击 → 走 click 单格创建
-    suppressClick = true;
-    // 起止对齐 15 分钟网格，最小 15 分钟，不超出视图范围
-    let s = Math.floor(Math.min(startM, endM) / 15) * 15;
-    let eSlot = Math.ceil(Math.max(startM, endM) / 15) * 15;
-    if (eSlot - s < 15) eSlot = s + 15;
-    eSlot = Math.min(vs.viewEndMin, eSlot);
-    if (eSlot - s < 15) s = Math.max(vs.viewStartMin, eSlot - 15);
-    onRange(s, eSlot);
-  });
-
-  // capture：抢在单格 click 之前抑制一次
-  el.addEventListener('click', (e) => {
-    if (suppressClick) { suppressClick = false; e.stopPropagation(); }
-  }, true);
-}
-
-/**
- * 周视图：Google Calendar 风格 —— 垂直占满容器 + 左侧小时刻度尺 +
- * 7 天列按真实时间比例定位卡片（复用日视图时间线引擎，保证两视图像素一致）
- */
-function renderWeekGrid(container) {
-  const [y, m, d] = vs.weekAnchor.split('-').map(Number);
-  const sunday = new Date(y, m - 1, d); sunday.setDate(sunday.getDate() - sunday.getDay());
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const dt = new Date(sunday); dt.setDate(sunday.getDate() + i);
-    days.push(toDayKey(dt));
-  }
-  const today = todayKey();
-  const weekNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-  const weekShort = ['日', '一', '二', '三', '四', '五', '六'];
-
-  // ── 全周时间范围：跟随 timelineSpan（08–22 / 24h）+ 全周数据自动扩展（与日视图同逻辑）
-  vs.viewStartMin = vs.timelineSpan === 'full' ? 0 : DAY_START_MIN;
-  vs.viewEndMin = vs.timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
-  const allTimed = [];
-  for (const dayKey of days) {
-    for (const c of getCardsByDaySync(dayKey)) {
-      if (!getCardStartTime(c)) continue;
-      const s = timeToMinutes(getCardStartTime(c));
-      const e = timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15));
-      vs.viewStartMin = Math.min(vs.viewStartMin, Math.floor(s / 15) * 15);
-      vs.viewEndMin = Math.max(vs.viewEndMin, Math.ceil(e / 15) * 15);
-      allTimed.push({ card: c, dayKey, start: s, end: e });
-    }
-  }
-  vs.viewStartMin = Math.max(0, vs.viewStartMin);
-  vs.viewEndMin = Math.min(24 * 60, vs.viewEndMin);
-  const bodyH = scheduleHeight(vs.viewEndMin);
-
-  const weekEl = document.createElement('div');
-  weekEl.className = 'calview-week-grid';
-
-  // ── 左侧刻度尺
-  const ruler = document.createElement('div');
-  ruler.className = 'calview-week-ruler';
-  const rulerHead = document.createElement('div');
-  rulerHead.className = 'calview-week-ruler-head';
-  ruler.append(rulerHead);
-  const rulerBody = document.createElement('div');
-  rulerBody.className = 'calview-week-ruler-body';
-  rulerBody.style.height = `${bodyH}px`;
-  for (let mm = vs.viewStartMin; mm <= vs.viewEndMin; mm += 60) {
-    const lbl = document.createElement('div');
-    lbl.className = 'calview-week-ruler-label';
-    lbl.style.top = `${scheduleHeight(mm)}px`;
-    lbl.textContent = minutesToTime(mm);
-    rulerBody.append(lbl);
-  }
-  ruler.append(rulerBody);
-  weekEl.append(ruler);
-
-  // ── 7 天列
-  for (const dayKey of days) {
-    const col = document.createElement('div');
-    col.className = 'calview-week-col';
-    col.dataset.day = dayKey;
-    if (dayKey === today) col.classList.add('is-today');
-    if (dayKey === vs.selectedDate) col.classList.add('is-selected');
-
-    const head = document.createElement('div');
-    head.className = 'calview-week-head';
-    const dt = new Date(Number(dayKey.slice(0, 4)), Number(dayKey.slice(5, 7)) - 1, Number(dayKey.slice(8, 10)));
-    const cards = getCardsByDaySync(dayKey);
-    // 紧凑表头：单字星期 + 日号（窄列 7 天宽度有限，省去月份）
-    head.innerHTML = `<span title="${weekNames[dt.getDay()]} ${dayKey}">${weekShort[dt.getDay()]} ${dt.getDate()}</span><span class="calview-week-count">${cards.length}</span>`;
-    head.addEventListener('click', async () => {
-      vs.selectedDate = dayKey;
-      vs.weekAnchor = dayKey;
-      vs.calendarMonth = monthOf(dayKey);
-      vs.viewMode = 'timeline';
-      requestFocusScroll(); // 跳到该日时间线后聚焦
-      await refreshAll();
-    });
-    col.append(head);
-
-    const body = document.createElement('div');
-    body.className = 'calview-week-body';
-    body.style.height = `${bodyH}px`;
-
-    // 网格线：每 15 分钟一条，整点加粗
-    for (let mm = vs.viewStartMin; mm <= vs.viewEndMin; mm += 15) {
-      const line = document.createElement('div');
-      line.className = 'calview-week-gridline' + (mm % 60 === 0 ? ' is-hour' : '');
-      line.style.top = `${scheduleHeight(mm)}px`;
-      body.append(line);
-    }
-
-    // 当前时刻线（仅今天列）
-    if (dayKey === today) {
-      const now = new Date();
-      const nowMin = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, now.getHours() * 60 + now.getMinutes()));
-      const marker = document.createElement('div');
-      marker.className = 'timeline-now-marker';
-      marker.style.top = `${scheduleHeight(nowMin)}px`;
-      const tag = document.createElement('span');
-      tag.className = 'timeline-now-tag';
-      tag.textContent = `● 现在 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      marker.append(tag);
-      const lineEl = document.createElement('span');
-      lineEl.className = 'timeline-now-line';
-      marker.append(lineEl);
-      marker.title = '点击在当前时间新建卡片';
-      marker.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openEditor(null, snapUpToQuarter(currentTime()), dayKey);
-      });
-      body.append(marker);
-    }
-
-    // 卡片：按天分道后复用 renderTimelineCard（绝对定位到列内对应时刻）
-    const dayTimed = allTimed.filter((t) => t.dayKey === dayKey);
-    const laneMap = layoutScheduleLanes(dayTimed.map((t) => ({ id: t.card.id, start: t.start, end: t.end })));
-    for (const t of dayTimed) {
-      const cardEl = renderTimelineCard(t.card, laneMap.get(t.card.id) ?? null, false, dayKey);
-      body.append(cardEl);
-      // 卡片 hover「＋」：在同一时间新建（对齐日视图 .card-add-btn 交互）
-      const addBtn = document.createElement('button');
-      addBtn.className = 'card-add-btn';
-      addBtn.title = '在同一时间新建卡片';
-      addBtn.textContent = '＋';
-      addBtn.style.top = `${scheduleHeight((t.start + t.end) / 2)}px`;
-      addBtn.style.left = 'auto';
-      addBtn.style.right = '2px';
-      body.append(addBtn);
-      const showAdd = () => { cardEl.classList.add('is-hover-add'); addBtn.classList.add('is-visible'); };
-      const hideAdd = () => { cardEl.classList.remove('is-hover-add'); addBtn.classList.remove('is-visible'); };
-      cardEl.addEventListener('mouseenter', showAdd);
-      cardEl.addEventListener('mouseleave', hideAdd);
-      addBtn.addEventListener('mouseenter', showAdd);
-      addBtn.addEventListener('mouseleave', hideAdd);
-      addBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openEditor(null, getCardStartTime(t.card) ?? currentTime(), dayKey);
-      });
-    }
-
-    // 点击空白单格创建 + 拖动框选创建时间范围
-    const onRange = (sMin, eMin) => {
-      openEditor(null, minutesToTime(sMin), dayKey);
-      const endEl = document.getElementById('card-editor-end');
-      if (endEl) {
-        endEl.value = minutesToTime(eMin); // 覆盖默认 start+15，预填选区时长
-        updateEditorDuration(); // 时长标签需随之重算，否则仍显示默认 15 分钟
-      }
-    };
-    bindRangeSelect(body, onRange);
-    body.addEventListener('click', (e) => {
-      if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
-      const rect = body.getBoundingClientRect();
-      const mins = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-      openEditor(null, snapToQuarter(minutesToTime(mins)), dayKey);
-    });
-
-    col.append(body);
-
-    // 无时间/全天卡片：置于表头正下方（列高可达 1700px，放底部等于藏起来）
-    const noTimeCards = cards.filter((c) => !getCardStartTime(c));
-    if (noTimeCards.length) {
-      const all = document.createElement('div');
-      all.className = 'schedule-allday';
-      const head = document.createElement('div');
-      head.className = 'schedule-allday-label';
-      head.textContent = '全天';
-      all.append(head);
-      const wrap = document.createElement('div');
-      wrap.className = 'schedule-allday-cards';
-      for (const card of noTimeCards) wrap.append(renderTimelineCard(card, null, true, dayKey));
-      all.append(wrap);
-      col.insertBefore(all, body);
-    }
-
-    weekEl.append(col);
-  }
-
-  container.append(weekEl);
-}
-
-/** 卡片摘要（月历/周历共用）：时间 + 类型图标 + 内容截断，点击进编辑器 */
-function buildCalSummary(card) {
-  const el = document.createElement('div');
-  el.className = `calview-summary type-${card.type || 'text'}` + (card.type === 'task' && card.done ? ' is-done' : '');
-  const start = getCardStartTime(card);
-  const timeHtml = start ? `<span class="calview-summary-time">${start}</span>` : '';
-  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
-  el.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openEditor(card, start ?? currentTime(), card.assignedDate ?? vs.selectedDate);
-  });
-  return el;
-}
 
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
 // 已提取到 views/timeline.js（见顶部 import）。
@@ -1444,7 +565,7 @@ function startNewNameEdit(row, nameEl, entry) {
       }
       entry.def.label = next;
       if (!isBuiltinKey(finalKey)) {
-        propLibrary = { ...propLibrary, [finalKey]: { ...entry.def } };
+        upsertPropDef(finalKey, { ...entry.def });
         void savePropLibrary();
       }
       // 后台 LLM 增强（不阻塞：本地结果已应用，到达后以「AI 建议」提示）
@@ -1999,7 +1120,7 @@ function onTplNewPropOk() {
     const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
     const entry = tplBuilderState.extra.find(x => x.key === key);
     if (entry) entry.def = def;
-    if (!isBuiltinKey(key)) { propLibrary = { ...propLibrary, [key]: def }; void savePropLibrary(); }
+    if (!isBuiltinKey(key)) { upsertPropDef(key, def); void savePropLibrary(); }
     closeTplPropDialog();
     renderTemplateBuilder();
     showToast(`已更新属性「${key}」`, 'success');
@@ -2015,7 +1136,7 @@ function addTplNewProp() {
   if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
   const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
   const def = { key, label: tplNpLabel?.value.trim() || key, icon: tplNpIcon?.value || '•', type: tplNpType?.value || 'text', ...(opts.length ? { options: opts } : {}) };
-  propLibrary = { ...propLibrary, [key]: def };
+  upsertPropDef(key, def);
   void savePropLibrary();
   if (!tplBuilderState.extra.some(x => x.key === key)) tplBuilderState.extra.push({ key, def });
   if (!(key in tplBuilderState.values)) tplBuilderState.values[key] = defaultTplValue(def);
@@ -2494,7 +1615,7 @@ async function init() {
   });
   await loadPropLibrary();
   // 字段注册表：用户字段走 getter 实时读 propLibrary，变更后无需重新 init
-  initFieldRegistry({ getUserFields: () => propLibrary });
+  initFieldRegistry({ getUserFields: () => getPropLibrary() });
 
   // ── 卡片池新建 ──
   els.btnNewCard.addEventListener('click', () => {
@@ -2624,5 +1745,6 @@ async function init() {
 // 供各视图/功能反向调用（避免 views → entries 循环依赖）。
 actions.refreshAll = refreshAll;
 actions.openEditor = openEditor;
+actions.updateEditorDuration = updateEditorDuration;
 
 init().catch(err => console.error('[journal] init failed:', err));

@@ -21,4 +21,7 @@ export const actions = {
    * @param {string} [assignedDate]
    */
   openEditor: () => {},
+
+  /** 重算卡片编辑器时长标签（组合根注入；周视图框选建卡后需要） */
+  updateEditorDuration: () => {},
 };
