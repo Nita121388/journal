@@ -45,6 +45,11 @@ export function createChromePort() {
     openOptionsPage: () => chrome.runtime.openOptionsPage(),
     hostFetch,
 
+    // 同步偏好（扩展页可用 localStorage）：供 UI 视图状态等同步读取的小偏好。
+    prefGet: (key) => localStorage.getItem(key),
+    prefSet: (key, value) => localStorage.setItem(key, value),
+    prefRemove: (key) => localStorage.removeItem(key),
+
     /** 经 background 的 native messaging 启动本机 host。 */
     startHost: async () => {
       try {

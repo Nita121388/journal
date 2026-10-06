@@ -2,17 +2,18 @@
    Journal — features/emoji.js
    emoji Picker（渲染 + 最近使用持久化）。
    纯搜素与数据已下沉到 shared/emoji-search.js（叶子层）；
-   本文件保留 DOM 渲染 renderEmojiPicker 与 localStorage 的「最近使用」。
+   本文件保留 DOM 渲染 renderEmojiPicker 与「最近使用」持久化（经平台端口同步偏好）。
    ================================================================ */
 
 import { EMOJI_DB, EMOJI_CATS, searchEmojis, emojisByCat } from '../shared/emoji-search.js';
+import { getPort } from '../platform/index.js';
 
 const RECENT_MAX = 15;
 const RECENT_KEY = 'journal.recentEmojis';
 
 export function getRecentEmojis() {
   try {
-    const raw = localStorage.getItem(RECENT_KEY);
+    const raw = getPort().prefGet(RECENT_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr.slice(0, RECENT_MAX) : [];
   } catch { return []; }
@@ -21,7 +22,7 @@ export function getRecentEmojis() {
 export function recordRecentEmoji(char) {
   const cur = getRecentEmojis();
   const next = [char, ...cur.filter(c => c !== char)].slice(0, RECENT_MAX);
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* noop */ }
+  try { getPort().prefSet(RECENT_KEY, JSON.stringify(next)); } catch { /* noop */ }
 }
 
 /** 搜索与分类检索：转出 shared 叶子实现，供既有调用方保持路径不变。 */

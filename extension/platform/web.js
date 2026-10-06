@@ -62,6 +62,11 @@ export function createWebPort() {
     openOptionsPage: () => { window.location.href = 'options.html'; },
     hostFetch,
 
+    // 同步偏好（web 即 localStorage）。
+    prefGet: (key) => localStorage.getItem(key),
+    prefSet: (key, value) => localStorage.setItem(key, value),
+    prefRemove: (key) => localStorage.removeItem(key),
+
     startHost: async () => ({
       ok: false,
       error: 'web 端口不支持自动启动 host，请手动运行 host/server.js',

@@ -20,6 +20,7 @@ import {
 import { getSettings } from '../state/settings.js';
 import { pullFromHost, startHostSync } from '../state/sync-bridge.js';
 import { getHostMeta, setHostMeta } from '../state/host-client.js';
+import { vs, monthOf } from '../state/view-state.js';
 import { getPort } from '../platform/index.js';
 import { DEFAULT_HOST_BASE, ROUTES } from '../shared/protocol.js';
 import { els } from '../components/dom-refs.js';
@@ -48,11 +49,6 @@ function genId() {
 
 function isOverdue(due) { return due != null && due < todayKey(); }
 
-function monthOf(dayKey) {
-  const [y, m] = dayKey.split('-').map(Number);
-  return { year: y, month: m - 1 };
-}
-
 function formatDateLabel(dayKey) {
   const [y, m, d] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('zh-CN', {
@@ -79,33 +75,7 @@ function typeIcon(type, emoji = '') {
 }
 
 /* ─── 状态 ──────────────────────────────────────────── */
-
-let selectedDate = todayKey();
-let calendarMonth = monthOf(todayKey());
-let heatmapCache = {};
-let allCardsCache = [];
-let switchSeq = 0;
-
-/** @type {'month'|'week'|'timeline'} 右侧主视图模式 */
-let viewMode = localStorage.getItem('journal.viewMode') || 'timeline';
-/** 周历的基准日期（该周的某一天） */
-let weekAnchor = selectedDate;
-/** @type {'default'|'full'} 时间线展示范围：默认 08-22，full=24 小时 */
-let timelineSpan = localStorage.getItem('journal.timelineSpan') || 'default';
-
-/** @type {'active'|'all'|'done'} 旧待办筛选（已并入卡片池状态筛选，保留变量兼容过渡期渲染） */
-/** 卡片池状态筛选：''全部 | 'active'待办(todo∪doing) | 'todo' | 'doing' | 'done' | 'none'纯文本 */
-let poolStatusFilter = '';
-/** 卡片池标签筛选 */
-let poolTagFilter = '';
-/** 卡片池项目筛选 */
-let poolProjectFilter = '';
-/** 卡片池布局：'card' 卡片视图 | 'list' 列表视图 */
-let poolLayout = localStorage.getItem('journal.poolLayout') || 'card';
-/** 命名视图清单 */
-let savedViews = [];
-/** 当前命名的视图 id（'' = 未命名/手动） */
-let activeViewId = '';
+// 视图可变状态已集中到 state/view-state.js（`vs`），见顶部 import。
 
 /* ─── 卡片编辑器 ──────────────────────────────────────── */
 
@@ -255,7 +225,7 @@ function formatProvenance(ev, fallback = '—') {
 /** 历史项目目录（用于 datalist 建议） */
 function collectProjects() {
   const set = new Set();
-  for (const c of allCardsCache ?? []) {
+  for (const c of vs.allCardsCache ?? []) {
     const p = c.meta?.createdBy?.project ?? c.meta?.updatedBy?.project;
     if (p) set.add(p);
   }
@@ -291,7 +261,7 @@ function openEditor(card, time, date, assignedDate = undefined) {
   updateEditorDuration();
   // 日期：编辑时读卡片 assignedDate；新建时用传入日期/选中日期；未安排(卡片池)则留空
   if (editorDate) {
-    const d = card ? card.assignedDate ?? '' : (assignedDate === null ? '' : (date ?? selectedDate));
+    const d = card ? card.assignedDate ?? '' : (assignedDate === null ? '' : (date ?? vs.selectedDate));
     editorDate.value = d ?? '';
     // 未安排标记：卡片无日期时占位提示
     editorDate.title = d ? '' : '未安排（保存在卡片池）';
@@ -310,15 +280,15 @@ function openEditor(card, time, date, assignedDate = undefined) {
   closeEmojiPicker();
 
   // 项目：已有卡片取现有值，否则取上次用过的
-  const lastProject = localStorage.getItem('journal.lastProject') ?? '';
-  const cardProject = (editingCardId ? (allCardsCache.find(c => c.id === editingCardId)?.meta?.updatedBy ?? null) : null)
-    ?.project ?? (editingCardId ? allCardsCache.find(c => c.id === editingCardId)?.meta?.createdBy?.project ?? null : null);
+  const lastProject = getPort().prefGet('journal.lastProject') ?? '';
+  const cardProject = (editingCardId ? (vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.updatedBy ?? null) : null)
+    ?.project ?? (editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.createdBy?.project ?? null : null);
   if (editorProjectInput) editorProjectInput.value = cardProject ?? lastProject ?? '';
   renderProjectSuggest();
 
   // 来源：仅编辑已有卡片时展示
   if (editorMetaEl) {
-    const existing = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+    const existing = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) : null;
     const m = existing?.meta ?? null;
     editorMetaEl.textContent = m
       ? `创建：${formatProvenance(m.createdBy)}　修改：${formatProvenance(m.updatedBy)}`
@@ -584,7 +554,7 @@ async function saveEditor() {
   try {
     // 项目目录：本次填写的（记住供下次预填）
     const project = editorProjectInput?.value?.trim() ?? '';
-    if (project) localStorage.setItem('journal.lastProject', project);
+    if (project) getPort().prefSet('journal.lastProject', project);
     const provenance = { origin: 'human', project };
 
     // 阶段 C：状态 / 进度 / 时长 / 标题 / 自定义属性
@@ -696,18 +666,18 @@ function addDays(dayKey, n) {
 
 /** 右侧头部标题文案 */
 function viewHeaderLabel() {
-  if (viewMode === 'month') {
-    const { year, month } = calendarMonth;
+  if (vs.viewMode === 'month') {
+    const { year, month } = vs.calendarMonth;
     return `${year}年${month + 1}月`;
   }
-  if (viewMode === 'week') {
-    const [y, m, d] = weekAnchor.split('-').map(Number);
+  if (vs.viewMode === 'week') {
+    const [y, m, d] = vs.weekAnchor.split('-').map(Number);
     const sun = new Date(y, m - 1, d); sun.setDate(sun.getDate() - sun.getDay());
     const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
     return `${toDayKey(sun).slice(5).replace('-', '/')} – ${toDayKey(sat).slice(5).replace('-', '/')} · ${toDayKey(sun).slice(0, 4)}`;
   }
-  const date = selectedDate;
-  const typeCounts = getCardTypeCounts(allCardsCache, date);
+  const date = vs.selectedDate;
+  const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
   const parts = [];
   if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
   if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
@@ -717,8 +687,8 @@ function viewHeaderLabel() {
 
 /** 同步取某天卡片（从缓存，按时间排序） */
 function getCardsByDaySync(date) {
-  if (!Array.isArray(allCardsCache)) return [];
-  return allCardsCache
+  if (!Array.isArray(vs.allCardsCache)) return [];
+  return vs.allCardsCache
     .filter(c => c.assignedDate === date)
     .sort((a, b) => {
       const sa = getCardStartTime(a), sb = getCardStartTime(b);
@@ -731,7 +701,7 @@ function getCardsByDaySync(date) {
 
 /** 高亮当前视图模式按钮 */
 function markViewMode() {
-  els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === viewMode));
+  els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === vs.viewMode));
 }
 
 /** 右侧视图统一入口 */
@@ -740,23 +710,23 @@ function markViewMode() {
  * 不足以居中时钳制到边界（顶部 0 / 底部 maxScroll），不强拽；非今天则聚焦
  * 当天最早一张定时卡（无卡则不滚）。消费后不再干预用户滚动与每分钟 marker 刷新。
  */
-let pendingFocusScroll = false;
-function requestFocusScroll() { pendingFocusScroll = true; }
+// pendingFocusScroll 已并入 state/view-state.js 的 vs.pendingFocusScroll
+function requestFocusScroll() { vs.pendingFocusScroll = true; }
 
 function scrollTimelineToFocus(container, prevScroll = 0) {
   if (!container) return;
-  if (viewMode === 'month') return; // 月视图无时间轴，也不恢复（整月网格）
+  if (vs.viewMode === 'month') return; // 月视图无时间轴，也不恢复（整月网格）
 
-  if (pendingFocusScroll) {
-    pendingFocusScroll = false;
+  if (vs.pendingFocusScroll) {
+    vs.pendingFocusScroll = false;
     let targetY = null;
-    if (selectedDate === todayKey()) {
+    if (vs.selectedDate === todayKey()) {
       const now = new Date();
       const nowMin = Math.max(viewStartMin, Math.min(viewEndMin, now.getHours() * 60 + now.getMinutes()));
       targetY = scheduleHeight(nowMin);
     } else {
       // 非今天：聚焦当天最早一张定时卡
-      const cards = getCardsByDaySync(selectedDate).filter((c) => getCardStartTime(c));
+      const cards = getCardsByDaySync(vs.selectedDate).filter((c) => getCardStartTime(c));
       if (cards.length) {
         const s = timeToMinutes(getCardStartTime(cards[0]));
         targetY = scheduleHeight(Math.max(viewStartMin, s));
@@ -782,16 +752,16 @@ async function renderRightView() {
   const container = els.timelineContainer;
   const prevScroll = container.scrollTop; // 渲染前捕获，供恢复（replaceChildren 会重置滚动）
   container.replaceChildren();
-  container.classList.toggle('calview-week-wrap', viewMode === 'week');
-  if (viewMode === 'month') { renderMonthGrid(container); return; }
-  if (viewMode === 'week') { renderWeekGrid(container); scrollTimelineToFocus(container, prevScroll); return; }
+  container.classList.toggle('calview-week-wrap', vs.viewMode === 'week');
+  if (vs.viewMode === 'month') { renderMonthGrid(container); return; }
+  if (vs.viewMode === 'week') { renderWeekGrid(container); scrollTimelineToFocus(container, prevScroll); return; }
   await renderTimeline();
   scrollTimelineToFocus(container, prevScroll);
 }
 
 /** 月历网格 */
 function renderMonthGrid(container) {
-  const matrix = getMonthMatrix(calendarMonth.year, calendarMonth.month);
+  const matrix = getMonthMatrix(vs.calendarMonth.year, vs.calendarMonth.month);
   const weekday = document.createElement('div');
   weekday.className = 'calview-weekdays';
   for (const name of ['日', '一', '二', '三', '四', '五', '六']) {
@@ -809,7 +779,7 @@ function renderMonthGrid(container) {
       dayEl.dataset.day = cell.dayKey;
       if (!cell.isCurrentMonth) dayEl.classList.add('is-out-month');
       if (cell.isToday) dayEl.classList.add('is-today');
-      if (cell.dayKey === selectedDate) dayEl.classList.add('is-selected');
+      if (cell.dayKey === vs.selectedDate) dayEl.classList.add('is-selected');
       const num = document.createElement('div');
       num.className = 'calview-day-num';
       num.textContent = String(cell.day);
@@ -827,10 +797,10 @@ function renderMonthGrid(container) {
       dayEl.append(list);
       dayEl.addEventListener('click', async (e) => {
         if (e.target.closest('.calview-summary')) return;
-        selectedDate = cell.dayKey;
-        weekAnchor = cell.dayKey;
-        calendarMonth = monthOf(cell.dayKey);
-        viewMode = 'timeline';
+        vs.selectedDate = cell.dayKey;
+        vs.weekAnchor = cell.dayKey;
+        vs.calendarMonth = monthOf(cell.dayKey);
+        vs.viewMode = 'timeline';
         await refreshAll();
       });
       grid.append(dayEl);
@@ -915,7 +885,7 @@ function bindRangeSelect(el, onRange) {
  * 7 天列按真实时间比例定位卡片（复用日视图时间线引擎，保证两视图像素一致）
  */
 function renderWeekGrid(container) {
-  const [y, m, d] = weekAnchor.split('-').map(Number);
+  const [y, m, d] = vs.weekAnchor.split('-').map(Number);
   const sunday = new Date(y, m - 1, d); sunday.setDate(sunday.getDate() - sunday.getDay());
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -927,8 +897,8 @@ function renderWeekGrid(container) {
   const weekShort = ['日', '一', '二', '三', '四', '五', '六'];
 
   // ── 全周时间范围：跟随 timelineSpan（08–22 / 24h）+ 全周数据自动扩展（与日视图同逻辑）
-  viewStartMin = timelineSpan === 'full' ? 0 : DAY_START_MIN;
-  viewEndMin = timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
+  viewStartMin = vs.timelineSpan === 'full' ? 0 : DAY_START_MIN;
+  viewEndMin = vs.timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
   const allTimed = [];
   for (const dayKey of days) {
     for (const c of getCardsByDaySync(dayKey)) {
@@ -972,7 +942,7 @@ function renderWeekGrid(container) {
     col.className = 'calview-week-col';
     col.dataset.day = dayKey;
     if (dayKey === today) col.classList.add('is-today');
-    if (dayKey === selectedDate) col.classList.add('is-selected');
+    if (dayKey === vs.selectedDate) col.classList.add('is-selected');
 
     const head = document.createElement('div');
     head.className = 'calview-week-head';
@@ -981,10 +951,10 @@ function renderWeekGrid(container) {
     // 紧凑表头：单字星期 + 日号（窄列 7 天宽度有限，省去月份）
     head.innerHTML = `<span title="${weekNames[dt.getDay()]} ${dayKey}">${weekShort[dt.getDay()]} ${dt.getDate()}</span><span class="calview-week-count">${cards.length}</span>`;
     head.addEventListener('click', async () => {
-      selectedDate = dayKey;
-      weekAnchor = dayKey;
-      calendarMonth = monthOf(dayKey);
-      viewMode = 'timeline';
+      vs.selectedDate = dayKey;
+      vs.weekAnchor = dayKey;
+      vs.calendarMonth = monthOf(dayKey);
+      vs.viewMode = 'timeline';
       requestFocusScroll(); // 跳到该日时间线后聚焦
       await refreshAll();
     });
@@ -1101,7 +1071,7 @@ function buildCalSummary(card) {
   el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
   el.addEventListener('click', (e) => {
     e.stopPropagation();
-    openEditor(card, start ?? currentTime(), card.assignedDate ?? selectedDate);
+    openEditor(card, start ?? currentTime(), card.assignedDate ?? vs.selectedDate);
   });
   return el;
 }
@@ -1113,12 +1083,12 @@ function escapeHtml(s) {
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
 
 async function renderTimeline() {
-  const date = selectedDate;
+  const date = vs.selectedDate;
   const dayCards = await getCardsByDay(date);
-  const typeCounts = getCardTypeCounts(allCardsCache, date);
+  const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
 
   // ── 视图切换：timeline 模式才写入 dateHeader ──
-  if (viewMode === 'timeline') {
+  if (vs.viewMode === 'timeline') {
     // 标题
     const parts = [];
     if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
@@ -1134,8 +1104,8 @@ async function renderTimeline() {
   const timedCards = dayCards.filter(c => getCardStartTime(c));
 
   // 视图边界：默认 08:00–22:30，timelineSpan='full' 时 00:00–24:00；数据超出时自动扩展
-  viewStartMin = timelineSpan === 'full' ? 0 : DAY_START_MIN;
-  viewEndMin = timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
+  viewStartMin = vs.timelineSpan === 'full' ? 0 : DAY_START_MIN;
+  viewEndMin = vs.timelineSpan === 'full' ? 24 * 60 : DAY_END_MIN;
   for (const c of timedCards) {
     const s = timeToMinutes(getCardStartTime(c));
     const e = timeToMinutes(getCardEndTime(c) ?? addMinutes(getCardStartTime(c), 15));
@@ -1298,7 +1268,7 @@ async function renderTimeline() {
     }).then(async () => {
       await refreshAll();
       // 拖拽放置后直接打开编辑器（「拖到单元格进行编辑」）
-      const dropped = allCardsCache.find(c => c.id === cardId);
+      const dropped = vs.allCardsCache.find(c => c.id === cardId);
       if (dropped) openEditor(dropped, snapped, date);
     })
       .catch(err => console.error('[journal] drop move failed:', err));
@@ -1348,7 +1318,7 @@ async function renderTimeline() {
         addBtn.addEventListener('mouseleave', hideAdd);
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          openEditor(null, getCardStartTime(card) ?? currentTime(), selectedDate);
+          openEditor(null, getCardStartTime(card) ?? currentTime(), vs.selectedDate);
         });
       }
     }
@@ -1444,7 +1414,7 @@ function renderTimelineCard(card, lane = null, allday = false, dateOverride = nu
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     if (suppressClick) { suppressClick = false; return; }
-    openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? selectedDate);
+    openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? vs.selectedDate);
   });
 
   // 非全天卡片：底部 resize 手柄调整结束时间
@@ -1650,7 +1620,7 @@ function renderCurrentTimeMarker() {
   canvas.querySelectorAll('.timeline-now-marker').forEach(el => el.remove());
 
   // 仅今天显示
-  if (selectedDate !== todayKey()) return;
+  if (vs.selectedDate !== todayKey()) return;
 
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -1672,7 +1642,7 @@ function renderCurrentTimeMarker() {
   marker.title = '点击在当前时间新建卡片';
   marker.setAttribute('role', 'button');
   marker.tabIndex = 0;
-  const createAtNow = () => openEditor(null, snapUpToQuarter(currentTime()), selectedDate);
+  const createAtNow = () => openEditor(null, snapUpToQuarter(currentTime()), vs.selectedDate);
   marker.addEventListener('click', (e) => {
     e.stopPropagation();
     createAtNow();
@@ -1720,11 +1690,11 @@ function renderPoolFilters() {
   for (const { value, label } of STATUS_OPTIONS) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'chip' + (poolStatusFilter === value ? ' is-active' : '');
+    btn.className = 'chip' + (vs.poolStatusFilter === value ? ' is-active' : '');
     btn.textContent = label;
     btn.addEventListener('click', () => {
-      poolStatusFilter = value;
-      activeViewId = '';
+      vs.poolStatusFilter = value;
+      vs.activeViewId = '';
       renderCardPool();
     });
     row.append(btn);
@@ -1734,7 +1704,7 @@ function renderPoolFilters() {
   if (extra) {
     extra.replaceChildren();
     // 项目筛选
-    const projects = [...new Set((allCardsCache ?? []).map(c => c.project).filter(Boolean))];
+    const projects = [...new Set((vs.allCardsCache ?? []).map(c => c.project).filter(Boolean))];
     if (projects.length) {
       const label = document.createElement('span');
       label.className = 'pool-extra-label';
@@ -1751,8 +1721,8 @@ function renderPoolFilters() {
         o.value = p; o.textContent = p;
         sel.append(o);
       }
-      sel.value = poolProjectFilter;
-      sel.addEventListener('change', () => { poolProjectFilter = sel.value; activeViewId = ''; renderCardPool(); });
+      sel.value = vs.poolProjectFilter;
+      sel.addEventListener('change', () => { vs.poolProjectFilter = sel.value; vs.activeViewId = ''; renderCardPool(); });
       extra.append(sel);
     }
   }
@@ -1774,16 +1744,16 @@ function renderPoolTagFilters(pool) {
   extra.append(label);
   const all = document.createElement('button');
   all.type = 'button';
-  all.className = 'chip' + (poolTagFilter ? '' : ' is-active');
+  all.className = 'chip' + (vs.poolTagFilter ? '' : ' is-active');
   all.textContent = '# 全部';
-  all.addEventListener('click', () => { poolTagFilter = ''; activeViewId = ''; renderCardPool(); });
+  all.addEventListener('click', () => { vs.poolTagFilter = ''; vs.activeViewId = ''; renderCardPool(); });
   extra.append(all);
   for (const name of names) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'chip' + (poolTagFilter === name ? ' is-active' : '');
+    btn.className = 'chip' + (vs.poolTagFilter === name ? ' is-active' : '');
     btn.textContent = '#' + name;
-    btn.addEventListener('click', () => { poolTagFilter = name; activeViewId = ''; renderCardPool(); });
+    btn.addEventListener('click', () => { vs.poolTagFilter = name; vs.activeViewId = ''; renderCardPool(); });
     extra.append(btn);
   }
 }
@@ -1797,23 +1767,23 @@ function chipSpan(cls, text) {
 }
 
 async function renderCardPool() {
-  const all = allCardsCache.filter(c => !c.deleted);
+  const all = vs.allCardsCache.filter(c => !c.deleted);
   const pool = all.filter(c => {
-    const sOk = statusMatches(c, poolStatusFilter);
-    const tagOk = !poolTagFilter || (c.tags ?? []).includes(poolTagFilter);
-    const projOk = !poolProjectFilter || (c.project ?? '') === poolProjectFilter;
+    const sOk = statusMatches(c, vs.poolStatusFilter);
+    const tagOk = !vs.poolTagFilter || (c.tags ?? []).includes(vs.poolTagFilter);
+    const projOk = !vs.poolProjectFilter || (c.project ?? '') === vs.poolProjectFilter;
     return sOk && tagOk && projOk;
   });
   els.cardpoolCount.textContent = pool.length;
   els.cardpoolList.replaceChildren();
-  els.cardpoolList.classList.toggle('is-list', poolLayout === 'list');
+  els.cardpoolList.classList.toggle('is-list', vs.poolLayout === 'list');
   renderPoolFilters();
   renderPoolTagFilters(all);
 
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    const filtering = !!(poolStatusFilter || poolTagFilter || poolProjectFilter || activeViewId);
+    const filtering = !!(vs.poolStatusFilter || vs.poolTagFilter || vs.poolProjectFilter || vs.activeViewId);
     const title = document.createElement('div');
     title.className = 'empty-title';
     if (filtering) {
@@ -1823,7 +1793,7 @@ async function renderCardPool() {
       act.className = 'empty-action';
       act.textContent = '清除筛选';
       act.addEventListener('click', () => {
-        poolStatusFilter = ''; poolTagFilter = ''; poolProjectFilter = ''; activeViewId = '';
+        vs.poolStatusFilter = ''; vs.poolTagFilter = ''; vs.poolProjectFilter = ''; vs.activeViewId = '';
         renderCardPool();
       });
       li.append(title, act);
@@ -1833,7 +1803,7 @@ async function renderCardPool() {
       act.type = 'button';
       act.className = 'empty-action';
       act.textContent = '＋ 新建卡片';
-      act.addEventListener('click', () => openEditor(null, currentTime(), selectedDate));
+      act.addEventListener('click', () => openEditor(null, currentTime(), vs.selectedDate));
       li.append(title, act);
     }
     els.cardpoolList.append(li);
@@ -1932,7 +1902,7 @@ async function renderCardPool() {
     schedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const st = snapUpToQuarter(currentTime());
-      updateCardEntry(card.id, { assignedDate: selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
+      updateCardEntry(card.id, { assignedDate: vs.selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
         .then(() => refreshAll())
         .catch(err => console.error('[journal] schedule card failed:', err));
     });
@@ -1951,14 +1921,14 @@ async function renderCardPool() {
     });
 
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）
-    li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), selectedDate); });
+    li.addEventListener('click', () => { if (!cardDragged) openEditor(card, currentTime(), vs.selectedDate); });
     li.addEventListener('keydown', (e) => {
       // 只响应 li 自身获得焦点的情况：子按钮（安排/删除）聚焦时 Enter/空格应走其原生激活，
       // 否则会被 preventDefault 拦下、误开编辑器
       if (e.target !== li) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openEditor(card, currentTime(), selectedDate);
+        openEditor(card, currentTime(), vs.selectedDate);
       }
     });
 
@@ -2003,7 +1973,7 @@ function renderHeatmap(container, heatmap) {
 
 /* ─── 渲染：日历 ──────────────────────────────────────── */
 
-function renderCalendar(container, matrix, selectedDate, heatmap) {
+function renderCalendar(container, matrix, activeDate, heatmap) {
   container.replaceChildren();
   for (const week of matrix) {
     for (const cell of week) {
@@ -2033,9 +2003,9 @@ function renderCalendar(container, matrix, selectedDate, heatmap) {
 
       if (!cell.isCurrentMonth) btn.classList.add('is-out-month');
       if (cell.isToday) btn.classList.add('is-today');
-      if (cell.dayKey === selectedDate) btn.classList.add('is-selected');
+      if (cell.dayKey === activeDate) btn.classList.add('is-selected');
       // 键盘可达：roving tabindex（仅选中/今天可 Tab，其余方向键导航）
-      btn.tabIndex = (cell.isToday || cell.dayKey === selectedDate) ? 0 : -1;
+      btn.tabIndex = (cell.isToday || cell.dayKey === activeDate) ? 0 : -1;
       // 卡片数量背景色
       const bgLevel = count >= 5 ? 5 : count;
       if (bgLevel > 0) btn.classList.add(`count-${bgLevel}`);
@@ -2046,11 +2016,11 @@ function renderCalendar(container, matrix, selectedDate, heatmap) {
 }
 
 function renderCalendarView() {
-  const matrix = getMonthMatrix(calendarMonth.year, calendarMonth.month);
+  const matrix = getMonthMatrix(vs.calendarMonth.year, vs.calendarMonth.month);
   if (els.calMonthLabel) {
-    els.calMonthLabel.textContent = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
+    els.calMonthLabel.textContent = `${vs.calendarMonth.year}年${vs.calendarMonth.month + 1}月`;
   }
-  renderCalendar(els.calendarGrid, matrix, selectedDate, heatmapCache);
+  renderCalendar(els.calendarGrid, matrix, vs.selectedDate, vs.heatmapCache);
   bindCalendarKeys();
 }
 
@@ -2085,7 +2055,7 @@ function bindCalendarKeys() {
 
 function updateHeaderDate() {
   if (els.todayDisplay) {
-    els.todayDisplay.textContent = formatDateLabel(selectedDate);
+    els.todayDisplay.textContent = formatDateLabel(vs.selectedDate);
   }
 }
 
@@ -2094,9 +2064,9 @@ function updateHeaderDate() {
 /* ─── 全局刷新 ────────────────────────────────────────── */
 
 async function refreshAll() {
-  allCardsCache = await getAllCards();
-  heatmapCache = countCardsByDay(allCardsCache);
-  renderHeatmap(els.heatmap, heatmapCache);
+  vs.allCardsCache = await getAllCards();
+  vs.heatmapCache = countCardsByDay(vs.allCardsCache);
+  renderHeatmap(els.heatmap, vs.heatmapCache);
   renderCalendarView();
   await renderRightView();
   await renderCardPool();
@@ -2106,19 +2076,19 @@ async function refreshAll() {
 
 /** 从 host 拉取命名视图并渲染到下拉 */
 async function loadPoolViews() {
-  savedViews = (await getHostMeta('savedViews')) || [];
+  vs.savedViews = (await getHostMeta('savedViews')) || [];
   const sel = els.viewSelect;
   if (!sel) return;
   sel.replaceChildren();
   const optAll = document.createElement('option');
   optAll.value = ''; optAll.textContent = '全部卡片';
   sel.append(optAll);
-  for (const v of savedViews) {
+  for (const v of vs.savedViews) {
     const o = document.createElement('option');
     o.value = v.id; o.textContent = v.name;
     sel.append(o);
   }
-  sel.value = activeViewId;
+  sel.value = vs.activeViewId;
 }
 
 /** 把当前筛选 + 布局存成命名视图 */
@@ -2128,26 +2098,26 @@ async function saveCurrentView() {
   const id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
   const view = {
     id, name,
-    status: poolStatusFilter,
-    tag: poolTagFilter,
-    project: poolProjectFilter,
-    layout: poolLayout,
+    status: vs.poolStatusFilter,
+    tag: vs.poolTagFilter,
+    project: vs.poolProjectFilter,
+    layout: vs.poolLayout,
   };
-  savedViews = [...savedViews, view];
-  await setHostMeta('savedViews', savedViews);
-  activeViewId = id;
+  vs.savedViews = [...vs.savedViews, view];
+  await setHostMeta('savedViews', vs.savedViews);
+  vs.activeViewId = id;
   await loadPoolViews();
   showToast('✅ 已保存视图：' + name, 'success');
 }
 
 /** 应用一个命名视图 */
 function applyView(view) {
-  poolStatusFilter = view.status ?? '';
-  poolTagFilter = view.tag ?? '';
-  poolProjectFilter = view.project ?? '';
-  poolLayout = view.layout ?? 'card';
-  localStorage.setItem('journal.poolLayout', poolLayout);
-  activeViewId = view.id;
+  vs.poolStatusFilter = view.status ?? '';
+  vs.poolTagFilter = view.tag ?? '';
+  vs.poolProjectFilter = view.project ?? '';
+  vs.poolLayout = view.layout ?? 'card';
+  getPort().prefSet('journal.poolLayout', vs.poolLayout);
+  vs.activeViewId = view.id;
   renderCardPool();
 }
 
@@ -2973,7 +2943,7 @@ async function saveTemplateBuilder() {
 
 /** 以当前卡片为蓝本预填构建器 */
 function prefillTemplateFromCard() {
-  const card = editingCardId ? allCardsCache.find(c => c.id === editingCardId) : null;
+  const card = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) : null;
   if (!card) { showToast('没有正在编辑的卡片', ''); return; }
   tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, extra: [], values: {}, reqOv: {} };
   const putReq = (key, value) => { if (value !== undefined && value !== null && value !== '') tplBuilderState.values[key] = value; };
@@ -3263,7 +3233,7 @@ const WIDE_STATE_KEY = 'journal.wideMode'; // 'auto' | 'on' | 'off'（缺失视�
 
 /** 当前生效的宽屏状态：手动 on/off 优先，否则跟随视口宽度 */
 function widePreference() {
-  return localStorage.getItem(WIDE_STATE_KEY); // null | 'on' | 'off' | 'auto'
+  return getPort().prefGet(WIDE_STATE_KEY); // null | 'on' | 'off' | 'auto'
 }
 function computeWide() {
   const p = widePreference();
@@ -3310,11 +3280,11 @@ async function init() {
     document.body.classList.toggle('panels-open', open);
     els.btnPanels.setAttribute('aria-expanded', String(open));
   };
-  setPanels(localStorage.getItem('journal.panelsOpen') === '1');
+  setPanels(getPort().prefGet('journal.panelsOpen') === '1');
   els.btnPanels.addEventListener('click', () => {
     const open = !document.body.classList.contains('panels-open');
     setPanels(open);
-    localStorage.setItem('journal.panelsOpen', open ? '1' : '0');
+    getPort().prefSet('journal.panelsOpen', open ? '1' : '0');
   });
   // 点击遮罩关闭抽屉
   els.board?.addEventListener?.('click', (e) => {
@@ -3329,7 +3299,7 @@ async function init() {
 
   // 快捷新建（今天/当前视图日期）
   els.btnQuickAdd?.addEventListener('click', () => {
-    openEditor(null, currentTime(), selectedDate);
+    openEditor(null, currentTime(), vs.selectedDate);
   });
 
   // 项目/标签筛选：展开/收起「筛选」区（渐进披露）
@@ -3364,18 +3334,18 @@ async function init() {
   // ── 右视图导航 / 模式切换 ──
   els.viewPrev.addEventListener('click', async () => {
     requestFocusScroll(); // 切换日期后聚焦
-    if (viewMode === 'month') {
-      let { year, month } = calendarMonth;
+    if (vs.viewMode === 'month') {
+      let { year, month } = vs.calendarMonth;
       month -= 1;
       if (month < 0) { month = 11; year -= 1; }
-      calendarMonth = { year, month };
+      vs.calendarMonth = { year, month };
       renderCalendarView();
-    } else if (viewMode === 'week') {
-      weekAnchor = addDays(weekAnchor, -7);
+    } else if (vs.viewMode === 'week') {
+      vs.weekAnchor = addDays(vs.weekAnchor, -7);
     } else {
-      selectedDate = addDays(selectedDate, -1);
-      weekAnchor = selectedDate;
-      calendarMonth = monthOf(selectedDate);
+      vs.selectedDate = addDays(vs.selectedDate, -1);
+      vs.weekAnchor = vs.selectedDate;
+      vs.calendarMonth = monthOf(vs.selectedDate);
       updateHeaderDate();
       renderCalendarView();
     }
@@ -3384,18 +3354,18 @@ async function init() {
 
   els.viewNext.addEventListener('click', async () => {
     requestFocusScroll(); // 切换日期后聚焦
-    if (viewMode === 'month') {
-      let { year, month } = calendarMonth;
+    if (vs.viewMode === 'month') {
+      let { year, month } = vs.calendarMonth;
       month += 1;
       if (month > 11) { month = 0; year += 1; }
-      calendarMonth = { year, month };
+      vs.calendarMonth = { year, month };
       renderCalendarView();
-    } else if (viewMode === 'week') {
-      weekAnchor = addDays(weekAnchor, 7);
+    } else if (vs.viewMode === 'week') {
+      vs.weekAnchor = addDays(vs.weekAnchor, 7);
     } else {
-      selectedDate = addDays(selectedDate, 1);
-      weekAnchor = selectedDate;
-      calendarMonth = monthOf(selectedDate);
+      vs.selectedDate = addDays(vs.selectedDate, 1);
+      vs.weekAnchor = vs.selectedDate;
+      vs.calendarMonth = monthOf(vs.selectedDate);
       updateHeaderDate();
       renderCalendarView();
     }
@@ -3404,9 +3374,9 @@ async function init() {
 
   els.viewToday.addEventListener('click', async () => {
     requestFocusScroll(); // 切换日期后聚焦
-    calendarMonth = monthOf(todayKey());
-    weekAnchor = todayKey();
-    selectedDate = todayKey();
+    vs.calendarMonth = monthOf(todayKey());
+    vs.weekAnchor = todayKey();
+    vs.selectedDate = todayKey();
     updateHeaderDate();
     renderCalendarView();
     await renderRightView();
@@ -3414,8 +3384,8 @@ async function init() {
 
   els.viewModeBtns?.forEach(btn => {
     btn.addEventListener('click', async () => {
-      viewMode = btn.dataset.mode;
-      localStorage.setItem('journal.viewMode', viewMode);
+      vs.viewMode = btn.dataset.mode;
+      getPort().prefSet('journal.viewMode', vs.viewMode);
       markViewMode();
       requestFocusScroll(); // 切换视图后重新聚焦当前时刻
       await renderRightView();
@@ -3424,12 +3394,12 @@ async function init() {
 
   // 24h / 08-22 时间线范围切换
   const updateSpanBtn = () => {
-    if (els.btnSpan) els.btnSpan.textContent = timelineSpan === 'full' ? '24h' : '08–22';
+    if (els.btnSpan) els.btnSpan.textContent = vs.timelineSpan === 'full' ? '24h' : '08–22';
   };
   updateSpanBtn();
   els.btnSpan?.addEventListener('click', async () => {
-    timelineSpan = timelineSpan === 'full' ? 'default' : 'full';
-    localStorage.setItem('journal.timelineSpan', timelineSpan);
+    vs.timelineSpan = vs.timelineSpan === 'full' ? 'default' : 'full';
+    getPort().prefSet('journal.timelineSpan', vs.timelineSpan);
     updateSpanBtn();
     // 时间范围影响时间线与周视图（周视图复用同一天范围逻辑）
     await renderRightView();
@@ -3443,8 +3413,8 @@ async function init() {
     const order = ['auto', 'on', 'off'];
     const cur = widePreference() || 'auto';
     const next = order[(order.indexOf(cur) + 1) % order.length] || 'auto';
-    if (next === 'auto') localStorage.removeItem(WIDE_STATE_KEY);
-    else localStorage.setItem(WIDE_STATE_KEY, next);
+    if (next === 'auto') getPort().prefRemove(WIDE_STATE_KEY);
+    else getPort().prefSet(WIDE_STATE_KEY, next);
     applyWide();
   });
 
@@ -3532,27 +3502,27 @@ async function init() {
 
   // ── 日历月份导航（左侧小日历）──
   els.calPrev.addEventListener('click', () => {
-    let { year, month } = calendarMonth;
+    let { year, month } = vs.calendarMonth;
     month -= 1;
     if (month < 0) { month = 11; year -= 1; }
-    calendarMonth = { year, month };
+    vs.calendarMonth = { year, month };
     renderCalendarView();
-    if (viewMode === 'month') renderRightView();
+    if (vs.viewMode === 'month') renderRightView();
   });
 
   els.calNext.addEventListener('click', () => {
-    let { year, month } = calendarMonth;
+    let { year, month } = vs.calendarMonth;
     month += 1;
     if (month > 11) { month = 0; year += 1; }
-    calendarMonth = { year, month };
+    vs.calendarMonth = { year, month };
     renderCalendarView();
-    if (viewMode === 'month') renderRightView();
+    if (vs.viewMode === 'month') renderRightView();
   });
 
   els.calToday.addEventListener('click', async () => {
-    calendarMonth = monthOf(todayKey());
-    selectedDate = todayKey();
-    weekAnchor = todayKey();
+    vs.calendarMonth = monthOf(todayKey());
+    vs.selectedDate = todayKey();
+    vs.weekAnchor = todayKey();
     updateHeaderDate();
     renderCalendarView();
     await renderRightView();
@@ -3562,8 +3532,8 @@ async function init() {
   els.calendarGrid.addEventListener('click', async (e) => {
     const cell = e.target.closest('.cal-day');
     if (!cell || !cell.dataset.day) return;
-    selectedDate = cell.dataset.day;
-    weekAnchor = cell.dataset.day;
+    vs.selectedDate = cell.dataset.day;
+    vs.weekAnchor = cell.dataset.day;
     updateHeaderDate();
     renderCalendarView();
     await renderRightView();
@@ -3573,10 +3543,10 @@ async function init() {
   els.heatmap.addEventListener('click', (e) => {
     const cell = e.target.closest('.heatmap-cell');
     if (!cell || !cell.dataset.day) return;
-    selectedDate = cell.dataset.day;
-    weekAnchor = cell.dataset.day;
+    vs.selectedDate = cell.dataset.day;
+    vs.weekAnchor = cell.dataset.day;
     // 跳到对应月份
-    calendarMonth = monthOf(cell.dataset.day);
+    vs.calendarMonth = monthOf(cell.dataset.day);
     updateHeaderDate();
     renderCalendarView();
     renderRightView();
@@ -3584,9 +3554,9 @@ async function init() {
 
   // ── 卡片池：布局切换（卡片视图 / 列表视图） ──
   els.poolLayoutBtn?.addEventListener('click', () => {
-    poolLayout = poolLayout === 'card' ? 'list' : 'card';
-    localStorage.setItem('journal.poolLayout', poolLayout);
-    els.poolLayoutBtn.textContent = poolLayout === 'card' ? '⊞' : '☰';
+    vs.poolLayout = vs.poolLayout === 'card' ? 'list' : 'card';
+    getPort().prefSet('journal.poolLayout', vs.poolLayout);
+    els.poolLayoutBtn.textContent = vs.poolLayout === 'card' ? '⊞' : '☰';
     renderCardPool();
   });
 
@@ -3594,7 +3564,7 @@ async function init() {
   els.saveViewBtn?.addEventListener('click', saveCurrentView);
   els.viewSelect?.addEventListener('change', () => {
     const id = els.viewSelect.value;
-    const view = savedViews.find(v => v.id === id);
+    const view = vs.savedViews.find(v => v.id === id);
     if (view) applyView(view);
   });
 

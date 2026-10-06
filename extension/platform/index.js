@@ -16,6 +16,9 @@
  * @property {(cb: (changes: Record<string, {newValue?: unknown, oldValue?: unknown}>) => void) => (() => void)} storageSubscribe
  * @property {(msg: object) => Promise<object>} sendMessage
  * @property {() => void} openOptionsPage
+ * @property {(key: string) => string|null} prefGet
+ * @property {(key: string, value: string) => void} prefSet
+ * @property {(key: string) => void} prefRemove
  * @property {(method: string, path: string, body?: object|null) => Promise<
  *   {ok: true, data?: any} | {ok: false, error: {code: string, message: string}}>} hostFetch
  * @property {() => Promise<{ok: boolean, error?: string}>} startHost

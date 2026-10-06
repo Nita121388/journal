@@ -74,11 +74,12 @@ export default [
     rules: {
       'no-restricted-globals': ['error',
         { name: 'chrome', message: 'chrome.* 只能出现在 extension/platform/**（平台适配层）。' },
+        { name: 'localStorage', message: 'localStorage 只能出现在 platform/**；其余层请用 getPort().prefGet/prefSet。' },
       ],
     },
   },
   {
-    // 平台适配层是 chrome.* 的唯一合法归属地。
+    // 平台适配层是 chrome.* / localStorage 的唯一合法归属地。
     files: ['platform/**/*.js'],
     rules: {
       'no-restricted-globals': 'off',
