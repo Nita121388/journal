@@ -44,3 +44,6 @@ host/extension-ids.txt
 .trellis/.backup-*
 .trellis/worktrees/
 .trellis/.cache/
+
+# 测试覆盖率产物（可重建）
+coverage/
