@@ -1,0 +1,66 @@
+/**
+ * tokens.css — 侧栏（主界面）设计 token 唯一定义处
+ *
+ * 只放 :root 变量与暗色覆盖；不写组件样式。
+ * 顺序要求：在 dist/sidepanel.css、select.css、sidepanel.css 之前引入（见 sidepanel.html）。
+ * Tailwind 的 @theme inline 只做 var() 引用，不再重复定义值。
+ */
+
+:root {
+  /* 圆角（design-system §1.1 基础层）：Tailwind @theme 以 --radius-* 别名声引 */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --color-bg: #ffffff;
+  --color-text: #1f2328;
+  --color-muted: #9e9e9e;
+  --color-border: #e5e7eb;
+  --color-accent: #4caf50;
+  --color-accent-light: #e8f5e9;
+  --color-cell-empty: #ebedf0;
+  --color-cell-filled: #4caf50;
+  --color-cell-mid: #9ccc65;
+  --color-surface: #f8f9fa;
+  --color-card-bg: #ffffff;
+  --color-card-border: #e8e8e8;
+  --color-timeline: #d0d5dd;
+  --color-scroll-thumb: #cfd3da;
+  --color-scrim: rgba(0, 0, 0, 0.28);      /* 抽屉遮罩 */
+  --color-on-accent-ink: #10240f;          /* 暗色下 today 单元格：提亮底上的深字 */
+  --color-danger: #d32f2f;                 /* 危险（Toast error） */
+  --color-warn: #ef6c00;                   /* 警告（Toast warn） */
+  --color-on-accent: #fff;                 /* 主色底上的前景色（按钮/成功 Toast） */
+  /* 自建下拉框（select.css）：BoardUI 风格令牌。
+   * 侧栏控件密度小（11px 字号 / 24px 高），故圆角取 10px 而非 BoardUI 的 2lg(~12-14px)，
+   * 否则 24px 高的控件会呈胶囊状。 */
+  --select-radius-sm: 8px;
+  --select-radius-md: 10px;
+  --select-h-sm: 24px;
+  --select-h-md: 32px;
+  --select-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);      /* 极弱投影（BoardUI shadow-xs） */
+  --select-pop-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);  /* 浮层投影 */
+  --select-hover-border: var(--color-muted);
+  --select-dur: 200ms;
+  --select-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环（design-system §4） */
+  --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  /* emoji 字体栈：保证 U+1F5C2 等符号型 emoji 在 Windows 上不走 Segoe UI Symbol（会渲染成方块） */
+  --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-bg: #1e1e1e;
+  --color-text: #e0e0e0;
+  --color-muted: #757575;
+  --color-border: #3a3a3a;
+  --color-cell-empty: #2d2d2d;
+  --color-cell-filled: #4caf50;
+  --color-cell-mid: #689f38;
+  --color-surface: #252525;
+  --color-card-bg: #2a2a2a;
+  --color-card-border: #3a3a3a;
+  --color-timeline: #444;
+  --color-scroll-thumb: #4a4a4a;
+}

@@ -164,3 +164,19 @@
 - [ ] 新交互可键盘操作、焦点可见
 - [ ] 亮暗主题 + reduced-motion 下均正常
 - [ ] 320/360/400/500 宽度下无横向滚动、无内容截断
+
+## Gotcha: Tailwind 产物的 `:root` 自引用与 token 文件顺序
+
+**场景**：Tailwind v4 构建产物 `dist/sidepanel.css` 中含自引用声明
+`:root, :host { --color-accent: var(--color-accent); … }`（由 `@theme inline` 别名映射产生）。
+
+**陷阱**：该声明自身是循环引用。它**只有被后加载的手写 CSS `:root` 覆盖时才无害**。
+一旦把 token 定义挪到产物**之前**（例如新建 `styles/tokens.css` 并放在 `<head>` 更靠前的位置），
+自引用因级联靠后而生效，`--color-accent` 解析为「无效值」，
+所有 `var(--color-accent)` 背景回落为 `transparent` —— 症状是「一批组件突然全透明」。
+
+**正解**：token 文件必须满足 **`dist/*.css` → `select.css` → `styles/tokens.css` → `sidepanel.css`** 的顺序。
+新增样式文件时先在 `styles/README.md` 记录顺序约束。
+
+**原则**：凡「构建产物 + 手写覆盖」共存的项目，覆盖顺序是契约的一部分；
+改动 `<link>` 顺序必须跑带 computed-style 断言的门禁（本项目为 dev-loop `tailwind-migrated` 场景）。

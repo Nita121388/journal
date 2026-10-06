@@ -59,7 +59,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 - [ ] 竞态回归用例：并发写 + 外部写 → 收敛正确
 - [ ] **验证**：多端同步 e2e 通过；dev-loop 全绿
 
-### S5 · ui-split
+### S5 · ui-split ✅ 已完成（归档 2026-10）
 - [ ] 建 `packages/ui/{app,dom}.js`、`state/view-state.js`
 - [ ] 逐模块搬迁 views/features（一次一个，每步 dev-loop）
 - [ ] `entries/sidepanel.js` 降到 < 120 行

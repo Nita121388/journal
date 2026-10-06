@@ -6,6 +6,10 @@
   <title>Journal</title>
   <link rel="stylesheet" href="dist/sidepanel.css">
   <link rel="stylesheet" href="select.css">
+  <!-- tokens 必须紧贴 sidepanel.css 之前：dist/sidepanel.css 内含
+       :root{--color-X:var(--color-X)} 自引用（Tailwind 生成），需由 tokens 覆盖，
+       否则自定义属性成环失效 → 所有 var() 背景变透明。详见 styles/README.md。 -->
+  <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
