@@ -52,7 +52,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 - [ ] 加 ESLint 边界规则三条
 - [ ] **验证**：`rg "chrome\." package/*/ ui shared` 为空；web 实现下 dev-loop 通过
 
-### S4 · state-repository
+### S4 · state-repository ✅ 已完成（归档 2026-10）
 - [ ] 建 `packages/ui/state/repository.js`（内存真源 + 订阅）与 `sync-bridge.js`
 - [ ] 合并 pull/poll/onChanged 为一条通知链（内容签名去重）
 - [ ] 删除 `normalizeEntry`/`newerEntry`/`startPushListener`、journals/todos 全量委托
