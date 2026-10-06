@@ -1,0 +1,13 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "重构总需求 R1-R8 与验收标准 AC1-AC9，是所有子任务的上级契约"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "架构契约：四层分包、单向依赖铁律、平台端口契约、数据真源设计、ESLint 边界规则"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/implement.md", "reason": "跨子任务执行顺序 S1-S8、统一 Gate、回滚点"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "扩展目录布局与模块组织约定：lib 纯逻辑、entry 薄胶水的现行规范，重构需与之衔接"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "无框架组件写法：纯函数式 DOM 构建、禁 innerHTML 注入、渲染幂等"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "chrome.storage 单一访问点与 onChanged 约定，迁移到 repository 时必须保持的语义"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "JSDoc @typedef 与 store 边界运行时校验规范"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "提交前质量门：lint / dev-loop 回归"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "设计 token 三层结构与样式分工，样式收敛阶段的约束"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "host 侧目录与分层约定"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "SQLite 权威存储约定，host 迁移与 card-schema 去重时的数据约束"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层数据流检查清单，用于验证四层单向依赖与契约"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "去重与复用判断标准，用于 card-schema/protocol 抽取"}

@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-06-baseline-cleanup/prd.md", "reason": "逐条核对验收标准"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "核对 lint / dev-loop 门禁是否达标、无禁用模式"}

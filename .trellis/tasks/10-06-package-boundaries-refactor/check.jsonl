@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "逐条核对 AC1-AC9 是否满足"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "核对分层、边界、端口契约是否真正落实"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/implement.md", "reason": "核对 S1-S8 完成度和各 Gate 结果"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门：lint / dev-loop / CSP / 禁用模式"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "检查拆分后的渲染组件是否满足纯函数 + a11y 约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "检查数据访问是否收敛到 repository，无散落 chrome.storage"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "检查 JSDoc 与运行时校验完整性"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "检查样式 token 单一来源与视觉零漂移"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层检查：确认无反向依赖与契约漂移"}
