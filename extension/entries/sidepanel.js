@@ -34,11 +34,16 @@ import { checkHostHealth, startHost } from '../features/host-status.js';
 import { WIDE_QUERY, WIDE_STATE_KEY, widePreference, applyWide } from '../features/wide-mode.js';
 import {
   tplNpType, tplNpOptions, tplPropOverlay,
-  closeTplPropDialog, closeTemplateBuilder, saveTemplateBuilder, prefillTemplateFromCard,
-  onTplNewPropOk, toggleTplBuilderPicker, openTemplateMenu, saveEditorAsTemplate,
+  closeTplPropDialog, closeTemplateBuilder,
+} from '../features/template-builder.js';
+import {
   fieldPickerEl, closeFieldPicker, propRowMenuEl, closePropRowMenu,
   rowIconPop, closeRowIconPicker,
-} from '../features/template-builder.js';
+} from '../features/template-fields.js';
+import {
+  saveTemplateBuilder, prefillTemplateFromCard, onTplNewPropOk,
+  toggleTplBuilderPicker, openTemplateMenu, saveEditorAsTemplate,
+} from '../features/template-menu.js';
 import { autoEnhance as enhanceSelects } from '../features/select.js';
 import { initFieldRegistry } from '../shared/field-registry.js';
 
