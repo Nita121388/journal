@@ -1,7 +1,8 @@
 /**
  * sidepanel.js — 主界面胶水层（卡片时间线版）
  * 职责：DOM 事件绑定 → 调用 lib/store.js → 渲染
- * 规则：不直接碰 chrome.storage.*（走 lib/store.js），不 mix storage + render
+ * 规则：不直接碰平台 storage（走 lib/store.js），不 mix storage + render；
+ * 平台能力统一经 platform/index.js 的端口获取。
  */
 
 import {
@@ -17,6 +18,8 @@ import {
   createCardEntry, updateCardEntry, deleteCardEntry, getSettings,
 } from './lib/store.js';
 import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/host-sync.js';
+import { getPort } from './platform/index.js';
+import { DEFAULT_HOST_BASE, ROUTES } from './shared/protocol.js';
 import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
 import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from './shared/prop-infer.js';
 import { inferPropWithLLM } from './lib/prop-llm.js';
@@ -601,7 +604,7 @@ async function saveEditor() {
     await refreshAll();
   } catch (e) {
     console.error('[journal] save card failed:', e);
-    showToast('保存失败：host 服务未连接（127.0.0.1:8766）', 'error');
+    showToast(`保存失败：host 服务未连接（${DEFAULT_HOST_BASE}）`, 'error');
   }
 }
 
@@ -661,7 +664,7 @@ const els = {
   poolExtraFilter: document.getElementById('pool-extra-filter'),
 };
 
-const HOST_HEALTH_URL = 'http://127.0.0.1:8766/api/health';
+const HOST_HEALTH_URL = `${DEFAULT_HOST_BASE}${ROUTES.health}`;
 
 async function checkHostHealth() {
   try {
@@ -712,7 +715,7 @@ async function startHost() {
   if (!els.hostStatusBtn) return;
   setHostStatus('starting');
   try {
-    const result = await chrome.runtime.sendMessage({ type: 'journal:start-host' });
+    const result = await getPort().startHost();
     if (!result?.ok) throw new Error(result?.error || 'Native Host 未注册，请先运行 host\\install-host.bat');
     const online = await waitForHost();
     if (!online) throw new Error('启动超时，请确认已运行 host\\install-host.bat');
@@ -3235,8 +3238,7 @@ let skillsCache = null;
 
 async function loadSkillStatus() {
   try {
-    const res = await fetch('http://127.0.0.1:8766/api/skill-status');
-    const data = await res.json();
+    const data = await getPort().hostFetch('GET', ROUTES.skillStatus);
     skillsCache = data?.data ?? null;
   } catch (e) {
     skillsCache = null;
@@ -3664,7 +3666,7 @@ async function init() {
     closeTemplateBuilder();
   });
   document.getElementById('btn-settings')?.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+    getPort().openOptionsPage();
   });
 
   els.hostStatusBtn?.addEventListener('click', startHost);

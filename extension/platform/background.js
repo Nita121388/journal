@@ -1,7 +1,14 @@
 /**
- * background.js — MV3 Service Worker
- * 职责：点击扩展图标时在新标签页打开 Journal 主界面（sidepanel.html）
+ * background.js — MV3 Service Worker（**平台层文件**）
+ *
+ * 职责：① 点击扩展图标在新标签页打开主界面；② 通过 native messaging 启动本机 host。
+ * 位置：属 platform/ —— Service Worker 天生是 Chrome 平台代码，此处允许直接使用 chrome.*。
+ *
+ * 页面侧不直接与 native messaging 交互，而是经 `platform/chrome.js` 的 startHost()
+ * 经由 `sendMessage({type: MESSAGES.startHost})` 转发到这里。
  */
+
+import { MESSAGES } from '../shared/protocol.js';
 
 /**
  * 显式关闭"点击图标打开侧边栏"行为。
@@ -30,7 +37,7 @@ chrome.action.onClicked.addListener(() => {
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'journal:start-host') return;
+  if (message?.type !== MESSAGES.startHost) return;
   try {
     const port = chrome.runtime.connectNative('com.journal.host');
     const finish = (payload) => {

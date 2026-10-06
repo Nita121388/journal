@@ -17,7 +17,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 
 - **硬前置**：`baseline-cleanup` → `shared-package` → `platform-port` → `state-repository` → `ui-split`。
 - `style-consolidation` 在 `ui-split` 之后（此时文件已分段）。
-- `desktop-shell` 只依赖 `platform-port`，可在 `ui-split` 期间并行。
+- `desktop-shell` 降级为后续可选（本期不做桌面端，只预留可行性）。
 - `type-and-tests` 随各子任务增量推进，最后收口到 80%。
 
 ## 1. 每个子任务的统一 Gate（Definition of Done）
@@ -70,8 +70,10 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 - [ ] token 收敛单源；决定 Tailwind `@theme` 改为别名读取 or 退役
 - [ ] **验证**：computed-style 断言 + 多宽度截图零漂移；`dist/` 双轨消除
 
-### S7 · desktop-shell
-- [ ] 建 `packages/platforms/desktop/{main,preload,platform}.js`（Electron）
+### S7 · desktop-shell — **⏸ 已降级为后续可选（用户决定本期不做桌面端）**
+> 可行性的实际交付物由 S3（平台端口层）承担：`chrome.*` 收敛 + `PlatformPort` 契约 + `web` 参考实现
+> 即构成可移植性证明。本步骤需要时再启动，**不阻塞父任务验收**。
+- [ ]（可选）建 Electron 壳 `desktop/`，内嵌 spawn host，加载同一 UI
 - [ ] 内嵌 spawn host；加载同一 UI
 - [ ] **验证**：桌面窗口读写同一 `host/data/journal.db`；Chrome 渠道不受影响
 
@@ -84,8 +86,8 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 
 - [ ] AC1–AC9 全绿（见 prd.md）
 - [ ] Chrome load unpacked：side panel + options 无回归
-- [ ] Electron 桌面窗口：读写同一 SQLite
-- [ ] `docs/adr` 记录关键决策（host 权威、LWW、Electron、分包理由）
+- [ ] AC7 桌面可行性证明：`chrome.*` 零外泄 + `web` 端口可构造（Electron PoC 不要求）
+- [ ] `docs/adr` 记录关键决策（host 权威、LWW、在 Chrome 根内分层、桌面可行性边界）
 - [ ] 最终 dev-loop 全量回归 + 人工 spot check
 
 ## 4. 回滚点

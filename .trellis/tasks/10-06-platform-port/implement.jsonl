@@ -1,0 +1,8 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "架构契约：PlatformPort 定义 §3、依赖铁律 §2、ESLint 边界 §7"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "父任务 R2/R7 与 AC1/AC7（chrome.* 零外泄、桌面可行性）"}
+{"file": ".trellis/tasks/10-06-platform-port/prd.md", "reason": "本任务需求与验收标准"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "lib 模块纯度与依赖图约定；端口注入需与之一致"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "chrome.storage 单一访问点与 onChanged 语义，替换为端口时必须保留"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "PlatformPort 需完整 JSDoc @typedef"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门：lint / dev-loop / CSP"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层契约：端口作为 UI→平台的唯一接缝"}

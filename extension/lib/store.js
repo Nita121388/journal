@@ -1,7 +1,7 @@
 /**
  * store.js — 扩展数据读写桥接层
  * 新架构：host 为权威源，扩展编辑直接写 host（通过 host-sync.js）。
- * 扩展缓存（chrome.storage.local）只在启动时从 host 拉取，后续不再写入。
+ * 扩展缓存（平台 storage，经 platform 端口）只在启动时从 host 拉取，后续不再写入。
  */
 
 import {
@@ -12,6 +12,12 @@ import {
   createCard, migrateOldJournals, migrateOldTodos,
   getCardsByDate, getCardPool,
 } from '../shared/model.js';
+import { getPort } from '../platform/index.js';
+
+// 平台端口访问（storage 为镜像缓存层；权威源仍是 host）。
+// 用局部别名避免在每个调用点重复 getPort()，也便于后续 S4 迁移到 state/repository。
+const storageGet = (keys) => getPort().storageGet(keys);
+const storageSet = (obj) => getPort().storageSet(obj);
 
 const KEY = Object.freeze({
   CARDS: 'cards',
@@ -47,7 +53,7 @@ function normalizeJournalsToCards(rawJournals, rawTodos, rawCards) {
  * @returns {Promise<Card[]>}
  */
 export async function getAllCards() {
-  const cached = await chrome.storage.local.get([KEY.CARDS, KEY.JOURNALS, KEY.TODOS]);
+  const cached = await storageGet([KEY.CARDS, KEY.JOURNALS, KEY.TODOS]);
   const cards = cached[KEY.CARDS];
   if (Array.isArray(cards) && cards.length) return cards;
   // 缓存无卡片 → 尝试迁移旧数据
@@ -57,7 +63,7 @@ export async function getAllCards() {
     cards
   );
   if (migrated.length) {
-    await chrome.storage.local.set({ [KEY.CARDS]: migrated });
+    await storageSet({ [KEY.CARDS]: migrated });
   }
   return migrated;
 }
@@ -130,9 +136,9 @@ export async function createCardEntry(patch = {}) {
 
 /** 把卡片加入缓存（追加） */
 async function addCardToCache(card) {
-  const { [KEY.CARDS]: cards = [] } = await chrome.storage.local.get(KEY.CARDS);
+  const { [KEY.CARDS]: cards = [] } = await storageGet(KEY.CARDS);
   cards.push(card);
-  await chrome.storage.local.set({ [KEY.CARDS]: cards });
+  await storageSet({ [KEY.CARDS]: cards });
 }
 
 /**
@@ -153,14 +159,14 @@ export async function updateCardEntry(id, patch) {
 
 /** 更新缓存中某张卡片 */
 async function patchCardInCache(id, newCard) {
-  const { [KEY.CARDS]: cards = [] } = await chrome.storage.local.get(KEY.CARDS);
+  const { [KEY.CARDS]: cards = [] } = await storageGet(KEY.CARDS);
   const idx = cards.findIndex(c => c.id === id);
   if (idx === -1) {
     cards.push(newCard);
   } else {
     cards[idx] = { ...cards[idx], ...newCard };
   }
-  await chrome.storage.local.set({ [KEY.CARDS]: cards });
+  await storageSet({ [KEY.CARDS]: cards });
 }
 
 /**
@@ -171,8 +177,8 @@ async function patchCardInCache(id, newCard) {
 export async function deleteCardEntry(id) {
   const { ok } = await deleteCardFromHost(id);
   if (!ok) throw new Error('deleteCard failed');
-  const { [KEY.CARDS]: cards = [] } = await chrome.storage.local.get(KEY.CARDS);
-  await chrome.storage.local.set({
+  const { [KEY.CARDS]: cards = [] } = await storageGet(KEY.CARDS);
+  await storageSet({
     [KEY.CARDS]: cards.filter(c => c.id !== id),
   });
 }
@@ -225,19 +231,17 @@ export async function saveTodos(todos) {
 }
 
 export function subscribeJournals(cb) {
-  const listener = changes => {
+  return getPort().storageSubscribe(changes => {
     if (changes.cards) {
       cb(changes.cards.newValue || []);
     }
-  };
-  chrome.storage.local.onChanged.addListener(listener);
-  return () => chrome.storage.local.onChanged.removeListener(listener);
+  });
 }
 
 /* ─── Settings（本地存储，不涉及 host） ──────────────────── */
 
 export async function getSettings() {
-  const { [KEY.SETTINGS]: raw } = await chrome.storage.local.get(KEY.SETTINGS);
+  const { [KEY.SETTINGS]: raw } = await storageGet(KEY.SETTINGS);
   return {
     sync: { enabled: false, provider: '', endpoint: '', ...(raw?.sync || {}) },
     ai:   { provider: 'local', apiKey: '', inferMode: 'auto', ...(raw?.ai || {}) },
@@ -252,5 +256,5 @@ export async function saveSettings(patch) {
     ai:     { ...current.ai,     ...patch.ai     },
     theme:  patch.theme ?? current.theme,
   };
-  await chrome.storage.local.set({ [KEY.SETTINGS]: merged });
+  await storageSet({ [KEY.SETTINGS]: merged });
 }

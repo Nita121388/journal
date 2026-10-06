@@ -49,9 +49,12 @@
 - `shared/` 与 `ui/state/` 全量 JSDoc `@typedef`。
 - vitest 对 `shared/` + `ui/state/` 覆盖率 ≥ 80%，接入质量门禁。
 
-### R7 桌面版准备
-- `platforms/desktop/`（Electron）加载**同一套** `ui/`，内嵌 host，无需 native messaging。
-- Chrome 扩展渠道保留，双端复用同一 UI 代码。
+### R7 桌面版可行性（**本期只预留，不实现**）
+- 目标从"落地 Electron PoC"下调为"保留可行性"：
+  - `chrome.*` 全部收敛到 `platform/`，UI 层零平台引用；
+  - 提供可替换的 `PlatformPort` 契约 + `web` 参考实现作为可移植性证明；
+  - 不新增 `desktop/` 目录、不安装 Electron、不改 manifest 加载方式。
+- 子任务 `10-06-desktop-shell` 降级为**后续可选**，不阻塞父任务验收。
 
 ### R8 行为冻结
 - 重构期间不新增功能。每次搬迁/拆分必须行为等价，以 `dev-loop` 回归为门禁。
@@ -64,7 +67,7 @@
 - [ ] AC4 UI 侧无直接 `chrome.storage` 调用；`repository` 为唯一卡片读写入口
 - [ ] AC5 token 单一来源；`dev-loop` 多宽度截图与 computed-style 断言全绿
 - [ ] AC6 vitest `shared/` + `ui/state/` 覆盖率 ≥ 80%
-- [ ] AC7 Electron 桌面窗口可打开 UI，读写同一 `host/data/journal.db`
+- [ ] AC7 桌面可行性：`rg "chrome\." extension/shared extension/{state,views,features,components} extension/entries` 无结果；`web` 端口可构造。Electron PoC **不要求**（降级为后续可选任务）。
 - [ ] AC8 Chrome 扩展 load unpacked 正常，side panel 与 options 功能不回归
 - [ ] AC9 每个子任务独立可验收、可回滚；父任务通过最终集成回归
 
@@ -79,7 +82,7 @@
 
 - 不做 UI 视觉重设计。
 - 不做数据模型变更（Field Registry 维持现状）。
-- 本期不发布桌面正式版，仅 PoC 验证可复用性。
+- 本期不实现桌面端；仅通过平台端口 + web 参考实现保留可行性。
 
 ## Notes
 

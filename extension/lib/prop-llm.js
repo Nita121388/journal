@@ -7,11 +7,12 @@
  *  - prop-infer.js 保持纯本地、永不联网；本模块是唯一的 LLM 入口。
  *  - 触发策略（settings.ai.inferMode）：auto（默认）/ always / never
  *  - **永不 throw**：任何网络/解析错误等价于返回本地结果（UI 不崩、不弹错）
- *  - 结果缓存到 chrome.storage.local（按 name），重复属性名不重复计费
+ *  - 结果缓存到平台 storage（按 name），重复属性名不重复计费
  */
 
 import { inferProp, defaultValueForType } from '../shared/prop-infer.js';
 import { hostApi } from './host-sync.js';
+import { getPort } from '../platform/index.js';
 
 const CACHE_KEY = 'ai.inferCache';
 const CACHE_MAX = 200;
@@ -24,7 +25,7 @@ function cacheKey(name, model = '') {
 }
 
 async function readCache() {
-  const { [CACHE_KEY]: raw } = await chrome.storage.local.get(CACHE_KEY);
+  const { [CACHE_KEY]: raw } = await getPort().storageGet(CACHE_KEY);
   return (raw && typeof raw === 'object') ? raw : {};
 }
 
@@ -37,7 +38,7 @@ async function writeCache(entry) {
     keys.sort((a, b) => (cache[a].ts || 0) - (cache[b].ts || 0));
     for (const k of keys.slice(0, keys.length - CACHE_MAX)) delete cache[k];
   }
-  await chrome.storage.local.set({ [CACHE_KEY]: cache });
+  await getPort().storageSet({ [CACHE_KEY]: cache });
 }
 
 /* ── 主入口 ───────────────────────────────────────────── */

@@ -24,10 +24,12 @@ export function log(level, msg) {
   console.log(`[dev-loop][${level}] ${msg}`);
 }
 
-/** Detect the host port the product currently targets (e.g. 8765 prod / 8766 dev). */
+/** Detect the host port the product currently targets (e.g. 8765 prod / 8766 dev).
+ *  单一真相：extension/shared/protocol.js 的 DEFAULT_HOST_PORT。 */
 export function detectHostPort(extSrc = EXT_SRC) {
-  const f = join(extSrc, 'lib', 'host-sync.js');
-  const m = readFileSync(f, 'utf8').match(/127\.0\.0\.1:(\d{4,5})/);
+  const f = join(extSrc, 'shared', 'protocol.js');
+  const src = readFileSync(f, 'utf8');
+  const m = src.match(/DEFAULT_HOST_PORT\s*=\s*(\d{4,5})/) || src.match(/127\.0\.0\.1:(\d{4,5})/);
   if (!m) throw new Error(`[dev-loop] cannot detect host port from ${f}`);
   return Number(m[1]);
 }
@@ -65,7 +67,10 @@ export function buildTestExtension({ workDir, testPort }) {
       if (statSync(p).isDirectory()) { rewrite(p); continue; }
       if (!/\.(js|json|html)$/.test(name)) continue;
       const src = readFileSync(p, 'utf8');
-      const next = src.replace(/127\.0\.0\.1:\d{4,5}/g, `127.0.0.1:${testPort}`);
+      const next = src
+        .replace(/127\.0\.0\.1:\d{4,5}/g, `127.0.0.1:${testPort}`)
+        // 端口常量单一真相（shared/protocol.js）：无 127.0.0.1 字面量，单独改写。
+        .replace(/(DEFAULT_HOST_PORT\s*=\s*)\d{4,5}/g, `$1${testPort}`);
       if (next !== src) { writeFileSync(p, next, 'utf8'); rewritten++; }
     }
   };

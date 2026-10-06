@@ -1,34 +1,29 @@
 /**
  * host-sync.js — 扩展 ↔ host 服务同步桥接
- * 架构：host 文件为唯一权威源（source of truth），chrome.storage.local 为缓存层。
+ * 架构：host 文件为唯一权威源（source of truth），平台 storage 为缓存层。
  * 
  * 同步协议：
  * - 启动时无条件从 host 拉取（覆盖缓存，LWW 合并）
- * - 扩展编辑直接写 host（通过 PUT /api/journals/{day}），不写 chrome.storage.local
+ * - 扩展编辑直接写 host（通过 PUT /api/journals/{day}），不写平台 storage
  * - host 离线时缓存层独立可用，恢复后下次启动同步
  */
 
-export const HOST = 'http://127.0.0.1:8766';
+import { getPort } from '../platform/index.js';
+import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
+
+export const HOST = DEFAULT_HOST_BASE;
 
 /* ─── HTTP 工具 ────────────────────────────────────── */
 
 /**
+ * 走平台端口的 host 请求（Chrome → fetch；未来桌面 → 各自实现）。
  * @param {'GET'|'PUT'|'POST'|'DELETE'} method
  * @param {string} path
  * @param {object|null} body
  * @returns {Promise<{ok:boolean, data?:any, error?:{code:string,message:string}}>}
  */
 export async function hostApi(method, path, body = null) {
-  const url = `${HOST}${path}`;
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  try {
-    const res = await fetch(url, opts);
-    return await res.json();
-  } catch (e) {
-    console.debug('[host-sync] host offline:', e.message);
-    return { ok: false, error: { code: 'HOST_OFFLINE', message: e.message } };
-  }
+  return getPort().hostFetch(method, path, body);
 }
 
 /** 内部别名：其余函数沿用 `api(...)` */
@@ -54,7 +49,7 @@ function newerEntry(a, b) {
 /* ─── 拉取（host → extension）：启动时无条件覆盖缓存 ──────── */
 
 /**
- * 从 host 无条件拉取 cards、journals、todos，覆盖 chrome.storage.local。
+ * 从 host 无条件拉取 cards、journals、todos，覆盖平台 storage。
  * host 为权威源，缓存只是镜像。
  * @returns {Promise<{pulled:boolean}>}
  */
@@ -73,7 +68,7 @@ export async function pullFromHost() {
   const hostTodos = todoRes.data || [];
 
   // 无条件拉取覆盖
-  await chrome.storage.local.set({
+  await getPort().storageSet({
     cards: hostCards,
     journals: hostJournals,
     todos: hostTodos,
@@ -171,7 +166,7 @@ export function startHostSync(onChange, intervalMs = 20000) {
     if (sig === lastSig) return;
 
     lastSig = sig;
-    await chrome.storage.local.set({ cards, journals, todos });
+    await getPort().storageSet({ cards, journals, todos });
     onChange();
   };
   return setInterval(tick, intervalMs);
