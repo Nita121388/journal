@@ -46,7 +46,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 - [ ] 修正 `host/test/extension-sync.test.mjs` 反向 import
 - [ ] **验证**：`cd host && npm test` 全绿；`node host/cli.mjs --help` 正常
 
-### S3 · platform-port
+### S3 · platform-port ✅ 已完成（归档 2026-10）
 - [ ] 建 `packages/platforms/chrome/platform.js` / `packages/platforms/web/platform.js`
 - [ ] 把 `chrome.*` 从 store.js / host-sync.js / sidepanel.js / options.js / background.js 收敛
 - [ ] 加 ESLint 边界规则三条
