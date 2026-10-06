@@ -21,6 +21,9 @@ import { getSettings } from '../state/settings.js';
 import { pullFromHost, startHostSync } from '../state/sync-bridge.js';
 import { getHostMeta, setHostMeta } from '../state/host-client.js';
 import { vs, monthOf } from '../state/view-state.js';
+import { formatDateLabel, shortDate, typeIcon } from '../shared/format.js';
+import { renderHeatmap } from '../views/heatmap.js';
+import { renderCalendarView, updateHeaderDate } from '../views/calendar.js';
 import { getPort } from '../platform/index.js';
 import { DEFAULT_HOST_BASE, ROUTES } from '../shared/protocol.js';
 import { els } from '../components/dom-refs.js';
@@ -49,30 +52,8 @@ function genId() {
 
 function isOverdue(due) { return due != null && due < todayKey(); }
 
-function formatDateLabel(dayKey) {
-  const [y, m, d] = dayKey.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('zh-CN', {
-    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
-  });
-}
-
-/** 渲染字数 */
-function wordCount(text) { return text ? text.length : 0; }
-
-/** 渲染今天/昨天/具体日期 */
-function shortDate(dayKey) {
-  const t = todayKey();
-  if (dayKey === t) return '今天';
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  if (dayKey === yesterday.toISOString().slice(0, 10)) return '昨天';
-  return dayKey;
-}
-
-/** 类型图标：卡片有自定义 emoji 时优先用 emoji，否则用类型默认 */
-function typeIcon(type, emoji = '') {
-  if (emoji) return emoji;
-  return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
-}
+// formatDateLabel / shortDate / typeIcon 已提取到 shared/format.js（见顶部 import）。
+// 纯展示格式化，供 views 与 entry 共用。
 
 /* ─── 状态 ──────────────────────────────────────────── */
 // 视图可变状态已集中到 state/view-state.js（`vs`），见顶部 import。
@@ -1939,125 +1920,8 @@ async function renderCardPool() {
 
 /* ─── 渲染：热力图 ──────────────────────────────────────── */
 
-function renderHeatmap(container, heatmap) {
-  container.replaceChildren();
-  const today = todayKey();
-  for (const day of dateRange(365)) {
-    const cell = document.createElement('div');
-    cell.className = 'heatmap-cell';
-    cell.dataset.day = day;
-    const count = heatmap[day] ?? 0;
-    // 6 档着色
-    const level = count >= 5 ? 5 : count;
-    if (level > 0) cell.classList.add(`level-${level}`);
-    if (day === today) cell.classList.add('is-today');
-    cell.title = count > 0 ? `${day} · ${count} 张卡片` : `${day}（无记录）`;
-    container.append(cell);
-  }
-
-  // 更新连续打卡数
-  if (els.heatmapStreak) {
-    let streak = 0;
-    const d = new Date();
-    while (true) {
-      const dk = d.toISOString().slice(0, 10);
-      if ((heatmap[dk] ?? 0) > 0) { streak++; d.setDate(d.getDate() - 1); }
-      else break;
-    }
-    els.heatmapStreak.textContent = streak > 0 ? `🔥 ${streak} 天` : '';
-  }
-
-  // 默认滚到最右侧（今天在最右）
-  container.scrollLeft = container.scrollWidth;
-}
-
-/* ─── 渲染：日历 ──────────────────────────────────────── */
-
-function renderCalendar(container, matrix, activeDate, heatmap) {
-  container.replaceChildren();
-  for (const week of matrix) {
-    for (const cell of week) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'cal-day';
-      btn.dataset.day = cell.dayKey;
-
-      const count = heatmap[cell.dayKey] ?? 0;
-
-      // 日期数字
-      const numSpan = document.createElement('span');
-      numSpan.textContent = String(cell.day);
-      btn.append(numSpan);
-
-      // 卡片数指示器（只在有卡片时显示）
-      if (count > 0) {
-        const countEl = document.createElement('span');
-        countEl.className = 'cal-count';
-        countEl.textContent = count > 5 ? '5+' : `${count}`;
-        btn.append(countEl);
-      }
-
-      btn.setAttribute('aria-label',
-        `${cell.dayKey}${cell.isCurrentMonth ? '' : '（非本月）'}${cell.isToday ? '，今天' : ''}${count > 0 ? `，${count}张卡片` : ''}`
-      );
-
-      if (!cell.isCurrentMonth) btn.classList.add('is-out-month');
-      if (cell.isToday) btn.classList.add('is-today');
-      if (cell.dayKey === activeDate) btn.classList.add('is-selected');
-      // 键盘可达：roving tabindex（仅选中/今天可 Tab，其余方向键导航）
-      btn.tabIndex = (cell.isToday || cell.dayKey === activeDate) ? 0 : -1;
-      // 卡片数量背景色
-      const bgLevel = count >= 5 ? 5 : count;
-      if (bgLevel > 0) btn.classList.add(`count-${bgLevel}`);
-
-      container.append(btn);
-    }
-  }
-}
-
-function renderCalendarView() {
-  const matrix = getMonthMatrix(vs.calendarMonth.year, vs.calendarMonth.month);
-  if (els.calMonthLabel) {
-    els.calMonthLabel.textContent = `${vs.calendarMonth.year}年${vs.calendarMonth.month + 1}月`;
-  }
-  renderCalendar(els.calendarGrid, matrix, vs.selectedDate, vs.heatmapCache);
-  bindCalendarKeys();
-}
-
-/** 日历方向键导航（roving tabindex）—— 只绑定一次 */
-let calKeysBound = false;
-function bindCalendarKeys() {
-  const grid = els.calendarGrid;
-  if (!grid || calKeysBound) return;
-  calKeysBound = true;
-  grid.addEventListener('keydown', (e) => {
-    const cells = [...grid.querySelectorAll('.cal-day')];
-    const i = cells.indexOf(document.activeElement);
-    if (i < 0) return;
-    const cols = 7;
-    let n = -1;
-    switch (e.key) {
-      case 'ArrowRight': n = i + 1; break;
-      case 'ArrowLeft': n = i - 1; break;
-      case 'ArrowDown': n = i + cols; break;
-      case 'ArrowUp': n = i - cols; break;
-      case 'Home': n = 0; break;
-      case 'End': n = cells.length - 1; break;
-      default: return;
-    }
-    if (n < 0 || n >= cells.length) return;
-    e.preventDefault();
-    for (const c of cells) c.tabIndex = -1;
-    cells[n].tabIndex = 0;
-    cells[n].focus();
-  });
-}
-
-function updateHeaderDate() {
-  if (els.todayDisplay) {
-    els.todayDisplay.textContent = formatDateLabel(vs.selectedDate);
-  }
-}
+/* ─── 渲染：热力图 / 日历 ──────────────────────────────── */
+// 已提取到 views/heatmap.js 与 views/calendar.js（见顶部 import）。
 
 /* ─── 渲染：TODO ──────────────────────────────────────── */
 
