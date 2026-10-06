@@ -13,9 +13,9 @@ import {
 } from '../components/dom-refs.js';
 import {
   openEmojiPicker, saveEditor, closeEditor, updateEditorDuration, onEditorDurationInput,
-  onEditorStatusChange, onStatusClicked, onEditorProgressChange,
-  openPropForm, closePropForm, onPropFormOk, openPropLibrary, updateStatusSeg,
+  onEditorStatusChange, onStatusClicked, onEditorProgressChange, updateStatusSeg,
 } from '../features/card-editor.js';
+import { openPropForm, closePropForm, onPropFormOk, openPropLibrary } from '../features/editor-props.js';
 import {
   tplNpType, tplNpOptions, tplPropOverlay,
   closeTplPropDialog, closeTemplateBuilder,

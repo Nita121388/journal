@@ -28,7 +28,6 @@ export const tplNpIcon = document.getElementById('tpl-np-icon');
 export const tplNpType = document.getElementById('tpl-np-type');
 export const tplNpOptions = document.getElementById('tpl-np-options');
 export const tplNpOk = document.getElementById('tpl-np-ok');
-const tplNpCancel = document.getElementById('tpl-np-cancel');
 const tplNpIconTile = document.getElementById('tpl-np-icon-tile');
 export const tplNpIconPreview = document.getElementById('tpl-np-icon-preview');
 const tplNpIconPicker = document.getElementById('tpl-np-icon-picker');
@@ -182,15 +181,10 @@ export function renderTemplateBuilder() {
 /** 属性行：图标(点击换) + 名称(双击改) + 默认值(可编辑) + 悬停操作 + 右键菜单 */
 // 已提取到 features/template-rows.js（见顶部 import）。
 
-
-
 /* ── 现有字段选择浮层（内建可选 + 属性库）─────────────────── */
 
 // 已提取到 features/template-fields.js（见顶部 import）。
 
-
-
 /** 保存 / 更新模板 */
 // 已提取到 features/template-menu.js（见顶部 import）。
-
 

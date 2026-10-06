@@ -194,7 +194,7 @@ export function bindViews() {
     try {
       await navigator.clipboard.writeText(text);
       showToast('✅ 已复制全部路径', 'success');
-    } catch (e) {
+    } catch {
       showToast('复制失败，请手动复制', 'error');
     }
   });

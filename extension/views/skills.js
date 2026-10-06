@@ -14,7 +14,7 @@ export async function loadSkillStatus() {
   try {
     const data = await getPort().hostFetch('GET', ROUTES.skillStatus);
     skillsCache = data?.data ?? null;
-  } catch (e) {
+  } catch {
     skillsCache = null;
   }
   renderSkillStatus();
@@ -66,7 +66,7 @@ export function renderSkillStatus() {
       try {
         await navigator.clipboard.writeText(loc.path);
         showToast(`✅ 已复制 ${loc.platform} 路径`, 'success');
-      } catch (e) {
+      } catch {
         showToast('复制失败，请手动复制', 'error');
       }
     });
