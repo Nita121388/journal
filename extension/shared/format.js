@@ -41,3 +41,27 @@ export function typeIcon(type, emoji = '') {
   if (emoji) return emoji;
   return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
 }
+
+const ORIGIN_LABEL = {
+  human: '👤 人类',
+  'agent-assisted': '🤖 人类驱动 agent',
+  'agent-auto': '⚙️ 自动',
+};
+
+/**
+ * 来源事件 → 展示文案（纯展示）。
+ * @param {{origin?:string,agent?:string,model?:string,project?:string,device?:{hostname?:string},at?:string}} ev
+ * @param {string} [fallback='—']
+ * @returns {string}
+ */
+export function formatProvenance(ev, fallback = '—') {
+  if (!ev) return fallback;
+  const label = ORIGIN_LABEL[ev.origin] ?? '👤 人类';
+  const parts = [label];
+  if (ev.agent) parts.push(ev.agent);
+  if (ev.model) parts.push(ev.model);
+  if (ev.project) parts.push(ev.project);
+  if (ev.device?.hostname) parts.push(ev.device.hostname);
+  if (ev.at) parts.push(new Date(ev.at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+  return parts.join(' · ');
+}

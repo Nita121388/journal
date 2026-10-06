@@ -25,6 +25,10 @@ export function monthOf(dayKey) {
 
 const today = todayKey();
 
+/** 日程画布默认范围（分钟）：08:00–22:30 */
+export const DAY_START_MIN = 8 * 60;
+export const DAY_END_MIN = 22 * 60 + 30;
+
 export const vs = {
   // ── 日期与视图 ──
   /** @type {string} 当前选中日期 YYYY-MM-DD */
@@ -37,6 +41,10 @@ export const vs = {
   weekAnchor: today,
   /** @type {'default'|'full'} 时间线展示范围：默认 08-22，full=24 小时 */
   timelineSpan: getPort().prefGet('journal.timelineSpan') || 'default',
+  /** @type {number} 时间线/周视图当前范围起始分钟（默认 08:00；卡片超出时扩展） */
+  viewStartMin: DAY_START_MIN,
+  /** @type {number} 时间线/周视图当前范围结束分钟（默认 22:30） */
+  viewEndMin: DAY_END_MIN,
 
   // ── 数据派生缓存（渲染用） ──
   /** @type {Record<string, number>} dayKey → 卡片数 */
