@@ -2,6 +2,9 @@
  * extension-sync.test.mjs — 扩展侧同步接线单测
  * 通过 stub global.fetch 验证 extension/lib/sync.js 调用 host 的正确端点。
  * 运行：node --test host/test/extension-sync.test.mjs
+ *
+ * 注：跨边界 import（host/test → extension/lib）属历史遗留；
+ *     任务 10-06-shared-package 会把它拆到 extension/shared 的单测中。
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,6 +19,8 @@ globalThis.fetch = async (url, opts = {}) => {
 };
 
 const sync = await import('../../extension/lib/sync.js');
+// 端口以 host-sync.js 的 HOST 常量为唯一真相，避免测试里硬编码端口再次腐化。
+const { HOST } = await import('../../extension/lib/host-sync.js');
 
 beforeEach(() => { calls.length = 0; responder = async () => ({ ok: true, data: {} }); });
 
@@ -23,7 +28,7 @@ test('getSyncStatus → GET /api/sync/status', async () => {
   responder = async () => ({ ok: true, data: { provider: 'local', enabled: true, deviceId: 'dev_1' } });
   const st = await sync.getSyncStatus();
   assert.equal(st.provider, 'local');
-  assert.equal(calls[0].url, 'http://127.0.0.1:8765/api/sync/status');
+  assert.equal(calls[0].url, `${HOST}/api/sync/status`);
   assert.equal(calls[0].method, 'GET');
 });
 
@@ -31,7 +36,7 @@ test('syncNow → POST /api/sync/now 带 direction', async () => {
   responder = async () => ({ ok: true, data: { provider: 'local', pushed: true } });
   const r = await sync.syncNow('push');
   assert.equal(r.pushed, true);
-  assert.equal(calls[0].url, 'http://127.0.0.1:8765/api/sync/now');
+  assert.equal(calls[0].url, `${HOST}/api/sync/now`);
   assert.equal(calls[0].method, 'POST');
   assert.equal(calls[0].body.direction, 'push');
 });
@@ -44,7 +49,7 @@ test('syncNow 失败抛错（host 返回 ok:false）', async () => {
 test('saveSyncConfig → PUT /api/sync/config', async () => {
   responder = async () => ({ ok: true, data: { provider: 'github' } });
   await sync.saveSyncConfig({ provider: 'github', github: { owner: 'o', repo: 'r' } });
-  assert.equal(calls[0].url, 'http://127.0.0.1:8765/api/sync/config');
+  assert.equal(calls[0].url, `${HOST}/api/sync/config`);
   assert.equal(calls[0].method, 'PUT');
   assert.equal(calls[0].body.provider, 'github');
 });
@@ -53,7 +58,7 @@ test('testSync → POST /api/sync/test', async () => {
   responder = async () => ({ ok: true, data: { provider: 'local' } });
   const r = await sync.testSync();
   assert.equal(r.provider, 'local');
-  assert.equal(calls[0].url, 'http://127.0.0.1:8765/api/sync/test');
+  assert.equal(calls[0].url, `${HOST}/api/sync/test`);
 });
 
 test('diffLocalRemote 纯函数', () => {

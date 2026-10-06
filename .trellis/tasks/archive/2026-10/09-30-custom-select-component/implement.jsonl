@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "设计 token 三层结构、圆角/动效/可访问性硬门、反模式清单、§8.1 Tailwind 与 CSS 分工 —— 组件样式必须走语义 token 且不得违反 §8"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "无框架组件的写法约定：纯函数式 DOM 构建、禁用 innerHTML 注入用户内容、渲染幂等、a11y 要求"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "提交前质量门：lint / dev-loop 回归要求与常见缺陷模式"}
+{"file": ".trellis/tasks/09-30-custom-select-component/prd.md", "reason": "需求与验收标准：8 处下拉框范围、BoardUI 视觉目标、R1-R7 硬门"}
+{"file": ".trellis/tasks/09-30-custom-select-component/design.md", "reason": "技术设计：保留原生 select 的架构决策、定位算法、aria-activedescendant 焦点模型、多选方案与风险对策"}
