@@ -6,11 +6,11 @@
 import { getSettings, saveSettings } from '../state/settings.js';
 import {
   getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync,
-  checkHealth, getAiProviders, getAiConfig, saveAiConfig,
+  checkHealth, getAiProviders, getAiConfig, saveAiConfig, exportAll,
 } from '../state/host-client.js';
 import { autoEnhance as enhanceSelects } from '../features/select.js';
-import { getPort } from '../platform/index.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
+import { cardsToMarkdown } from '../shared/md-export.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
 
@@ -47,6 +47,7 @@ const els = {
   copyBtn: document.getElementById('copy-prompt'),
   copyFeedback: document.getElementById('copy-feedback'),
   exportBtn: document.getElementById('export-data'),
+  exportMdBtn: document.getElementById('export-md'),
   exportFeedback: document.getElementById('export-feedback'),
   // 同步
   syncDot: document.getElementById('sync-dot'),
@@ -138,29 +139,46 @@ async function copyPrompt() {
 
 /* ─── 导出扩展数据 ───────────────────────────────────────── */
 
-async function exportData() {
-  const { journals = {}, todos = [], settings: rawSettings = {} } =
-    await getPort().storageGet(['journals', 'todos', 'settings']);
-  const exportObj = {
-    _exportedAt: new Date().toISOString(),
-    _source: 'journal-extension-chrome-storage',
-    journals,
-    todos,
-    settings: rawSettings,
-  };
-  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+/**
+ * 触发浏览器下载。
+ * @param {string} text
+ * @param {string} filename
+ * @param {string} mime
+ */
+function download(text, filename, mime) {
+  const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `journal-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-  els.exportBtn.textContent = '✅ 已导出';
-  els.exportFeedback.textContent = '文件已下载，发送给 AI 助手即可完成数据合并';
-  setTimeout(() => {
-    els.exportBtn.textContent = '⬇️ 导出扩展数据';
-    els.exportFeedback.textContent = '';
-  }, 3000);
+}
+
+/** 导出反馈（按钮文案 + 提示，3 秒后复原）。 */
+function exportFeedback(msg, ok) {
+  if (els.exportFeedback) els.exportFeedback.textContent = ok ? msg : `导出失败：${msg}`;
+  setTimeout(() => { if (els.exportFeedback) els.exportFeedback.textContent = ''; }, 4000);
+}
+
+/**
+ * 从 **host 权威库**导出全部数据（JSON）。
+ * 不再导出扩展的 chrome.storage 镜像 —— 那份可能落后甚至根本没更新过。
+ */
+async function exportData() {
+  const data = await exportAll('json');
+  if (!data) { exportFeedback('host 服务未连接，请在项目根运行 node host/server.js', false); return; }
+  download(JSON.stringify(data, null, 2), `journal-${data._exportedAt.slice(0, 10)}.json`, 'application/json');
+  exportFeedback('已导出全部数据（JSON）', true);
+}
+
+/** 导出为人类可读的 Markdown（与 host `GET /api/export?format=markdown` 用同一实现）。 */
+async function exportMarkdown() {
+  const data = await exportAll('json');
+  if (!data) { exportFeedback('host 服务未连接，请在项目根运行 node host/server.js', false); return; }
+  const md = cardsToMarkdown(data.cards ?? [], { exportedAt: data._exportedAt, store: data._source });
+  download(md, `journal-${data._exportedAt.slice(0, 10)}.md`, 'text/markdown');
+  exportFeedback('已导出为 Markdown', true);
 }
 
 /* ─── 数据同步 ──────────────────────────────────────────── */
@@ -525,6 +543,7 @@ async function init() {
   els.promptTextarea.value = PROMPT_TEMPLATE;
   els.copyBtn.addEventListener('click', copyPrompt);
   els.exportBtn.addEventListener('click', exportData);
+  els.exportMdBtn?.addEventListener('click', exportMarkdown);
 
   els.syncProvider.addEventListener('change', () => toggleProviderFields(els.syncProvider.value));
   els.syncSave.addEventListener('click', onSaveSync);

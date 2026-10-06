@@ -59,6 +59,27 @@ test('校验：缺少 content 返回 400 VALIDATION_ERROR', async () => {
   assert.equal(json.error.code, 'VALIDATION_ERROR');
 });
 
+test('GET /api/export 从权威库导出全量（JSON + Markdown）', async () => {
+  await api('POST', '/api/cards', {
+    content: '导出用卡片', title: '导出标题', type: 'task',
+    assignedDate: '2026-10-06', startTime: '09:00', endTime: '10:00',
+  });
+
+  const json = (await api('GET', '/api/export')).json;
+  assert.equal(json.ok, true);
+  assert.equal(json.data._source, 'journal-host-sqlite');
+  assert.ok(Array.isArray(json.data.cards));
+  assert.ok(json.data.cards.some(c => c.title === '导出标题'), '带全量卡片');
+
+  const mdRes = await fetch(url + '/api/export?format=markdown');
+  assert.equal(mdRes.status, 200);
+  assert.match(mdRes.headers.get('content-type') || '', /text\/markdown/);
+  const md = await mdRes.text();
+  assert.match(md, /# Journal 导出/);
+  assert.match(md, /## 2026-10-06/);
+  assert.match(md, /导出标题/);
+});
+
 test('GET /api/cards?q= 按标题/内容/标签子串检索', async () => {
   await api('POST', '/api/cards', { content: 'alpha 唯一词', tags: ['zzz'] });
   await api('POST', '/api/cards', { content: 'beta', title: 'Alpha 标题' });

@@ -12,6 +12,7 @@ import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release, homedir } from 'node:os';
 
+import { cardsToMarkdown } from '../extension/shared/md-export.js';
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
 import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
@@ -656,6 +657,31 @@ export async function createApp(store, { logger } = {}) {
       // ── Health ────────────────────────────────────────
       if (path === '/api/health') {
         return ok(res, { status: 'running', dataFile: store.file, store: store.kind });
+      }
+
+      // ── 全量导出（数据归还给用户）───────────────────
+      // 设置页原本只能导出**扩展本地镜像**（chrome.storage），拿不到 host 库里的真实全量。
+      // 这里直接从权威存储导出，支持 JSON（可再导入/交给 agent）与 Markdown（可读/可归档）。
+      if (path === '/api/export' && method === 'GET') {
+        const format = (query.get('format') || 'json').toLowerCase();
+        const data = await store.exportJson();
+        const exportedAt = new Date().toISOString();
+        if (format === 'markdown' || format === 'md') {
+          const md = cardsToMarkdown(data.cards ?? [], { exportedAt, store: store.kind });
+          const buf = Buffer.from(md, 'utf-8');
+          res.writeHead(200, {
+            'Content-Type': 'text/markdown; charset=utf-8',
+            'Content-Disposition': `attachment; filename="journal-${exportedAt.slice(0, 10)}.md"`,
+            'Content-Length': Buffer.byteLength(buf),
+          });
+          return res.end(buf);
+        }
+        return ok(res, {
+          ...data,
+          _exportedAt: exportedAt,
+          _source: 'journal-host-sqlite',
+          _version: 1,
+        });
       }
 
       // ── Skills（本机 skills 清单）─────────────────────

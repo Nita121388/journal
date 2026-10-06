@@ -86,6 +86,20 @@ export async function saveTodosToHost(todos) {
 // 无法替换传输层）。现全部收进这里。
 
 /**
+ * 从 host 权威库导出全部数据。
+ * 
+ * 与「读 chrome.storage 镜像」的区别：镜像可能落后（host 离线时根本没更新），
+ * 这里拿的是真正的全量权威数据。
+ * @param {'json'|'markdown'} [format]
+ * @returns {Promise<object|null>} JSON 形态的导出对象；host 离线返回 null
+ */
+export async function exportAll(format = 'json') {
+  const path = format === 'json' ? ROUTES.exportAll : `${ROUTES.exportAll}?format=markdown`;
+  const r = await hostApi('GET', path);
+  return r.ok ? r.data : null;
+}
+
+/**
  * 健康探测。
  * @returns {Promise<object|null>} host 离线 / 超时 → null
  */
