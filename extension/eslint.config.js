@@ -118,21 +118,16 @@ export default [
       ],
     },
   },
-  {
-    files: ['state/**/*.js', 'views/**/*.js', 'features/**/*.js', 'components/**/*.js'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        patterns: [
-          { group: ['**/platform/chrome.js', '**/platform/web.js', '**/platform/desktop.js'],
-            message: '只可依赖 platform/index.js 的端口契约；具体实现由 entries/ 选择并注入。' },
-        ],
-      }],
-    },
-  },
-  // ── 完整层序矩阵（评审 P1-6：原来只有 4 组窄规则，实际越层不会被发现）──
+  // ── 完整层序矩阵 ────────────────────────────────────────────────
   // 声明层序：shared → platform / state / components → (features | views) → entries
   // features 与 views 是**同层对等**（交互 vs 渲染），允许互相引用；
-  // 但两者都不得反向依赖 entries，也不得依赖更上层的组合根。
+  // 但两者都不得反向依赖 entries —— 反向调用一律经 state/actions.js。
+  //
+  // ⚠️ 关键约束：ESLint flat config 里同名规则是**覆盖**而非合并 ——
+  // 若同一文件同时命中两个都写 `no-restricted-imports` 的配置对象，
+  // 只有**后者**生效，前者会静默失效（曾因此让两条边界规则变成死规则，
+  // 探针验证：state/ import platform/chrome.js 不报错）。
+  // 所以每个文件 glob 必须**只写一条** no-restricted-imports，把该层所有禁令列在里面。
   {
     files: ['state/**/*.js'],
     rules: {
@@ -140,6 +135,8 @@ export default [
         patterns: [
           { group: ['**/views/**', '**/features/**', '**/components/**', '**/entries/**'],
             message: 'state/ 不得依赖 UI 层（views/features/components/entries）。' },
+          { group: ['**/platform/chrome.js', '**/platform/web.js', '**/platform/desktop.js'],
+            message: '只可依赖 platform/index.js 的端口契约；具体实现由 entries/ 选择并注入。' },
         ],
       }],
     },
@@ -151,6 +148,8 @@ export default [
         patterns: [
           { group: ['**/state/**', '**/views/**', '**/features/**', '**/entries/**'],
             message: 'components/ 是最底层 UI 原子，不得依赖 state/views/features/entries。' },
+          { group: ['**/platform/chrome.js', '**/platform/web.js', '**/platform/desktop.js'],
+            message: '只可依赖 platform/index.js 的端口契约；具体实现由 entries/ 选择并注入。' },
         ],
       }],
     },
@@ -162,6 +161,8 @@ export default [
         patterns: [
           { group: ['**/entries/**'],
             message: 'UI 层不得依赖组合根 entries/；反向调用请经 state/actions.js。' },
+          { group: ['**/platform/chrome.js', '**/platform/web.js', '**/platform/desktop.js'],
+            message: '只可依赖 platform/index.js 的端口契约；具体实现由 entries/ 选择并注入。' },
         ],
       }],
     },

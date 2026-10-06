@@ -26,7 +26,7 @@ const TRIGGER_STYLE = () => {
   };
 };
 
-export async function runSelect({ page, width, extId }) {
+export async function runSelect({ page, extId }) {
   const checks = [];
   const add = (n, ok, d) => checks.push([n, Boolean(ok), d || '']);
 

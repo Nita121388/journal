@@ -54,6 +54,8 @@ const productHostPort = detectHostPort();
 log('info', `product host port (in source) = ${productHostPort}`);
 
 let workDir, outDir, hostProc = null, hostDataDir = null, hostPort = null, exitCode = 0;
+/** @type {Array<object>} 每个宽度的结果。声明在 try 外 —— 失败分支也要用它写报告。 */
+let results = [];
 
 try {
   workDir = makeWorkDir();
@@ -84,7 +86,7 @@ try {
     extensionDir: extDir, userDataDir: join(workDir, 'profile'), headed: args.headed,
   });
 
-  const results = [];
+  results = [];
   /**
    * `--host-mode off` 时前端对 host 的启动探测/拉取必然产生网络层报错
    * （ERR_CONNECTION_REFUSED / Failed to fetch）。那是**被测行为本身**（应优雅降级、显示离线横幅），
@@ -92,8 +94,12 @@ try {
    * @param {string} text
    * @returns {boolean}
    */
+  // 白名单必须**窄**：只放过「离线必然发生」的那几类，不能整类吞掉 console error
+  // （否则又会退回上一轮被批评的「门禁看起来很绿其实什么都没测」）。
   const isExpectedOfflineNoise = (text) =>
-    /ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch|NetworkError/i.test(text);
+    /ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch|NetworkError/i.test(text)
+    // 业务侧对失败写入的显式日志（离线时保存必然失败，记日志是正确行为）
+    || /\[journal\] (write failed|save card failed)/.test(text);
   for (const width of args.widths) {
     if (args.scenario === 'audit') {
       // One page reused across theme×mode combos for this width.
@@ -151,6 +157,17 @@ try {
 } catch (e) {
   log('error', String(e.stack || e.message));
   exitCode = 1;
+  // 失败也必须留下证据：CI 的 upload-artifact 与「agent 自愈闭环」都依赖它。
+  try {
+    writeReport({
+      outDir, startedAt, results,
+      hostMode: args.hostMode,
+      summary: { ok: false, error: String(e.stack || e.message), passed: 0, total: 0, errorCount: 1, failedChecks: 0, unsettled: 0 },
+    });
+    log('info', `失败报告已写入 ${outDir}`);
+  } catch (e2) {
+    log('error', `写失败报告也失败了：${e2.message}`);
+  }
 } finally {
   if (hostProc) {
     try { hostProc.kill(); } catch {}

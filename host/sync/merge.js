@@ -8,7 +8,7 @@
 
 // 卡片归一化原语统一来自 shared/card-schema.js（单一真相，跨 host 与 UI 共享）。
 import {
-  CARD_TYPES, PRIORITIES, STATUSES,
+  CARD_TYPES, PRIORITIES,
   statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeTags,
 } from '../../extension/shared/card-schema.js';
 

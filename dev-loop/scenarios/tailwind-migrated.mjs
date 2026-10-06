@@ -9,7 +9,7 @@
 
 import { AA_NORMAL, contrastRatio } from '../lib/a11y.mjs';
 
-export async function runTailwindMigrated({ page, width }) {
+export async function runTailwindMigrated({ page }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push([name, Boolean(ok), detail || '']);
 

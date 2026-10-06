@@ -22,9 +22,10 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 
-const BASE = process.env.JOURNAL_HOST || 'http://127.0.0.1:8765';
+// 端口单一真源（与 host/server.js、extension/platform/* 同值），避免指向别的实例
+import { DEFAULT_HOST_BASE } from '../extension/shared/protocol.js';
+const BASE = process.env.JOURNAL_HOST || DEFAULT_HOST_BASE;
 
 /* ─── 小工具 ─────────────────────────────────────────── */
 

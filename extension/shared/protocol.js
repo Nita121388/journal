@@ -28,7 +28,6 @@ export const ROUTES = Object.freeze({
   journals: '/api/journals',
   todos: '/api/todos',
 
-  settings: '/api/settings',
   skills: '/api/skills',
   skillStatus: '/api/skill-status',
 

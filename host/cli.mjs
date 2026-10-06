@@ -16,7 +16,13 @@
  *   node cli.mjs sync [status|push|pull|auto]
  */
 
-const BASE = process.env.JOURNAL_HOST || 'http://127.0.0.1:8765';
+// 端口单一真源：默认从扩展共享协议推导（与 host/server.js、platform/*.js 同一值），
+// 可用 JOURNAL_HOST 显式覆盖。**不要**在这里硬编码某个端口或别人机器的路径 ——
+// 曾经写死 8765 而本仓库 host 默认 8766，于是 README 宣传的 CLI 命令打不到自己的 host，
+// 若用户的生产 host 恰在 8765，agent 还会静默写进生产库。
+import { DEFAULT_HOST_BASE } from '../extension/shared/protocol.js';
+
+const BASE = process.env.JOURNAL_HOST || DEFAULT_HOST_BASE;
 
 /* ─── HTTP helpers ────────────────────────────────────── */
 
@@ -27,10 +33,18 @@ async function request(method, path, body = null) {
   try {
     const res = await fetch(url, opts);
     const json = await res.json();
+    // 回显目标，避免「CLI 到底写了哪个 host」不明确（多环境时的真实风险）
+    if (json && typeof json === 'object' && json.ok) json.target = BASE;
     return json;
   } catch (e) {
     if (e.cause?.code === 'ECONNREFUSED') {
-      return { ok: false, error: { code: 'HOST_OFFLINE', message: `host 未运行，请先启动：node E:/projects/journal/host/server.js` } };
+      return {
+        ok: false,
+        error: {
+          code: 'HOST_OFFLINE',
+          message: `host 未运行（目标 ${BASE}）。启动：node host/server.js`,
+        },
+      };
     }
     return { ok: false, error: { code: 'FETCH_ERROR', message: e.message } };
   }

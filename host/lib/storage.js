@@ -19,7 +19,7 @@ import { randomUUID } from 'node:crypto';
 import { createLogger } from './logger.js';
 // 卡片字段枚举与归一化原语统一来自 shared/card-schema.js（单一真相，跨 host 与 UI 共享）。
 import {
-  CARD_TYPES, PRIORITIES, STATUSES, RESERVED_PROPS,
+  CARD_TYPES, PRIORITIES, RESERVED_PROPS,
   statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeProps, normalizeTags,
 } from '../../extension/shared/card-schema.js';
 

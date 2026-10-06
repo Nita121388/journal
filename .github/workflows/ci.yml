@@ -26,7 +26,7 @@ jobs:
       - name: 安装依赖（extension：eslint + tailwind + vitest）
         run: npm ci --prefix extension
 
-      - name: ESLint（含分层边界 / no-undef / chrome 收敛）
+      - name: ESLint（extension 分层边界 + host/dev-loop）
         run: npm run lint
 
       - name: 单测 + 覆盖率门禁（shared + state）
@@ -34,6 +34,9 @@ jobs:
 
       - name: host 单测（node:test，零依赖）
         run: npm --prefix host test
+
+      - name: dev-loop harness 单测
+        run: npm --prefix dev-loop test
 
   # ② 真实浏览器回归：需要下载 Chromium，故单独一个 job
   ui:
@@ -63,6 +66,11 @@ jobs:
           node dev-loop/dev-loop.mjs --scenario tpl --width 360
           node dev-loop/dev-loop.mjs --scenario options --width 360
           node dev-loop/dev-loop.mjs --scenario tailwind-migrated --width 360
+
+      # 离线路径必须进门禁：host 离线是产品的一等状态（保存失败要明确报错、草稿不能丢）。
+      # 之前这条路径没有任何自动化保护，回归可以静默通过。
+      - name: UI 离线模式（host 关闭）
+        run: node dev-loop/dev-loop.mjs --scenario smoke --width 360 --host-mode off
 
       - name: 上传失败截图与报告
         if: failure()

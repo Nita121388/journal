@@ -567,12 +567,10 @@ export async function createApp(store, { logger } = {}) {
       }
 
       // ── Settings ──────────────────────────────────────
-      if (path === '/api/settings' && method === 'GET') {
-        return ok(res, await store.getSettings());
-      }
-      if (path === '/api/settings' && method === 'PUT') {
-        return ok(res, await store.setSettings(body ?? {}));
-      }
+      // 注：`/api/settings` 已于安全评审后**移除**。
+      // 它零调用方，却明文返回 sync 凭据（github token / webdav password），
+      // 且 PUT 允许整包覆盖、无字段白名单 —— 纯攻击面。设置一律走
+      // `/api/sync/config` 与 `/api/ai/config`（两者均已脱敏 + 字段校验）。
 
       // ── Meta（本机配置：属性库 / 模板 / 命名视图）────────
       if (path === '/api/meta/propertyLibrary' && method === 'GET') return ok(res, await getPropertyLibrary(store));
@@ -622,7 +620,7 @@ export async function createApp(store, { logger } = {}) {
             '修改 baseURL 时必须同时重新提交 API Key（防止已保存的 Key 被发往新端点）');
         }
         try {
-          const next = writeAiConfig(patch);
+          writeAiConfig(patch);
           const cfg = readAiConfig();
           // key 永不回显
           return ok(res, {
@@ -665,6 +663,9 @@ export async function createApp(store, { logger } = {}) {
       if (path === '/api/export' && method === 'GET') {
         const format = (query.get('format') || 'json').toLowerCase();
         const data = await store.exportJson();
+        // 导出文件不该带凭据：settings.sync 里的 token/password 一律脱敏。
+        // 否则「导出全部数据交给 AI/备份」会把 WebDAV 密码与 GitHub token 写进普通文件。
+        if (data?.settings?.sync) data.settings.sync = maskSyncConfig(data.settings.sync);
         const exportedAt = new Date().toISOString();
         if (format === 'markdown' || format === 'md') {
           const md = cardsToMarkdown(data.cards ?? [], { exportedAt, store: store.kind });

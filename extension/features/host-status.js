@@ -33,6 +33,10 @@ export function setHostStatus(status) {
   btn.classList.toggle('is-online', status === 'online');
   btn.classList.toggle('is-offline', status === 'offline');
   btn.classList.toggle('is-starting', status === 'starting');
+  // unknown = 尚未判定（探测中 / 超时前）。**绝不能**默认渲染成「在线」：
+  // 半死 host（accept 但不回包）会让 UI 显示绿灯却什么都存不下。
+  btn.classList.toggle('is-unknown',
+    status !== 'online' && status !== 'offline' && status !== 'starting');
   btn.disabled = status === 'starting';
   if (status === 'online') {
     btn.textContent = '🟢';
@@ -42,10 +46,14 @@ export function setHostStatus(status) {
     btn.textContent = '🔴';
     btn.title = 'Host 未连接，点击启动';
     btn.setAttribute('aria-label', 'Host 未连接，点击启动');
-  } else { // starting
+  } else if (status === 'starting') {
     btn.textContent = '⏳';
     btn.title = '正在启动 Host…';
     btn.setAttribute('aria-label', '正在启动 Host…');
+  } else { // unknown：未判定
+    btn.textContent = '⚪️';
+    btn.title = 'Host 状态：检测中';
+    btn.setAttribute('aria-label', 'Host 状态：检测中');
   }
   // 离线横幅：持久提示（不是瞬时 toast），并在「启动中」可看到反馈
   if (els.hostBanner) {
@@ -54,7 +62,9 @@ export function setHostStatus(status) {
     if (label) {
       label.textContent = status === 'starting'
         ? '⏳ 正在启动本机服务…'
-        : '⚠️ 本机服务未连接，改动不会保存';
+        : status === 'unknown'
+          ? '⏳ 正在检查本机服务…'
+          : '⚠️ 本机服务未连接，改动不会保存';
     }
     if (els.hostBannerStart) els.hostBannerStart.disabled = status === 'starting';
   }

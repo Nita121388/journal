@@ -6,7 +6,7 @@
 
 import { AA_NORMAL, contrastRatio } from '../lib/a11y.mjs';
 
-export async function runSmoke({ page, width }) {
+export async function runSmoke({ page }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push([name, Boolean(ok), detail || '']);
 
@@ -99,11 +99,21 @@ export async function runSmoke({ page, width }) {
   const drawerClosed = !(await page.locator('#sidebar').isVisible().catch(() => false));
   add('面板抽屉可关闭', drawerClosed);
 
-  // 9) #6 keyboard: card pool items focusable
-  const poolFocusable = await page.locator('#cardpool-list .cardpool-item').evaluateAll(
-    (els) => els.length === 0 || els.every((e) => e.tabIndex === 0),
-  ).catch(() => false);
-  add('卡片池项可键盘聚焦', poolFocusable);
+  // 9) #6 keyboard: 卡片池项可聚焦
+  // 不能写成 `els.length === 0 || every(...)` —— 空列表时恒真，是假断言；
+  // 也不能只写 `length > 0 && every(...)` —— 空池时必然失败。
+  // 正确做法：**两个分支各自断言真实不变量**。
+  const poolState = await page.evaluate(() => {
+    const items = [...document.querySelectorAll('#cardpool-list .cardpool-item')];
+    return {
+      count: items.length,
+      tabs: items.map((e) => e.tabIndex),
+      hasEmpty: !!document.querySelector('#cardpool-list .todo-empty'),
+    };
+  });
+  add('卡片池：空则显示空态，非空则每项可键盘聚焦',
+    poolState.count === 0 ? poolState.hasEmpty : poolState.tabs.every((t) => t === 0),
+    `items=${poolState.count} tabs=[${poolState.tabs.join(',')}] empty=${poolState.hasEmpty}`);
 
   // 10) #4 empty state offers an action
   const emptyAction = await page.locator('#cardpool-list .empty-action').first().textContent().catch(() => '');
@@ -276,46 +286,88 @@ export async function runSmoke({ page, width }) {
   }
   add('时间线拖动框选可建卡（range-select）', rangeOk, rangeDetail);
 
-  // 17) 只填标题也能建卡（评审 P0-1 回归）+ 时间线卡片键盘可达（评审 P2-5）
-  await page.locator('#btn-quick-add').click();
-  await page.waitForTimeout(400);
-  await page.locator('#card-editor-title').fill('只填标题的卡');
-  await page.locator('#card-editor-save').click();
-  await page.waitForTimeout(900);
-  const titleOnly = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('#timeline-container .timeline-card')];
-    const hit = cards.find((c) => (c.textContent || '').includes('只填标题的卡'));
-    return {
-      total: cards.length,
-      found: Boolean(hit),
-      notEmptyPlaceholder: !/空卡片/.test(hit ? hit.textContent || '' : ''),
-      tabIndex: hit ? hit.tabIndex : -1,
-      role: hit ? hit.getAttribute('role') || '' : '',
-      aria: hit ? hit.getAttribute('aria-label') || '' : '',
-    };
-  });
-  add('只填标题也能建卡（P0 回归）', titleOnly.found, `时间线卡片数=${titleOnly.total}`);
-  add('只填标题的卡不显示「空卡片」', titleOnly.found && titleOnly.notEmptyPlaceholder);
-  add('时间线卡片键盘可达（tabIndex=0 + role=button）',
-    titleOnly.tabIndex === 0 && titleOnly.role === 'button', `tabIndex=${titleOnly.tabIndex} role=${titleOnly.role}`);
-  add('时间线卡片有可访问名', /只填标题的卡/.test(titleOnly.aria), titleOnly.aria);
-
-  // 清理：删掉本场景创建的卡片。否则后续宽度会带着它跑，
-  // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
-  await page.evaluate(() => {
-    const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
-      .find((el) => (el.textContent || '').includes('只填标题的卡'));
-    hit?.querySelector('button[aria-label="删除卡片"]')?.click();
-  });
-  await page.waitForTimeout(400);
-  if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
-    await page.locator('#app-dialog-actions .btn-primary').click();
-    await page.waitForTimeout(600);
-  }
-  const cleaned = await page.evaluate(
-    () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,
+  // 17) 建卡主路径。**按 host 是否在线分两支** —— 离线时保存必然失败，
+  //     此时正确的产品行为是「明确报错 + 保留草稿」，而不是把卡存下去。
+  //     （第一轮曾漏掉这一支，导致 --host-mode off 门禁实际是崩的。）
+  const hostOnline = await page.evaluate(
+    () => document.getElementById('btn-host-status')?.classList.contains('is-online') === true,
   ).catch(() => false);
-  add('场景自清理（删除本场景创建的卡片）', cleaned);
+
+  if (hostOnline) {
+    await page.locator('#btn-quick-add').click();
+    await page.waitForTimeout(400);
+    await page.locator('#card-editor-title').fill('只填标题的卡');
+    await page.locator('#card-editor-save').click();
+    await page.waitForTimeout(900);
+    const titleOnly = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#timeline-container .timeline-card')];
+      const hit = cards.find((c) => (c.textContent || '').includes('只填标题的卡'));
+      return {
+        total: cards.length,
+        found: Boolean(hit),
+        notEmptyPlaceholder: !/空卡片/.test(hit ? hit.textContent || '' : ''),
+        tabIndex: hit ? hit.tabIndex : -1,
+        role: hit ? hit.getAttribute('role') || '' : '',
+        aria: hit ? hit.getAttribute('aria-label') || '' : '',
+      };
+    });
+    add('只填标题也能建卡（P0 回归）', titleOnly.found, `时间线卡片数=${titleOnly.total}`);
+    add('只填标题的卡不显示「空卡片」', titleOnly.found && titleOnly.notEmptyPlaceholder);
+    add('时间线卡片键盘可达（tabIndex=0 + role=button）',
+      titleOnly.tabIndex === 0 && titleOnly.role === 'button', `tabIndex=${titleOnly.tabIndex} role=${titleOnly.role}`);
+    add('时间线卡片有可访问名', /只填标题的卡/.test(titleOnly.aria), titleOnly.aria);
+
+    // 清理：删掉本场景创建的卡片，否则后续宽度会带着它跑，
+    // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
+    await page.evaluate(() => {
+      const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
+        .find((el) => (el.textContent || '').includes('只填标题的卡'));
+      hit?.querySelector('button[aria-label="删除卡片"]')?.click();
+    });
+    await page.waitForTimeout(400);
+    if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+      await page.locator('#app-dialog-actions .btn-primary').click();
+      await page.waitForTimeout(600);
+    }
+    const cleaned = await page.evaluate(
+      () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,
+    ).catch(() => false);
+    add('场景自清理（删除本场景创建的卡片）', cleaned);
+  } else {
+    // 离线分支：保存必须失败、必须有明确提示、且草稿不能丢
+    await page.locator('#btn-quick-add').click();
+    await page.waitForTimeout(400);
+    await page.locator('#card-editor-title').fill('离线草稿');
+    await page.locator('#card-editor-save').click();
+    await page.waitForTimeout(1200);
+    const offlineState = await page.evaluate(() => {
+      const toast = document.getElementById('toast');
+      const editor = document.getElementById('card-editor-overlay');
+      const title = document.getElementById('card-editor-title');
+      return {
+        toastVisible: !!toast && !toast.classList.contains('hidden'),
+        toastText: toast?.textContent || '',
+        toastIsError: !!toast && toast.classList.contains('toast-error'),
+        editorOpen: !!editor && !editor.classList.contains('hidden'),
+        draftKept: title?.value === '离线草稿',
+        cards: document.querySelectorAll('#timeline-container .timeline-card').length,
+      };
+    });
+    add('离线保存明确报错（不谎报成功）', offlineState.toastVisible && offlineState.toastIsError, offlineState.toastText.slice(0, 40));
+    add('离线保存不落卡', offlineState.cards === 0, `cards=${offlineState.cards}`);
+    add('离线保存保留草稿', offlineState.editorOpen && offlineState.draftKept, `open=${offlineState.editorOpen}`);
+    // 复位：丢弃草稿，避免污染后续步骤
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+    const dlgOpen = await page.locator('#app-dialog').isVisible().catch(() => false);
+    if (dlgOpen) {
+      await page.locator('#app-dialog-actions .btn-primary').click();
+      await page.waitForTimeout(400);
+    }
+    add('离线分支可复位（编辑器已关闭）',
+      !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
+    add('离线横幅可见', await page.locator('#host-banner').isVisible().catch(() => false));
+  }
 
   // 18) 关闭语义统一：遮罩点击与 Esc 同义（不再“点击保存”）；脏状态先确认
   await page.locator('#btn-quick-add').click();

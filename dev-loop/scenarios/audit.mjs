@@ -63,6 +63,5 @@ export async function runAudit({ page, width, context }) {
     };
   });
 
-  const name = `${theme}-${mode}-${width}`;
   return { shots, metrics, theme, mode };
 }

@@ -111,6 +111,9 @@ header#header {
   transition: filter 0.15s, background 0.15s;
 }
 .host-status-btn:hover { background: var(--color-cell-empty); }
+/* 未判定（探测中）：中性灰，不表达「可用」 */
+.host-status-btn.is-unknown { filter: saturate(0.2) opacity(0.6); }
+
 /* 离线：红色警示 + 可点击拉起 */
 .host-status-btn.is-offline {
   cursor: pointer;

@@ -11,15 +11,22 @@
 
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 
+/** host HTTP 超时：半死 host 不得让 UI 永久挂起。可用 JOURNAL_HTTP_TIMEOUT_MS 覆盖。 */
+const HTTP_TIMEOUT_MS = Number(globalThis.JOURNAL_HTTP_TIMEOUT_MS) || 8000;
+
 const PREFIX = 'journal.';
 
 /**
+ * 走 host HTTP 接口。host 离线/超时返回结构化错误（不 throw）。
+ *
+ * **超时是必须的**：只 accept 不回包的"半死" host 会让 fetch 永不 resolve，
+ * 于是健康探测永远不返回、状态灯永远停在初始态、所有写操作永久挂起。
  * @param {string} method
  * @param {string} path
  * @param {object|null} [body]
  */
 async function hostFetch(method, path, body = null) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) };
   if (body !== null && body !== undefined) opts.body = JSON.stringify(body);
   try {
     const res = await fetch(`${DEFAULT_HOST_BASE}${path}`, opts);
@@ -29,7 +36,6 @@ async function hostFetch(method, path, body = null) {
     return { ok: false, error: { code: 'HOST_OFFLINE', message: e.message } };
   }
 }
-
 /** @returns {import('./index.js').PlatformPort} */
 export function createWebPort() {
   return {
