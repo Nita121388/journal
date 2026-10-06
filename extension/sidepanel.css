@@ -2822,10 +2822,55 @@ body.tpl-dragging { user-select: none; }
  * z-index 高于模板构建器（120）与卡片编辑器。 */
 #tpl-prop-overlay { z-index: 140; }
 
+/* 弹窗按钮基类：属性定义弹窗 / 模板构建器脚部 / 「添加属性」表单共用。
+ * 之前这些按钮只挂 class 而无基样式（只有 .card-editor-footer .btn-* 有定义），
+ * 导致在弹窗里显示为浏览器默认按钮；这里补一份基线，footer 的富样式仍以更高特异性覆盖。 */
+.btn-primary {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  min-width: 72px;
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--color-accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+  cursor: pointer;
+  transition: transform .12s, box-shadow .12s, filter .12s;
+}
+.btn-primary:hover { filter: brightness(1.05); box-shadow: 0 4px 10px rgba(0, 0, 0, .18); }
+.btn-secondary {
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.btn-secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* 卡片化容器：标题栏贴顶通栏、表单区留白 */
 .tpl-prop-dialog {
   width: 92%;
   max-width: 380px;
   max-height: 86vh;
+  overflow: hidden;
+  padding: 0;                     /* 覆盖 .card-editor 的 16px，让 header/body 自行控制内边距 */
+  border: 1px solid var(--color-card-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18), 0 2px 8px rgba(0, 0, 0, .08);
+  animation: tpl-prop-in .18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes tpl-prop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tpl-prop-dialog { animation: none; }
 }
 
 .tpl-prop-dialog .card-editor-header {
@@ -2833,25 +2878,111 @@ body.tpl-dragging { user-select: none; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 14px 16px 10px;
+  padding: 16px 18px 12px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 13px 13px 0 0;
   flex-shrink: 0;
 }
 .tpl-prop-dialog .card-editor-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: .01em;
 }
-.tpl-prop-dialog .card-editor-body { padding: 14px 16px 16px; }
+.tpl-prop-dialog .card-editor-close-btn {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  margin-left: auto;
+  font-size: 14px;
+  border-radius: 7px;
+  color: var(--color-muted);
+  transition: background .12s, color .12s, transform .18s;
+}
+.tpl-prop-dialog .card-editor-close-btn:hover {
+  background: var(--color-cell-empty);
+  color: var(--color-text);
+  transform: rotate(90deg);
+}
+/* 表单区用浅色底成组，控件（白底）自然浮起 */
+.tpl-prop-dialog .card-editor-body {
+  padding: 16px 18px 18px;
+  background: var(--color-surface);
+  border-radius: 0 0 13px 13px;
+}
 
-/* 表单行在弹窗内纵向堆叠，保证每项占满整行 */
-.tpl-prop-dialog .prop-form { display: flex; flex-direction: column; gap: 12px; }
-.tpl-prop-dialog .prop-form-row { flex-direction: column; align-items: stretch; gap: 6px; }
-.tpl-prop-dialog .prop-form-actions {
+/* 表单：可换行的横向流，窄屏自然回落为单列 */
+.tpl-prop-dialog .prop-form {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 14px 12px;
+}
+.tpl-prop-dialog .prop-form-row {
+  flex: 1 1 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+/* 首行：图标在左、显示名在右，底部对齐。
+ * row-reverse 让第二个子项（图标）视觉上先行；同时覆盖 flex-wrap 与子项 flex-basis
+ * （.prop-field 默认 1 1 100% 会强制换行）。 */
+.tpl-prop-dialog .prop-form-row:first-child { flex-direction: row-reverse; flex-wrap: nowrap; align-items: flex-end; }
+.tpl-prop-dialog .prop-form-row:first-child label:first-child { flex: 1 1 auto; }
+.tpl-prop-dialog .prop-form-row:first-child label:not(:first-child) { flex: 0 0 auto; }
+/* 类型 / 属性键 并排 */
+.tpl-prop-dialog .prop-form-row:nth-child(2),
+.tpl-prop-dialog .prop-form-row:nth-child(3) { flex: 1 1 42%; }
+
+.tpl-prop-dialog .prop-form-actions {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding-top: 4px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-border);
+}
+
+/* 字段：标签上、控件下 */
+.tpl-prop-dialog .prop-field {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-text) 62%, var(--color-bg));
+}
+.tpl-prop-dialog .prop-field > input,
+.tpl-prop-dialog .prop-field > .js-select .js-select-trigger,
+.tpl-prop-dialog .prop-field > select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: border-color .12s, box-shadow .12s;
+}
+.tpl-prop-dialog .prop-field > .js-select .js-select-trigger { border-radius: 8px; }
+.tpl-prop-dialog .prop-field > input:focus,
+.tpl-prop-dialog .prop-field > .js-select .js-select-trigger:focus-visible,
+.tpl-prop-dialog .prop-field > select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+/* 弹窗内图标瓦片略小一号，与 34px 控件对齐；灰色底以区别于主色 */
+.tpl-prop-dialog .prop-icon-pick .ce-emoji-tile {
+  width: 34px; height: 34px; font-size: 16px;
+  background: var(--color-cell-empty);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+.tpl-prop-dialog .prop-icon-pick .ce-emoji-tile:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+  border-color: var(--color-muted);
 }
 
 /* ── LLM 增强：AI 建议徽标（模板构建器属性行） ── */
