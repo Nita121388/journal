@@ -13,6 +13,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release, homedir } from 'node:os';
 
 import { cardsToMarkdown } from '../extension/shared/md-export.js';
+// 时间换算与搜索语义统一来自 shared（host 只可依赖 extension/shared 叶子）
+import { addMinutes, cardMatchesQuery } from '../extension/shared/model.js';
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
 import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
@@ -41,29 +43,7 @@ const SKILLS_DIR = SKILLS_DIR_CANDIDATES.find(p => existsSync(p)) || SKILLS_DIR_
 /** "HH:MM" 格式校验（00:00 ~ 23:59） */
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-/** "HH:MM" + n 分钟 → "HH:MM"（跨天取模） */
-function addMinutes(hhmm, mins) {
-  const [h, m] = hhmm.split(':').map(Number);
-  const t = (((h * 60 + m + mins) % 1440) + 1440) % 1440;
-  return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
-}
 
-/**
- * 卡片是否匹配搜索关键词（标题/内容/项目/标签/自定义属性值，大小写无关）。
- * 与侧栏卡片池的本地搜索保持同一语义；供 `GET /api/cards?q=` 使用。
- * @param {object} card
- * @param {string} q 已小写的关键词
- * @returns {boolean}
- */
-function cardMatchesQuery(card, q) {
-  if (!q) return true;
-  const hay = [
-    card.title, card.content, card.project,
-    ...(Array.isArray(card.tags) ? card.tags : []),
-    ...Object.values(card.props ?? {}).map(v => (Array.isArray(v) ? v.join(' ') : v)),
-  ];
-  return hay.some(v => typeof v === 'string' && v.toLowerCase().includes(q));
-}
 
 /** task card → todo 视图（CLI / 旧接口兼容） */
 function cardToTodo(c) {

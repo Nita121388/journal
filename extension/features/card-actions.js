@@ -58,7 +58,10 @@ export async function deleteCardWithUndo(card, label) {
  */
 export async function patchCard(id, patch, fallback) {
   const res = await runWrite(() => updateCardEntry(id, patch), fallback);
-  if (!res.ok) return false;
+  // 无论成功失败都重渲染：
+  //  - 成功：显示最新真源
+  //  - 失败：把拖动/缩放期间乐观改过的 DOM（style.top / --height / 时间文案）**回滚**到真源，
+  //          否则界面会停在一个从未保存过的位置，直到下次刷新才「回弹」。
   await actions.refreshAll();
-  return true;
+  return res.ok;
 }

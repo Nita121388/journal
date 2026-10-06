@@ -303,6 +303,7 @@ body.panels-open #board::before {
 .cardpool-delete-btn:hover { color: #e53935; background: rgba(229,57,53,0.08); }
 
 .cardpool-add-btn {
+  min-height: 24px;
   width: 100%;
   margin-top: 6px;
   background: var(--color-bg);
@@ -353,7 +354,7 @@ body.panels-open #board::before {
 .cal-today-btn:hover { background: var(--color-cell-empty); }
 
 .cal-month-label { flex: 1; text-align: center; font-size: 12px; font-weight: 600; }
-.cal-today-btn { color: var(--color-accent); font-weight: 600; font-size: 12px; }
+.cal-today-btn { color: var(--color-accent-strong); font-weight: 600; font-size: 12px; }
 
 .calendar-weekdays {
   display: grid;
@@ -1472,6 +1473,10 @@ body.is-dragging .timeline-card.is-short {
 }
 
 #card-editor-type {
+  /* 曾经实测 width=16px（被 flex 压扁）→ 看不见当前值也点不准。
+     类型是核心字段，给一个不可再压的下限。 */
+  flex: 0 0 auto;
+  min-width: 96px;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 4px 6px;
@@ -2030,7 +2035,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 }
 .card-editor-title:focus { outline: none; border-bottom-color: var(--color-accent); }
 .card-editor-title::placeholder { color: var(--color-muted); opacity: .7; }
-.ce-head-subrow { display: flex; gap: 8px; align-items: center; }
+.ce-head-subrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ce-head-subrow #card-editor-date,
 .ce-head-subrow #card-editor-type {
   font-family: var(--font);
@@ -2806,6 +2811,10 @@ body.tpl-dragging { user-select: none; }
 }
 .pool-filter-row::-webkit-scrollbar { display: none; }
 .pool-filter-row .chip { flex: 0 0 auto; }
+/* 6 个状态 chip 在 360px 下 clientWidth=225 / scrollWidth=404：
+   横向滚动条被隐藏，等于「已完成 / 纯记录」对用户不存在。
+   改为换行显示全部选项。 */
+.pool-filter-row { flex-wrap: wrap; overflow-x: visible; }
 
 /* 项目/标签筛选收进可展开的「筛选」区，默认收起（渐进披露） */
 .pool-extra-filter {
@@ -3109,3 +3118,35 @@ body.tpl-dragging { user-select: none; }
 
 /* 右键菜单：AI 重新推断入口 */
 .tpl-ctx-item.tpl-ctx-ai { color: var(--color-accent); }
+
+/* ── 窄侧栏（≤380px）修复：排程区 4 个控件曾溢出编辑器右边界 ──
+   实测 320px 下 #card-editor-duration-min 右边缘到 351、时长标签到 372（视口只有 320）。
+   「结束 / 时长」是常用字段，被挤出屏幕等于改不了时长。 */
+@media (max-width: 380px) {
+  .card-editor-times { flex-wrap: wrap; }
+  .card-editor-times > label { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .card-editor-times > .card-editor-duration { flex: 1 1 100%; }
+  .card-editor-times input { min-width: 0; max-width: 100%; }
+  /* 头部子行：日期 + 类型在 320px 下放不下一行，换行而不是把类型挤出面板。
+     类型选择器保底 96px（见 #card-editor-type）—— 那是核心字段，不能再被压。 */
+  .ce-head-subrow { flex-wrap: wrap; }
+  .ce-head-subrow #card-editor-date { flex: 1 1 100%; min-width: 0; }
+}
+
+/* 主 CTA「＋ 新卡片」在暗色下曾是 2.78:1（白底绿字反了）。统一走 accent-strong。 */
+[data-theme="dark"] .cardpool-add-btn {
+  background: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+  color: #fff;
+}
+
+/* 「现在 HH:MM」标签 10px 白字压 accent 只有 2.78:1 */
+.timeline-now-tag { background: #1b5e20; color: #fff; }
+
+/* 月/周摘要里的「+N」与日期数字对比度不足 */
+.calview-more { color: var(--color-text); font-weight: 600; }
+.calview-day-num { color: var(--color-text); }
+
+/* P2-2 字号下限：10px/9px 的元信息提到 11px（可读性下限） */
+.pool-truncated-hint { font-size: 11px; color: var(--color-muted); margin-top: 4px; }
+.pool-truncated .empty-title { font-size: 12px; }

@@ -133,9 +133,10 @@ test('SQLite：旧 schema 加列迁移走真实路径且不丢数据', async () 
     // 新列以默认值补齐
     assert.equal(cards[0].emoji, '');
     assert.deepEqual(cards[0].tags, []);
-    // 迁移前必须留有备份（失败回滚的兑现物）
+    // 迁移**成功**后不应留下备份：`.bak` 是全库副本，残留会让 host/data 无限膨胀。
+    // （失败路径才需要它，见 migrateAddColumn 的回滚分支。）
     const baks = readdirSync(dir).filter(f => /\.pre-.+\.bak$/.test(f));
-    assert.ok(baks.length > 0, '应生成迁移前备份');
+    assert.equal(baks.length, 0, '成功迁移不应残留 .bak');
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -369,6 +369,59 @@ export async function runSmoke({ page }) {
     add('离线横幅可见', await page.locator('#host-banner').isVisible().catch(() => false));
   }
 
+  // 17b) 窄栏编辑器布局修复（评审 P1-3/P1-4）：
+  //      「类型」选择器曾被压到 16px；排程区在 320/360 溢出编辑器右边界。
+  await page.locator('#btn-quick-add').click();
+  await page.waitForTimeout(400);
+  const editorLayout = await page.evaluate(() => {
+    const box = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) };
+    };
+    const dialog = document.querySelector('#card-editor-overlay .card-editor');
+    const dr = dialog ? dialog.getBoundingClientRect() : null;
+    const ids = ['card-editor-type', 'card-editor-start', 'card-editor-end', 'card-editor-duration-min', 'card-editor-duration'];
+    const boxes = Object.fromEntries(ids.map((i) => [i, box(i)]));
+    const overflow = dr
+      ? ids.filter((i) => boxes[i] && boxes[i].l < dr.left - 1 || (boxes[i] && boxes[i].r > dr.right + 1))
+      : ['no-dialog'];
+    return {
+      typeW: boxes['card-editor-type']?.w ?? -1,
+      overflow,
+      overflowX: document.documentElement.scrollWidth - window.innerWidth,
+    };
+  });
+  add('「类型」选择器可用宽度（≥90px）', editorLayout.typeW >= 90, `w=${editorLayout.typeW}px`);
+  add('编辑器排程区不溢出面板', editorLayout.overflow.length === 0, `溢出=${editorLayout.overflow.join(',') || '无'}`);
+  add('编辑器内无横向溢出', editorLayout.overflowX <= 1, `overflowX=${editorLayout.overflowX}px`);
+  await page.locator('#card-editor-cancel').click();
+  await page.waitForTimeout(300);
+  if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+    await page.locator('#app-dialog-actions .btn-primary').click();
+    await page.waitForTimeout(300);
+  }
+
+  // 17c) 筛选条：6 个状态 chip 必须全部可见（曾藏在被隐藏的横向滚动里）
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(300);
+  const chips = await page.evaluate(() => {
+    const row = document.getElementById('pool-filter-row');
+    if (!row) return null;
+    const r = row.getBoundingClientRect();
+    const items = [...row.querySelectorAll('.chip')].map((c) => {
+      const cr = c.getBoundingClientRect();
+      return { text: c.textContent.trim(), fullyVisible: cr.left >= r.left - 1 && cr.right <= r.right + 1 };
+    });
+    return { count: items.length, hidden: items.filter((i) => !i.fullyVisible).map((i) => i.text) };
+  });
+  add('状态筛选全部可见（无隐藏 chip）',
+    !!chips && chips.count > 0 && chips.hidden.length === 0,
+    chips ? `${chips.count} 个，隐藏=[${chips.hidden.join(',')}]` : '无筛选条');
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(300);
+
   // 18) 关闭语义统一：遮罩点击与 Esc 同义（不再“点击保存”）；脏状态先确认
   await page.locator('#btn-quick-add').click();
   await page.waitForTimeout(400);

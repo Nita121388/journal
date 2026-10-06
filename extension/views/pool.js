@@ -7,7 +7,7 @@
  * 跨层调用（重渲染 / 打开编辑器）经 state/actions.js 由组合根注入。
  */
 
-import { currentTime, snapUpToQuarter, addMinutes } from '../shared/model.js';
+import { currentTime, snapUpToQuarter, addMinutes, cardMatchesQuery } from '../shared/model.js';
 import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
 import { shortDate, typeIcon, cardPrimaryText } from '../shared/format.js';
 import { els } from '../components/dom-refs.js';
@@ -119,22 +119,6 @@ function chipSpan(cls, text) {
   return s;
 }
 
-/**
- * 卡片池本地搜索：标题 / 内容 / 标签 / 项目 / 自定义属性值 子串匹配（大小写无关）。
- * @param {object} card
- * @param {string} q
- * @returns {boolean}
- */
-function queryMatches(card, q) {
-  if (!q) return true;
-  const needle = q.toLowerCase();
-  const hay = [
-    card.title, card.content, card.project,
-    ...(Array.isArray(card.tags) ? card.tags : []),
-    ...Object.values(card.props ?? {}).map(v => (Array.isArray(v) ? v.join(' ') : v)),
-  ];
-  return hay.some(v => typeof v === 'string' && v.toLowerCase().includes(needle));
-}
 
 /** 列表一次最多渲染的卡片数（避免几百张卡时侧栏卡顿）；更多靠筛筛选/搜索缩小范围。 */
 const POOL_RENDER_LIMIT = 200;
@@ -146,7 +130,7 @@ export async function renderCardPool() {
     const sOk = statusMatches(c, vs.poolStatusFilter);
     const tagOk = !vs.poolTagFilter || (c.tags ?? []).includes(vs.poolTagFilter);
     const projOk = !vs.poolProjectFilter || (c.project ?? '') === vs.poolProjectFilter;
-    const qOk = queryMatches(c, vs.poolQuery ?? '');
+    const qOk = cardMatchesQuery(c, vs.poolQuery ?? '');
     return sOk && tagOk && projOk && qOk;
   });
   els.cardpoolCount.textContent = pool.length;
@@ -186,6 +170,10 @@ export async function renderCardPool() {
     els.cardpoolList.append(li);
     return;
   }
+
+  // 徽标写的是**真实**总数，列表却只渲染前 200 —— 必须显式告知，
+  // 否则用户看到「250」却怎么滚都只有 200 张，会认为数据丢了。
+  const hiddenCount = Math.max(0, pool.length - POOL_RENDER_LIMIT);
 
   for (const card of pool.slice(0, POOL_RENDER_LIMIT)) {
     const li = document.createElement('li');
@@ -309,5 +297,18 @@ export async function renderCardPool() {
 
     li.append(schedBtn, delBtn);
     els.cardpoolList.append(li);
+  }
+
+  if (hiddenCount > 0) {
+    const more = document.createElement('li');
+    more.className = 'todo-empty pool-truncated';
+    const t = document.createElement('div');
+    t.className = 'empty-title';
+    t.textContent = `仅显示前 ${POOL_RENDER_LIMIT} 张，还有 ${hiddenCount} 张未显示`;
+    const hint = document.createElement('div');
+    hint.className = 'pool-truncated-hint';
+    hint.textContent = '用搜索或筛选缩小范围即可看到其余卡片（数据都在，没有丢）';
+    more.append(t, hint);
+    els.cardpoolList.append(more);
   }
 }

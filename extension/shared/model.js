@@ -176,6 +176,26 @@ export function addMinutes(hhmm, mins) {
   return minutesToTime(timeToMinutes(hhmm) + mins);
 }
 
+/**
+ * 卡片是否匹配搜索关键词（标题 / 内容 / 项目 / 标签 / 自定义属性值，大小写无关）。
+ *
+ * **单一实现**：侧栏卡片池的本地搜索与 host 的 `GET /api/cards?q=` 必须是同一语义，
+ * 否则同一关键词在 UI 与 CLI/agent 下会返回不同结果（两处各复制一份必然分叉）。
+ * @param {object} card
+ * @param {string} q 关键词（大小写不敏感）
+ * @returns {boolean}
+ */
+export function cardMatchesQuery(card, q) {
+  const needle = String(q ?? '').trim().toLowerCase();
+  if (!needle) return true;
+  const hay = [
+    card?.title, card?.content, card?.project,
+    ...(Array.isArray(card?.tags) ? card.tags : []),
+    ...Object.values(card?.props ?? {}).map((v) => (Array.isArray(v) ? v.join(' ') : v)),
+  ];
+  return hay.some((v) => typeof v === 'string' && v.toLowerCase().includes(needle));
+}
+
 /** 四舍五入吸附到 15 分钟 */
 export function snapToQuarter(hhmm) {
   return minutesToTime(Math.round(timeToMinutes(hhmm) / 15) * 15);

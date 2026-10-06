@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -184,4 +184,28 @@ test('buildSnapshot/parseSnapshot：字段与容错', () => {
   assert.equal(s.deviceId, 'dev1');
   assert.equal(parseSnapshot(JSON.stringify(s)).cards.length, 1);
   assert.equal(parseSnapshot(''), null);
+});
+
+test('parseSnapshot：损坏 JSON 不抛异常，按「无快照」处理（同步可自愈）', () => {
+  // 半写/截断的快照（例如上次同步中途断电）
+  const truncated = '{"schemaVersion":1,"cards":[{"id":"c_1","cont';
+  assert.doesNotThrow(() => parseSnapshot(truncated));
+  assert.equal(parseSnapshot(truncated), null);
+
+  assert.equal(parseSnapshot(''), null);
+  assert.equal(parseSnapshot('not json at all'), null);
+  assert.equal(parseSnapshot('null'), null);
+  // 合法快照仍正常解析
+  assert.deepEqual(parseSnapshot('{"schemaVersion":2,"cards":[]}').cards, []);
+});
+
+test('LocalFolderBackplane.push 原子写（不留 .tmp 残file，且可被 pull 读回）', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bp-'));
+  const bp = new LocalFolderBackplane({ dir });
+  await bp.push({ schemaVersion: 1, deviceId: 'd', generatedAt: null, cards: [{ id: 'c_1' }] });
+  const pulled = await bp.pull();
+  assert.equal(pulled.cards.length, 1);
+  const leftovers = readdirSync(dir).filter((f) => f.endsWith('.tmp'));
+  assert.deepEqual(leftovers, [], '不应残留 .tmp');
+  rmSync(dir, { recursive: true, force: true });
 });

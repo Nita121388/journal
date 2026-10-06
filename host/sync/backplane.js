@@ -11,7 +11,7 @@
  * 只用 node 内置（fs / fetch / Buffer），fetch 可注入以便测试。
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { hostname } from 'node:os';
 
@@ -28,7 +28,16 @@ export function buildSnapshot(deviceId, cards, generatedAt = new Date().toISOStr
 
 export function parseSnapshot(text) {
   if (typeof text !== 'string' || !text.trim()) return null;
-  const obj = JSON.parse(text);
+  let obj;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    // 快照被截断 / 半写（例如上一次同步中途断电）时**不能**把异常抛给调用方：
+    // 那会让同步永久失败（pull 先于 push，异常一抛就永远修不回来），用户只看到原始
+    // SyntaxError。这里视为「没有远端快照」，让下一次 push 覆盖出完整文件。
+    console.warn('[sync] 远端快照不是合法 JSON，已按「无快照」处理（下次 push 会覆盖修复）');
+    return null;
+  }
   if (!obj || typeof obj !== 'object') return null;
   return { schemaVersion: obj.schemaVersion ?? 1, deviceId: obj.deviceId ?? null, generatedAt: obj.generatedAt ?? null, cards: Array.isArray(obj.cards) ? obj.cards : [] };
 }
@@ -58,7 +67,11 @@ export class LocalFolderBackplane {
   }
   async push(snapshot) {
     mkdirSync(this.dir, { recursive: true });
-    writeFileSync(this.filePath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    // 原子写：先写临时文件再 rename。直接 writeFileSync 若中途失败会留下**半截 JSON**，
+    // 下一次同步读它会失败（虽已能自愈，但没必要制造损坏窗口）。
+    const tmp = `${this.filePath}.tmp`;
+    writeFileSync(tmp, JSON.stringify(snapshot, null, 2), 'utf-8');
+    renameSync(tmp, this.filePath);
     return { ok: true, ref: this.filePath };
   }
   async test() {

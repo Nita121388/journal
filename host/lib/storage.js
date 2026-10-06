@@ -12,7 +12,7 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync,
-  renameSync, copyFileSync,
+  renameSync, copyFileSync, unlinkSync,
 } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -310,6 +310,10 @@ function migrateAddColumn({ db, log, file, cols, column, ddl }) {
     copyFileSync(backup, file);
     throw new Error('迁移未改动数据');
   }
+  // 校验通过即删掉本次备份：`.bak` 是**全库副本**（含用户数据），
+  // 每个历史迁移都留一份会让 host/data 无限膨胀（实测已堆积 9 个）。
+  // 失败路径在上面已经用它回滚过了，成功路径不再需要。
+  try { unlinkSync(backup); } catch { /* 删不掉不影响迁移结果 */ }
   return true;
 }
 
@@ -514,7 +518,14 @@ function createJsonStore(file, log) {
         try {
           const raw = JSON.parse(readFileSync(file, 'utf-8'));
           state = { cards: raw.cards ?? [], settings: raw.settings ?? {}, meta: raw.meta ?? {} };
-        } catch { log?.warn('json store corrupt, starting fresh'); }
+        } catch {
+          // 静默「starting fresh」等于把用户全库丢掉且不留痕。
+          // 先把损坏文件改名留档，再重建；至少数据还在磁盘上可被人工抢救。
+          const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const corrupt = `${file}.corrupt-${stamp}.json`;
+          try { renameSync(file, corrupt); log?.warn(`json store corrupt → 已留档到 ${corrupt}，重建空库`); }
+          catch { log?.warn('json store corrupt, starting fresh'); }
+        }
       }
       return true;
     },

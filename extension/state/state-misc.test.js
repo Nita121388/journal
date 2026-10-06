@@ -12,20 +12,22 @@ beforeEach(() => {
 });
 
 describe('settings', () => {
-  it('缺省值', async () => {
+  it('缺省值（且不含任何凭据字段）', async () => {
     const { getSettings } = await import('./settings.js');
     const s = await getSettings();
-    expect(s.sync).toEqual({ enabled: false, provider: '', endpoint: '' });
-    expect(s.ai.provider).toBe('local');
     expect(s.ai.inferMode).toBe('auto');
     expect(s.theme).toBe('auto');
+    // 密钥/同步配置只在 host；扩展设置里出现这些键即为回归
+    expect(s).not.toHaveProperty('sync');
+    expect(s.ai).not.toHaveProperty('apiKey');
+    expect(s.ai).not.toHaveProperty('provider');
   });
   it('局部合并保存', async () => {
     const { getSettings, saveSettings } = await import('./settings.js');
     await saveSettings({ ai: { inferMode: 'always' } });
     const s = await getSettings();
     expect(s.ai.inferMode).toBe('always');
-    expect(s.ai.provider).toBe('local'); // 未动字段保留
+    expect(s.theme).toBe('auto'); // 未动字段保留
   });
 });
 

@@ -83,8 +83,19 @@ export function getCardsByDay(date) {
 
 /* ─── 缓存持久化 ───────────────────────────────────────── */
 
+/**
+ * 把内存真源镜像到平台 storage 缓存。
+ *
+ * **失败不能升级为「保存失败」**：host 才是权威，缓存只是离线可读性。
+ * 早期版本让这里的异常冒泡到 `saveEditor` 的 catch，结果「host 已写成功」
+ * 被报成保存失败、编辑器不关，用户重试就产生重复卡片。
+ */
 async function persistCards() {
-  await getPort().storageSet({ [KEY.CARDS]: cards });
+  try {
+    await getPort().storageSet({ [KEY.CARDS]: cards });
+  } catch (e) {
+    console.warn('[repository] 缓存写入失败（host 已保存，仅离线镜像缺失）:', e?.message || e);
+  }
 }
 
 /** 兼容旧格式：journals / todos → 卡片数组（去重） */
