@@ -11,9 +11,9 @@
  *  - multiple：摘要计数 / 逐项切换 / 清除
  */
 
-/** 读取测试扩展里 host-sync 解析出的 host（含隔离端口） */
+/** 读取测试扩展里解析出的 host 基址（含隔离端口；单一真相 shared/protocol.js） */
 async function hostOf(page) {
-  return page.evaluate(async () => (await import('/lib/host-sync.js')).HOST);
+  return page.evaluate(async () => (await import('/shared/protocol.js')).DEFAULT_HOST_BASE);
 }
 
 const TRIGGER_STYLE = () => {
@@ -320,6 +320,14 @@ export async function runSelectOptions({ page, extId }) {
   const res = await page.goto(`chrome-extension://${extId}/options.html`, { waitUntil: 'domcontentloaded' });
   add('options.html 加载', Boolean(res), res ? `status=${res.status()}` : 'no response');
   await page.waitForTimeout(600);
+
+  // 设置卡片默认折叠（commit 352bcc0）——必须先展开「数据同步」区，
+  // 否则内部控件不可见，交互断言会超时。
+  await page.evaluate(() => {
+    const d = document.getElementById('sync-section');
+    if (d && !d.open) d.open = true;
+  });
+  await page.waitForTimeout(200);
 
   const r = await page.evaluate(() => {
     const sel = document.getElementById('sync-provider');

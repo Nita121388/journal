@@ -1,7 +1,7 @@
 /**
  * prop-llm.js — 模板属性推断的 LLM 增强层（扩展侧）
  *
- * 依赖图：prop-llm.js → shared/prop-infer.js（本地规则）+ host-sync.js（host 代理）
+ * 依赖图：prop-llm.js → shared/prop-infer.js（本地规则）+ state/host-client.js（host 代理）
  *
  * 设计要点：
  *  - prop-infer.js 保持纯本地、永不联网；本模块是唯一的 LLM 入口。
@@ -11,7 +11,8 @@
  */
 
 import { inferProp, defaultValueForType } from '../shared/prop-infer.js';
-import { hostApi } from './host-sync.js';
+import { hostApi } from '../state/host-client.js';
+import { ROUTES } from '../shared/protocol.js';
 import { getPort } from '../platform/index.js';
 
 const CACHE_KEY = 'ai.inferCache';
@@ -73,7 +74,7 @@ export async function inferPropWithLLM(name, { mode = 'auto', force = false } = 
 
   // 调 host 代理（永不 throw）
   try {
-    const { ok, data } = await hostApi('POST', '/api/ai/infer-prop', {
+    const { ok, data } = await hostApi('POST', ROUTES.aiInferProp, {
       name,
       local: { icon: local.icon, type: local.type, options: local.options ?? null },
     });

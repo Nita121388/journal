@@ -1,7 +1,7 @@
 /**
  * sidepanel.js — 主界面胶水层（卡片时间线版）
- * 职责：DOM 事件绑定 → 调用 lib/store.js → 渲染
- * 规则：不直接碰平台 storage（走 lib/store.js），不 mix storage + render；
+ * 职责：DOM 事件绑定 → 调用 state/repository.js → 渲染
+ * 规则：不直接碰平台 storage（走 state/repository.js），不 mix storage + render；
  * 平台能力统一经 platform/index.js 的端口获取。
  */
 
@@ -14,10 +14,12 @@ import {
   RESERVED_PROPS, normalizeProgress,
 } from './shared/model.js';
 import {
-  getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
-  createCardEntry, updateCardEntry, deleteCardEntry, getSettings,
-} from './lib/store.js';
-import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/host-sync.js';
+  getAllCards, getCardsByDay,
+  createCardEntry, updateCardEntry, deleteCardEntry,
+} from './state/repository.js';
+import { getSettings } from './state/settings.js';
+import { pullFromHost, startHostSync } from './state/sync-bridge.js';
+import { getHostMeta, setHostMeta } from './state/host-client.js';
 import { getPort } from './platform/index.js';
 import { DEFAULT_HOST_BASE, ROUTES } from './shared/protocol.js';
 import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';

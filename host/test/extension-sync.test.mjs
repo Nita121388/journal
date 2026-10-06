@@ -1,10 +1,9 @@
 /**
- * extension-sync.test.mjs — 扩展侧同步接线单测
- * 通过 stub global.fetch 验证 extension/lib/sync.js 调用 host 的正确端点。
+ * extension-sync.test.mjs — host 客户端接线单测
+ * 通过 stub global.fetch 验证 state/host-client.js 调用 host 的正确端点。
  * 运行：node --test host/test/extension-sync.test.mjs
  *
- * 注：跨边界 import（host/test → extension/lib）属历史遗留；
- *     任务 10-06-shared-package 会把它拆到 extension/shared 的单测中。
+ * 注：扩展侧模块已迁到 state/（原 lib/sync.js + lib/host-sync.js 合并为 state/host-client.js）。
  */
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,9 +17,9 @@ globalThis.fetch = async (url, opts = {}) => {
   return { json: async () => payload };
 };
 
-const sync = await import('../../extension/lib/sync.js');
-// 端口以 host-sync.js 的 HOST 常量为唯一真相，避免测试里硬编码端口再次腐化。
-const { HOST } = await import('../../extension/lib/host-sync.js');
+const sync = await import('../../extension/state/host-client.js');
+// 端口以 shared/protocol.js 的 DEFAULT_HOST_BASE 为唯一真相，避免硬编码端口腐化。
+const { DEFAULT_HOST_BASE: HOST } = await import('../../extension/shared/protocol.js');
 
 beforeEach(() => { calls.length = 0; responder = async () => ({ ok: true, data: {} }); });
 

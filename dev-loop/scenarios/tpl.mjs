@@ -172,15 +172,15 @@ export async function runTpl({ page }) {
   await page.locator('#tpl-save').click();
   await page.waitForTimeout(800);
   const savedTpl = await page.evaluate(async () => {
-    // 从扩展模块拿真实 host 地址（dev-loop 会重写端口）
-    const mod = await import(chrome.runtime.getURL('lib/host-sync.js'));
-    const res = await fetch(`${mod.HOST}/api/meta/templates`);
+    // 从扩展模块拿真实 host 地址（dev-loop 会重写端口；单一真相 shared/protocol.js）
+    const mod = await import(chrome.runtime.getURL('shared/protocol.js'));
+    const res = await fetch(`${mod.DEFAULT_HOST_BASE}/api/meta/templates`);
     const data = await res.json();
     const list = data?.data || data || [];
     const t = list.find((x) => x.name === '回归测试模板');
     const titleField = t?.fields?.find((f) => f.key === 'title');
     const impField = t?.fields?.find((f) => f.key === '重要度');
-    const lib = await fetch(`${mod.HOST}/api/meta/propertyLibrary`).then((r) => r.json());
+    const lib = await fetch(`${mod.DEFAULT_HOST_BASE}/api/meta/propertyLibrary`).then((r) => r.json());
     const libData = lib?.data || lib || {};
     const impDef = libData['重要度'];
     return { titleLabel: titleField?.label, hasImpField: Boolean(impField), impLibType: impDef?.type, impLibLabel: impDef?.label };

@@ -89,8 +89,8 @@ export async function runOptions({ page, extId }) {
   await page.locator('#ai-save').click();
   await page.waitForTimeout(1200);
   const saved = await page.evaluate(async () => {
-    const mod = await import(chrome.runtime.getURL('lib/host-sync.js'));
-    const res = await fetch(`${mod.HOST}/api/ai/config`);
+    const mod = await import(chrome.runtime.getURL('shared/protocol.js'));
+    const res = await fetch(`${mod.DEFAULT_HOST_BASE}/api/ai/config`);
     const data = (await res.json())?.data;
     return { configured: data?.configured, label: document.getElementById('ai-label')?.textContent };
   });

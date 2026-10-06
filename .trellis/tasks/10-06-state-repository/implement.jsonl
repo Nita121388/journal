@@ -1,0 +1,8 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "架构契约 §4：repository 单一真源、sync-bridge 三路径合一、依赖铁律"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "父任务 R3/R8 与 AC4（UI 无直接 storage 调用）"}
+{"file": ".trellis/tasks/10-06-state-repository/prd.md", "reason": "本任务需求与验收标准"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "chrome.storage schema 与 onChanged 约定；迁移到 repository 必须保留的语义"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "lib/state 模块纯度与依赖图规则"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "repository/host-client 需 JSDoc @typedef 与边界校验"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门：lint / dev-loop"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "数据流跨层检查：UI→repository→host-client→port"}

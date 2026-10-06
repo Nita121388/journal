@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-06-state-repository/prd.md", "reason": "逐条核对验收标准"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "核对 repository/sync-bridge 是否与设计一致、无反向依赖"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "确认 storage 语义与离线回退未变"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "确认 UI 未直接访问 storage / 未散落 /api 字面量"}

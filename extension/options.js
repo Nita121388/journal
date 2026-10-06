@@ -3,8 +3,8 @@
  * 职责：主题切换、host 健康探测、prompt 复制、数据导出、数据同步配置
  */
 
-import { getSettings, saveSettings } from './lib/store.js';
-import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from './lib/sync.js';
+import { getSettings, saveSettings } from './state/settings.js';
+import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from './state/host-client.js';
 import { autoEnhance as enhanceSelects } from './lib/select.js';
 import { getPort } from './platform/index.js';
 import { DEFAULT_HOST_BASE } from './shared/protocol.js';
