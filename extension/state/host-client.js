@@ -213,17 +213,3 @@ export async function testSync() {
   return r.data;
 }
 
-/**
- * 兼容旧接口：按天比较本地与远程。
- * @param {Record<string, string>} local
- * @param {Record<string, string>} remote
- * @returns {Record<string, 'local'|'remote'|'same'>}
- */
-export function diffLocalRemote(local, remote) {
-  const out = {};
-  for (const day of new Set([...Object.keys(local), ...Object.keys(remote)])) {
-    if (local[day] === remote[day]) out[day] = 'same';
-    else out[day] = remote[day] ? 'remote' : 'local';
-  }
-  return out;
-}

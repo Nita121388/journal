@@ -79,6 +79,9 @@ function scrollTimelineToFocus(container, prevScroll = 0) {
     vs.pendingFocusScroll = false;
     let targetY = null;
     if (vs.selectedDate === todayKey()) {
+      // 今天无卡片时**不要**聚焦当前时刻：那会把空态引导（top:96px）滚出视口，
+      // “记录今天”的首屏引导等于不存在。改为回到顶部，让引导可见。
+      if (!getCardsByDaySync(vs.selectedDate).length) { container.scrollTop = 0; return; }
       const now = new Date();
       const nowMin = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, now.getHours() * 60 + now.getMinutes()));
       targetY = scheduleHeight(nowMin);

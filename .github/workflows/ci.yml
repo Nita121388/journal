@@ -1,0 +1,73 @@
+> 本仓库的自动化门禁。与本地 `npm run lint` / `npm test` 完全同一套命令，不另造标准。
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ① 静态检查 + 单测 + 覆盖率：快（分钟级），任何改动都必须过
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # host 用 node:sqlite（≥22.5 起可用），故下限锁 22
+          node-version: '22'
+
+      - name: 安装依赖（extension：eslint + tailwind + vitest）
+        run: npm ci --prefix extension
+
+      - name: ESLint（含分层边界 / no-undef / chrome 收敛）
+        run: npm run lint
+
+      - name: 单测 + 覆盖率门禁（shared + state）
+        run: npm run test:coverage
+
+      - name: host 单测（node:test，零依赖）
+        run: npm --prefix host test
+
+  # ② 真实浏览器回归：需要下载 Chromium，故单独一个 job
+  ui:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装依赖
+        run: |
+          npm ci --prefix extension
+          npm ci --prefix dev-loop
+
+      - name: 安装 Playwright Chromium
+        run: npm --prefix dev-loop exec -- playwright install --with-deps chromium
+
+      - name: UI 冒烟（多宽度断言 + 布局 + 可访问性 + 深色模式）
+        run: node dev-loop/dev-loop.mjs --scenario smoke --width 320,360,400,500
+
+      - name: UI 其余场景
+        run: |
+          node dev-loop/dev-loop.mjs --scenario select --width 360
+          node dev-loop/dev-loop.mjs --scenario tpl --width 360
+          node dev-loop/dev-loop.mjs --scenario options --width 360
+          node dev-loop/dev-loop.mjs --scenario tailwind-migrated --width 360
+
+      - name: 上传失败截图与报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-loop-report
+          path: dev-loop/out/
+          retention-days: 7

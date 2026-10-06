@@ -290,17 +290,29 @@ export async function runSelect({ page, width, extId }) {
 
   // ── 12. 暗色主题跟随 token ─────────────────────────
   const dark = await page.evaluate(async () => {
+    const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+    /** 轮询直到条件成立（避免固定 sleep 带来的偶发失败） */
+    const until = async (fn, timeoutMs = 2000) => {
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        if (fn()) return true;
+        await nextFrame();
+      }
+      return false;
+    };
+
     document.documentElement.dataset.theme = 'dark';
-    await new Promise((r) => setTimeout(r, 120));
     const t = document.querySelector('#pool-view-select').parentElement.querySelector('.js-select-trigger');
+    // 主题变量生效 + 样式重算是异步的：必须等实际变化，而不是睡一个固定毫秒数
+    await until(() => getComputedStyle(t).backgroundColor !== 'rgb(255, 255, 255)');
     const s = getComputedStyle(t);
     const bg = s.backgroundColor;
     const border = s.borderColor;
     const okDark = bg !== 'rgb(255, 255, 255)'; // 亮色底变暗
     // 展开一次，浮层也应跟随暗色
     t.click();
-    await new Promise((r) => setTimeout(r, 150));
     const pop = document.getElementById(t.getAttribute('aria-controls'));
+    await until(() => pop && getComputedStyle(pop).backgroundColor !== 'rgb(255, 255, 255)');
     const popBg = getComputedStyle(pop).backgroundColor;
     t.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     delete document.documentElement.dataset.theme;

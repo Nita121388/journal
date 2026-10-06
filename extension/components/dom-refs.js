@@ -98,7 +98,6 @@ export const editorMetaEl = document.getElementById('card-editor-meta');
 export const projectSuggest = document.getElementById('project-suggest');
 export const emojiPreview = document.getElementById('emoji-preview');
 export const emojiPicker = document.getElementById('emoji-picker');
-export const emojiFreeInput = null; // 已移除自由输入框（图标选择由头部瓦片负责），保留占位兼容 setEditorEmoji
 
 // ── 模板构建器 / 属性定义弹窗（原 features/template-builder.js 内联查找）──
 // 之前这些元素在 template-builder.js 与 bind-editor.js 各查一遍；现集中于此。
@@ -125,13 +124,3 @@ export const tplNpKey = document.getElementById('tpl-np-key');
 export const tplNpOptions = document.getElementById('tpl-np-options');
 export const tplNpOk = document.getElementById('tpl-np-ok');
 export const tplNpCancel = document.getElementById('tpl-np-cancel');
-
-/**
- * 查一个由 JS 动态创建、尚未登记到本表的元素（如右键菜单 `#template-menu`）。
- * 仅用于显式生命周期元素；新建静态元素请在上方登记。
- * @param {string} id
- * @returns {HTMLElement|null}
- */
-export function dynamicEl(id) {
-  return document.getElementById(id);
-}

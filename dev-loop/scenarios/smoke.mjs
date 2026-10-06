@@ -4,6 +4,8 @@
  * keyboard reachability, and empty-state actions.
  */
 
+import { AA_NORMAL, contrastRatio } from '../lib/a11y.mjs';
+
 export async function runSmoke({ page, width }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push([name, Boolean(ok), detail || '']);
@@ -126,7 +128,7 @@ export async function runSmoke({ page, width }) {
   add('prefers-reduced-motion 生效（transition 收敛）', after > 0 && after < 0.05, afterRaw);
   await page.emulateMedia({ reducedMotion: null });
 
-  // 12) 打开即聚焦：今天日视图时刻线应在容器垂直中部（±20% 容差）
+  // 12) 打开时的滚动定位：有卡 → 当前时刻居中；空日 → 回到顶部（以免空态引导被滚出视口）
   const nowC = await page.evaluate(() => {
     const c = document.getElementById('timeline-container');
     const m = document.querySelector('.timeline-now-marker');
@@ -136,7 +138,30 @@ export async function runSmoke({ page, width }) {
     const delta = mr.top - cr.top - cr.height / 2;
     return { delta: Math.round(delta), h: Math.round(cr.height), ok: Math.abs(delta) <= cr.height * 0.2 };
   }).catch(() => null);
-  add('打开时当前时刻垂直居中', nowC?.ok === true, nowC ? `Δ=${nowC.delta}px / ${nowC.h}px` : '不可测');
+  const isEmptyDay = await page.evaluate(
+    () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,
+  ).catch(() => false);
+  if (isEmptyDay) {
+    const atTop = await page.evaluate(() => document.getElementById('timeline-container').scrollTop <= 1).catch(() => null);
+    add('空日打开时回到顶部（引导可见）', atTop === true, `scrollTop=${atTop}`);
+  } else {
+    add('打开时当前时刻垂直居中', nowC?.ok === true, nowC ? `Δ=${nowC.delta}px / ${nowC.h}px` : '不可测');
+  }
+
+  // 12b) 空日：首屏引导必须在视口内（曾经被 focusScroll 滚出屏幕）
+  const hintVis = await page.evaluate(() => {
+    const c = document.getElementById('timeline-container');
+    const h = c && c.querySelector('.timeline-empty-hint');
+    if (!c || !h) return null;
+    const cr = c.getBoundingClientRect();
+    const hr = h.getBoundingClientRect();
+    return {
+      visible: hr.top >= cr.top - 1 && hr.bottom <= cr.bottom + 1,
+      top: Math.round(hr.top - cr.top),
+      h: Math.round(cr.height),
+    };
+  });
+  add('空日引导在视口内可见', hintVis?.visible === true, hintVis ? `Δtop=${hintVis.top}px / ${hintVis.h}px` : '无空态提示');
 
   // 13) 卡片编辑器：类型齐全（含「想法」）+ 优先级可设（工作流维度完整）
   await page.locator('#btn-quick-add').click();
@@ -196,6 +221,55 @@ export async function runSmoke({ page, width }) {
   await page.waitForTimeout(250);
   await page.locator('#btn-panels').click();
   await page.waitForTimeout(250);
+
+  // 16) 深色模式：主题生效 + 关键文字对比度达 AA（此前深色从未被审计）
+  const darkProbe = await page.evaluate(() => {
+    const prev = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const cs = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? getComputedStyle(el) : null;
+    };
+    const body = cs('body');
+    const today = cs('#today-display');
+    const out = {
+      bodyBg: body?.backgroundColor ?? '',
+      todayColor: today?.color ?? '',
+      todayBg: body?.backgroundColor ?? '',
+    };
+    if (prev) document.documentElement.setAttribute('data-theme', prev);
+    else document.documentElement.removeAttribute('data-theme');
+    return out;
+  });
+  add('深色模式生效（页面底色变暗）', /rgb\((\d+),\s*\1,\s*\1\)/.test(darkProbe.bodyBg), darkProbe.bodyBg);
+  const darkRatio = contrastRatio(darkProbe.todayColor, darkProbe.todayBg);
+  add('深色模式次要文字对比度 ≥4.5', darkRatio >= AA_NORMAL, `${darkRatio.toFixed(2)}:1 (${darkProbe.todayColor} on ${darkProbe.todayBg})`);
+
+  // 16) 时间线拖动框选建卡（range-select 与周视图共用；此前两份实现已分叉）
+  const tlBox = await page.locator('#timeline-container').boundingBox();
+  let rangeOk = false;
+  let rangeDetail = '无法定位时间线容器';
+  if (tlBox) {
+    const cx = tlBox.x + tlBox.width / 2;
+    const cy0 = tlBox.y + 120;
+    await page.mouse.move(cx, cy0);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy0 + 90, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(350);
+    const opened = await page.locator('#card-editor-overlay').isVisible().catch(() => false);
+    if (opened) {
+      const st = await page.locator('#card-editor-start').inputValue().catch(() => '');
+      const en = await page.locator('#card-editor-end').inputValue().catch(() => '');
+      rangeOk = /^\d{2}:\d{2}$/.test(st) && /^\d{2}:\d{2}$/.test(en);
+      rangeDetail = `预填 ${st}–${en}`;
+      await page.locator('#card-editor-cancel').click();
+      await page.waitForTimeout(200);
+    } else {
+      rangeDetail = '框选后未打开编辑器';
+    }
+  }
+  add('时间线拖动框选可建卡（range-select）', rangeOk, rangeDetail);
 
   return { checks };
 }

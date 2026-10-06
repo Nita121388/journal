@@ -9,6 +9,7 @@ import { todayKey, currentTime, timeToMinutes, minutesToTime, addMinutes, snapTo
 import { getCardsByDay, updateCardEntry } from '../state/repository.js';
 import { els } from '../components/dom-refs.js';
 import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
+import { bindRangeSelect } from './range-select.js';
 import { renderTimelineCard } from './timeline-card.js';
 import { actions } from '../state/actions.js';
 
@@ -89,81 +90,11 @@ export async function renderTimeline() {
     actions.openEditor(null, snapped, date);
   });
 
-  // ── 框选创建时间范围：空白区 mousedown → 拖动 → mouseup ──
-  // 拖动后选区代表一个时间段，松手弹编辑器预填起止时间；纯点击保持单格创建
-  let sel = null; // { startMin, overlay }
-  let suppressCanvasClick = false; // 框选后抑制 canvas 的 click（避免二次创建）
-  const removeSel = () => {
-    if (sel?.overlay) sel.overlay.remove();
-    sel = null;
-  };
-
-  canvas.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // 仅左键
-    // 在卡片/marker/网格标签上按下不框选（网格线单击创建走原有逻辑）
-    if (e.target.closest('.timeline-card, .timeline-now-marker, .schedule-grid-label, .card-add-btn')) return;
-    const rect = canvas.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const startMin = vs.viewStartMin + (y / SLOT_HEIGHT) * 15;
-    // 钳制到视图范围内
-    const startM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, startMin));
-    const overlay = document.createElement('div');
-    overlay.className = 'selection-overlay';
-    overlay.style.top = `${scheduleHeight(Math.floor(startM / 15) * 15)}px`;
-    overlay.style.height = '0px';
-    canvas.append(overlay);
-    sel = { startM, overlay, dragging: false };
+  // ── 框选创建时间范围（与周视图共用 views/range-select.js）──
+  // 拖动后选区代表一个时间段，松手弹编辑器预填起止；纯点击保持单格创建。
+  bindRangeSelect(canvas, (sMin, eMin) => {
+    actions.openEditorRange(minutesToTime(sMin), minutesToTime(eMin), date);
   });
-
-  canvas.addEventListener('mousemove', (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const endMin = vs.viewStartMin + (y / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    // 拖动超过 3px 才视为框选（否则是单击）
-    const delta = endM - sel.startM;
-    if (Math.abs(delta) * (SLOT_HEIGHT / 15) < 3) return;
-    sel.dragging = true;
-    // 选区：起点到终点的 15 分钟网格范围
-    const s = Math.min(sel.startM, endM);
-    const e2 = Math.max(sel.startM, endM);
-    const sSlot = Math.floor(s / 15) * 15;
-    const eSlot = Math.ceil(e2 / 15) * 15;
-    sel.overlay.style.top = `${scheduleHeight(sSlot)}px`;
-    sel.overlay.style.height = `${scheduleHeight(eSlot) - scheduleHeight(sSlot)}px`;
-    sel.endM = endM;
-  });
-
-  canvas.addEventListener('mouseup', async (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const endMin = vs.viewStartMin + (y / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    const { startM, dragging } = sel;
-    removeSel();
-
-    if (!dragging) return; // 纯点击 → 走 canvas click（单格创建）
-    suppressCanvasClick = true;
-
-    // 起止时间：向上取整/向下取整到 15 分钟，保证最小 15 分钟
-    const s = Math.floor(Math.min(startM, endM) / 15) * 15;
-    const e2 = Math.max(startM, endM);
-    let eSlot = Math.ceil(e2 / 15) * 15;
-    if (eSlot - s < 15) eSlot = s + 15;
-    eSlot = Math.min(vs.viewEndMin, eSlot);
-    if (eSlot - s < 15) s = Math.max(vs.viewStartMin, eSlot - 15);
-
-    actions.openEditorRange(minutesToTime(s), minutesToTime(eSlot), date);
-  });
-
-  // 框选后抑制一次 canvas click（mouseup 已触发编辑器，避免 click 再开一个）
-  canvas.addEventListener('click', (e) => {
-    if (suppressCanvasClick) { suppressCanvasClick = false; e.stopPropagation(); }
-  }, true); // capture：抢在原有 click 之前
 
   // ── 拖拽来自卡片池的卡片：根据 Y 坐标设置时间槽 ──
   canvas.addEventListener('dragover', (e) => {

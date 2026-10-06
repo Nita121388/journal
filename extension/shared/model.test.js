@@ -6,8 +6,8 @@ import {
   todayKey, toDayKey, currentTime,
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration,
-  layoutScheduleLanes, getCardsByDate, getCardPool,
-  countCardsByDay, getCardTypeCounts, aggregateHeatmap, todoSummary,
+  layoutScheduleLanes, getCardsByDate,
+  countCardsByDay, getCardTypeCounts,
   getMonthMatrix, dateRange, createCard,
   migrateOldJournals, migrateOldTodos,
 } from './model.js';
@@ -105,9 +105,6 @@ describe('卡片查询', () => {
   it('getCardsByDate 非数组返回空', () => {
     expect(getCardsByDate(null, '2026-01-01')).toEqual([]);
   });
-  it('getCardPool 取未安排（assignedDate 为空）', () => {
-    expect(getCardPool(cards).map((c) => c.id)).toEqual(['4']);
-  });
 });
 
 describe('聚合', () => {
@@ -124,14 +121,6 @@ describe('聚合', () => {
   });
   it('getCardTypeCounts', () => {
     expect(getCardTypeCounts(cards, '2026-01-01')).toEqual({ task: 1, text: 1 });
-  });
-  it('aggregateHeatmap 等价于 countCardsByDay（入参为卡片数组）', () => {
-    expect(aggregateHeatmap(cards)).toEqual({ '2026-01-01': 2 });
-    expect(aggregateHeatmap(null)).toEqual({});
-  });
-  it('todoSummary', () => {
-    expect(todoSummary([{ done: true }, { done: false }])).toEqual({ total: 2, done: 1, pending: 1 });
-    expect(todoSummary(null)).toEqual({ total: 0, done: 0, pending: 0 });
   });
 });
 

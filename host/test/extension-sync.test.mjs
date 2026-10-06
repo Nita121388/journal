@@ -59,9 +59,3 @@ test('testSync → POST /api/sync/test', async () => {
   assert.equal(r.provider, 'local');
   assert.equal(calls[0].url, `${HOST}/api/sync/test`);
 });
-
-test('diffLocalRemote 纯函数', () => {
-  const out = sync.diffLocalRemote({ '2026-09-01': 'a' }, { '2026-09-01': 'b', '2026-09-02': 'c' });
-  assert.equal(out['2026-09-01'], 'remote');
-  assert.equal(out['2026-09-02'], 'remote');
-});

@@ -156,49 +156,6 @@ export function getCardsByDate(cards, date) {
     });
 }
 
-/**
- * 获取卡片池（assignedDate === null）
- * @param {Card[]} cards
- * @returns {Card[]}
- */
-export function getCardPool(cards) {
-  if (!Array.isArray(cards)) return [];
-  return cards.filter(c => c.assignedDate === null);
-}
-
-/**
- * 按时间段分组（5 分钟窗口内并列）
- * @param {Card[]} dayCards — 某天已排序的卡片
- * @returns {Array<{time:string|null, cards:Card[]}>}
- */
-export function groupCardsForTimeline(dayCards) {
-  if (!dayCards.length) return [];
-  const groups = [];
-  for (const card of dayCards) {
-    const cardTime = getCardStartTime(card);
-    if (!cardTime) {
-      // 无时间卡片归入 "全天" 组（置于最后）
-      const last = groups[groups.length - 1];
-      if (last && last.time === null) {
-        last.cards.push(card);
-      } else {
-        groups.push({ time: null, cards: [card] });
-      }
-      continue;
-    }
-    const last = groups[groups.length - 1];
-    if (last && last.time !== null) {
-      // 检查是否在 5 分钟窗口内（并列）
-      const diffMin = timeToMinutes(cardTime) - timeToMinutes(last.time);
-      if (diffMin <= 5 && diffMin >= 0) {
-        last.cards.push(card);
-        continue;
-      }
-    }
-    groups.push({ time: cardTime, cards: [card] });
-  }
-  return groups;
-}
 
 /* ─── 日程时间工具（15 分钟网格） ───────────────────────────── */
 
@@ -315,28 +272,7 @@ export function getCardTypeCounts(cards, date) {
   };
 }
 
-/**
- * 热力图聚合：dayKey → 卡片数（0-5+ 档位）
- * @param {Card[]} cards
- * @returns {Record<string, number>}
- */
-export function aggregateHeatmap(cards) {
-  if (!Array.isArray(cards)) return {};
-  return countCardsByDay(cards);
-}
-
 /* ─── 兼容旧接口（保持向后兼容） ─────────────────────────────── */
-
-/**
- * 根据 todos 数组生成待办统计摘要
- * @param {Array<{id:string, title:string, done:boolean, due:string|null, priority:string}>} todos
- * @returns {{total:number, done:number, pending:number}}
- */
-export function todoSummary(todos) {
-  if (!Array.isArray(todos)) return { total: 0, done: 0, pending: 0 };
-  const done = todos.filter(t => t.done).length;
-  return { total: todos.length, done, pending: todos.length - done };
-}
 
 /**
  * 生成某月的 6×7 日历矩阵（周日起始，跨月补齐）

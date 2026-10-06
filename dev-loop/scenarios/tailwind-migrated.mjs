@@ -7,6 +7,8 @@
  *  - dark theme not following tokens
  */
 
+import { AA_NORMAL, contrastRatio } from '../lib/a11y.mjs';
+
 export async function runTailwindMigrated({ page, width }) {
   const checks = [];
   const add = (name, ok, detail) => checks.push([name, Boolean(ok), detail || '']);
@@ -51,29 +53,11 @@ export async function runTailwindMigrated({ page, width }) {
 
   if (probe.error) return { checks: [['probe injection', false, probe.error]] };
 
-  /**
-   * WCAG 相对亮度对比度。
-   * @param {string} fg 'rgb(r, g, b)'
-   * @param {string} bg 'rgb(r, g, b)'
-   * @returns {number}
-   */
-  const contrast = (fg, bg) => {
-    const parse = (s) => {
-      const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(s || '');
-      return m ? [1, 2, 3].map((i) => Number(m[i]) / 255) : null;
-    };
-    const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-    const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-    const a = parse(fg); const b = parse(bg);
-    if (!a || !b) return 0;
-    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-    return (hi + 0.05) / (lo + 0.05);
-  };
   // 正文阈值 4.5:1（WCAG AA）。断言语义从「比对 hex」改为「算对比度」——
   // 改色不再是红灯，只有真的降到不可读才失败。
-  const AA = 4.5;
+  const AA = AA_NORMAL;
   const addContrast = (name, fg, bg) => {
-    const r = contrast(fg, bg);
+    const r = contrastRatio(fg, bg);
     add(name, r >= AA, `${r.toFixed(2)}:1 (${fg} on ${bg})`);
   };
 

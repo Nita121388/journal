@@ -11,68 +11,9 @@ import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
 import { renderTimelineCard } from './timeline-card.js';
 import { getCardsByDaySync, requestFocusScroll } from './rightview.js';
 
-export function bindRangeSelect(el, onRange) {
-  let sel = null; // { startM, overlay, dragging }
-  let suppressClick = false; // 框选后抑制随后的 click（避免又开一个编辑器）
-
-  const removeSel = () => {
-    if (sel?.overlay) sel.overlay.remove();
-    sel = null;
-  };
-
-  el.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // 仅左键
-    if (e.target.closest('.timeline-card, .timeline-now-marker, .card-add-btn')) return;
-    const rect = el.getBoundingClientRect();
-    const startMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const startM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, startMin));
-    const overlay = document.createElement('div');
-    overlay.className = 'selection-overlay';
-    overlay.style.top = `${scheduleHeight(Math.floor(startM / 15) * 15)}px`;
-    overlay.style.height = '0px';
-    el.append(overlay);
-    sel = { startM, overlay, dragging: false };
-  });
-
-  el.addEventListener('mousemove', (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = el.getBoundingClientRect();
-    const endMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    if (Math.abs(endM - sel.startM) * (SLOT_HEIGHT / 15) < 3) return; // 拖动 < 3px 不算框选
-    sel.dragging = true;
-    const s = Math.floor(Math.min(sel.startM, endM) / 15) * 15;
-    const eSlot = Math.ceil(Math.max(sel.startM, endM) / 15) * 15;
-    sel.overlay.style.top = `${scheduleHeight(s)}px`;
-    sel.overlay.style.height = `${scheduleHeight(eSlot) - scheduleHeight(s)}px`;
-    sel.endM = endM;
-  });
-
-  el.addEventListener('mouseup', (e) => {
-    if (!sel) return;
-    e.preventDefault();
-    const rect = el.getBoundingClientRect();
-    const endMin = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-    const endM = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, endMin));
-    const { startM, dragging } = sel;
-    removeSel();
-    if (!dragging) return; // 纯点击 → 走 click 单格创建
-    suppressClick = true;
-    // 起止对齐 15 分钟网格，最小 15 分钟，不超出视图范围
-    let s = Math.floor(Math.min(startM, endM) / 15) * 15;
-    let eSlot = Math.ceil(Math.max(startM, endM) / 15) * 15;
-    if (eSlot - s < 15) eSlot = s + 15;
-    eSlot = Math.min(vs.viewEndMin, eSlot);
-    if (eSlot - s < 15) s = Math.max(vs.viewStartMin, eSlot - 15);
-    onRange(s, eSlot);
-  });
-
-  // capture：抢在单格 click 之前抑制一次
-  el.addEventListener('click', (e) => {
-    if (suppressClick) { suppressClick = false; e.stopPropagation(); }
-  }, true);
-}
+// 框选交互已收敛到 views/range-select.js（与日视图时间线共用同一实现）。
+import { bindRangeSelect } from './range-select.js';
+export { bindRangeSelect };
 
 /**
  * 周视图：Google Calendar 风格 —— 垂直占满容器 + 左侧小时刻度尺 +

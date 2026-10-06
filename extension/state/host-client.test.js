@@ -116,11 +116,6 @@ describe('sync', () => {
     port._pushResponse({ ok: false, error: { message: 'bad' } });
     await expect(host.testSync()).rejects.toThrow('bad');
   });
-  it('diffLocalRemote 纯函数', () => {
-    const out = host.diffLocalRemote({ a: '1', b: '2' }, { a: '1', b: '9', c: '3' });
-    expect(out).toEqual({ a: 'same', b: 'remote', c: 'remote' });
-    expect(host.diffLocalRemote({ a: '1' }, {})).toEqual({ a: 'local' });
-  });
 });
 
 describe('hostApi', () => {

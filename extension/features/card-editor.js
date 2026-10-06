@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiFreeInput, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
@@ -29,7 +29,6 @@ export let editorProps = {};
 function setEditorEmoji(emoji) {
   editorEmoji = emoji || '';
   if (emojiPreview) emojiPreview.textContent = editorEmoji || typeIcon(editorType.value);
-  if (emojiFreeInput) emojiFreeInput.value = editorEmoji;
 }
 
 export function openEmojiPicker() {
