@@ -74,3 +74,29 @@ export const vs = {
   /** @type {boolean} 下次渲染是否滚动到当前时刻 */
   pendingFocusScroll: false,
 };
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 视图可变状态（`vs` 的形状）。
+ * @typedef {object} ViewState
+ * @property {string} selectedDate 当前选中日期 YYYY-MM-DD
+ * @property {{year:number, month:number}} calendarMonth 日历月份（month 0 基）
+ * @property {'month'|'week'|'timeline'} viewMode 右侧主视图模式
+ * @property {string} weekAnchor 周历基准日期
+ * @property {'default'|'full'} timelineSpan 时间线展示范围
+ * @property {number} viewStartMin 画布起始分钟
+ * @property {number} viewEndMin 画布结束分钟
+ * @property {Record<string,number>} heatmapCache dayKey → 卡片数
+ * @property {object[]} allCardsCache 全部卡片快照
+ * @property {number} switchSeq 视图切换序号
+ * @property {''|'active'|'todo'|'doing'|'done'|'none'} poolStatusFilter
+ * @property {string} poolTagFilter
+ * @property {string} poolProjectFilter
+ * @property {'card'|'list'} poolLayout
+ * @property {object[]} savedViews
+ * @property {string} activeViewId
+ * @property {boolean} pendingFocusScroll
+ */
+
+/** @typedef {import('../shared/model.js').Card} Card */

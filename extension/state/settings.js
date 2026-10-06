@@ -34,3 +34,13 @@ export async function saveSettings(patch) {
   };
   await getPort().storageSet({ [KEY]: merged });
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 扩展本地设置。
+ * @typedef {object} Settings
+ * @property {{enabled:boolean, provider:string, endpoint:string}} sync
+ * @property {{provider:string, apiKey:string, inferMode:'auto'|'always'|'never'}} ai
+ * @property {'auto'|'light'|'dark'} theme
+ */

@@ -169,3 +169,10 @@ export async function deleteCardEntry(id) {
   await persistCards();
   notify();
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * @typedef {import('../shared/model.js').Card} Card
+ * @typedef {(cards: Card[]) => void} CardsListener
+ */

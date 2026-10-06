@@ -40,3 +40,13 @@ export function searchEmojis(query) {
 export function emojisByCat(catId) {
   return EMOJI_DB.filter(e => e.c === catId);
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * @typedef {object} EmojiItem
+ * @property {string} e emoji 字符
+ * @property {string} n 英文名
+ * @property {string} k 关键词（含中文/拼音，空格分隔）
+ * @property {string} c 分类 id
+ */

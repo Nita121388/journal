@@ -190,3 +190,20 @@ export function readValueFromCard(card, key) {
   for (const [tplKey, cardField] of Object.entries(fields)) out[tplKey] = card?.[cardField];
   return out;
 }
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 统一字段定义（内建与用户字段同构）。
+ * @typedef {object} FieldDef
+ * @property {string} key 数据标识（创建后不变）
+ * @property {string} label 显示名
+ * @property {string} icon
+ * @property {string} type 值形态：text|textarea|number|select|multi|date|tags|checkbox|schedule
+ * @property {string} behavior 引擎行为：none|tags|status|priority|progress|date|project|schedule
+ * @property {boolean} required 是否每卡必有（锁定行）
+ * @property {'builtin'|'user'} source 来源（决定可删改权限）
+ * @property {boolean} [locked]
+ * @property {string[]} [options] select/multi 候选
+ * @property {{kind:'card'|'props', fields?:Record<string,string>, empty?:*}} storage 落位
+ * @property {*} [empty] 建卡空值兜底
+ */

@@ -25,3 +25,13 @@ export const actions = {
   /** 重算卡片编辑器时长标签（组合根注入；周视图框选建卡后需要） */
   updateEditorDuration: () => {},
 };
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 组合根注入的反向调用通道。
+ * @typedef {object} AppActions
+ * @property {() => void} refreshAll
+ * @property {(card?: object|null, time?: string, date?: string|null, assignedDate?: string|null) => void} openEditor
+ * @property {() => void} updateEditorDuration
+ */

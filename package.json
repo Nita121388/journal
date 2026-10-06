@@ -7,8 +7,10 @@
   "scripts": {
     "lint": "npm --prefix extension run lint",
     "lint:fix": "npm --prefix extension run lint -- --fix",
-    "test": "npm --prefix host test",
+    "test": "npm --prefix extension run test && npm --prefix host test",
+    "test:unit": "npm --prefix extension run test",
     "test:host": "npm --prefix host test",
+    "test:coverage": "npm --prefix extension run test:coverage",
     "build:css": "npm --prefix extension run build:css",
     "watch:css": "npm --prefix extension run watch:css",
     "host": "npm --prefix host start",

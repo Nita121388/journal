@@ -382,3 +382,39 @@ export function dateRange(days = 365) {
   }
   return keys;
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 卡片（领域形状；HTTP 契约同见 shared/protocol.js 的 Card）。
+ * @typedef {object} Card
+ * @property {string} id
+ * @property {string} content
+ * @property {'text'|'task'|'idea'} type
+ * @property {boolean} done
+ * @property {string} title
+ * @property {'none'|'todo'|'doing'|'done'} status
+ * @property {number|null} progress
+ * @property {number|null} duration
+ * @property {Record<string,unknown>} props
+ * @property {string|null} project
+ * @property {string|null} assignedDate
+ * @property {string|null} time
+ * @property {string|null} startTime
+ * @property {string|null} endTime
+ * @property {'high'|'medium'|'low'} priority
+ * @property {string[]} tags
+ * @property {string} emoji
+ * @property {object|null} meta
+ * @property {string} createdAt
+ * @property {string} updatedAt
+ */
+
+/**
+ * 时间线条目（layoutScheduleLanes 入参/出参）。
+ * @typedef {object} ScheduleItem
+ * @property {string} id
+ * @property {number} start 起始分钟
+ * @property {number} end 结束分钟
+ * @property {number} [lane] 分道结果
+ */

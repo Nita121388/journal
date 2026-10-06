@@ -72,3 +72,10 @@ export function startHostSync(onChange, intervalMs = 20000) {
 
   return setInterval(tick, intervalMs);
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * @typedef {object} PullResult
+ * @property {boolean} pulled 是否成功从 host 拉取（false = 已回退缓存）
+ */

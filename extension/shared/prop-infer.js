@@ -140,3 +140,16 @@ export function inferProp(name, opts = {}) {
     confidence,
   };
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 推断出的属性定义（结构同 FieldDef，见 shared/field-registry.js）。
+ * @typedef {object} InferredProp
+ * @property {string} key
+ * @property {string} label
+ * @property {string} icon
+ * @property {string} type
+ * @property {string[]} [options]
+ * @property {number} [confidence] 0-1，供 AI 层判断是否需要升级
+ */

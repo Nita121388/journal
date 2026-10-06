@@ -47,3 +47,11 @@ export async function loadPropLibrary() {
 export async function savePropLibrary() {
   await setHostMeta('propertyLibrary', library);
 }
+
+/* ─── 类型 ─────────────────────────────────────────────── */
+
+/**
+ * 属性库：属性名 → 属性定义（结构同 shared/field-registry.js 的 FieldDef）。
+ * @typedef {Record<string, InferredProp>} PropLibrary
+ * @typedef {import('../shared/prop-infer.js').InferredProp} InferredProp
+ */
