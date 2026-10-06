@@ -113,4 +113,23 @@
   .toast.toast-error { @apply bg-danger text-on-accent; }
   .toast.toast-success { @apply bg-accent text-on-accent; }
   .toast.toast-warn { @apply bg-warn text-on-accent; }
+  /* 带「撤销」等操作按钮的 toast：需横向布局，故去掉 pre-wrap */
+  .toast.has-action {
+    @apply flex items-center gap-3;
+    white-space: normal;
+  }
+  .toast-action {
+    flex-shrink: 0;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.18);
+    color: inherit;
+    cursor: pointer;
+  }
+  .toast-action:hover { background: rgba(255, 255, 255, 0.34); }
+  .toast-action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 }

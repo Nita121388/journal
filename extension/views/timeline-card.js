@@ -7,7 +7,7 @@
 import { formatProvenance, typeIcon } from '../shared/format.js';
 import { addMinutes, currentTime, getCardDuration, getCardEndTime, getCardStartTime, minutesToTime, timeToMinutes } from '../shared/model.js';
 import { actions } from '../state/actions.js';
-import { deleteCardEntry, updateCardEntry } from '../state/repository.js';
+import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
 
@@ -143,12 +143,11 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
         end = minutesToTime(timeToMinutes(start) + dur);
       }
       if (start && end) {
-        try {
-          await updateCardEntry(card.id, { time: start, startTime: start, endTime: end });
-          await actions.refreshAll();
-        } catch (err) {
-          console.error('[journal] resize save failed:', err);
-        }
+        await patchCard(
+          card.id,
+          { time: start, startTime: start, endTime: end },
+          '缩放保存失败：本机服务未连接',
+        );
       }
     };
     handle.addEventListener('pointerdown', (e) => {
@@ -208,12 +207,11 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
       const newStart = el.dataset.start;
       const newEnd = el.dataset.end;
       if (newStart && newEnd) {
-        try {
-          await updateCardEntry(card.id, { time: newStart, startTime: newStart, endTime: newEnd });
-          await actions.refreshAll();
-        } catch (err) {
-          console.error('[journal] card move save failed:', err);
-        }
+        await patchCard(
+          card.id,
+          { time: newStart, startTime: newStart, endTime: newEnd },
+          '拖动保存失败：本机服务未连接',
+        );
       }
     };
     el.addEventListener('pointerdown', (e) => {
@@ -258,10 +256,10 @@ export function buildCardFooter(card) {
     const doneBtn = document.createElement('button');
     doneBtn.className = 'card-footer-btn done-btn';
     doneBtn.textContent = card.done ? '↩️ 撤销' : '✅ 完成';
+    doneBtn.setAttribute('aria-label', card.done ? '标记为未完成' : '标记为完成');
     doneBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await updateCardEntry(card.id, { done: !card.done });
-      await actions.refreshAll();
+      await patchCard(card.id, { done: !card.done });
     });
     footer.append(doneBtn);
   }
@@ -270,23 +268,22 @@ export function buildCardFooter(card) {
   typeBtn.className = 'card-footer-btn';
   typeBtn.textContent = '🔄';
   typeBtn.title = '切换类型';
+  typeBtn.setAttribute('aria-label', '切换卡片类型');
   typeBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     const next = card.type === 'text' || card.type === 'idea' ? 'task' : 'text';
-    await updateCardEntry(card.id, { type: next });
-    await actions.refreshAll();
+    await patchCard(card.id, { type: next });
   });
   footer.append(typeBtn);
 
   const delBtn = document.createElement('button');
   delBtn.className = 'card-footer-btn';
   delBtn.textContent = '🗑️';
+  delBtn.title = '删除卡片';
+  delBtn.setAttribute('aria-label', '删除卡片');
   delBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    if (confirm('删除这张卡片？')) {
-      await deleteCardEntry(card.id);
-      await actions.refreshAll();
-    }
+    await deleteCardWithUndo(card);
   });
   footer.append(delBtn);
   return footer;

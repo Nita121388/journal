@@ -7,7 +7,8 @@
 import { propForm, propIcon, propKey, propOptions, propType, propsList } from '../components/dom-refs.js';
 import { RESERVED_PROPS } from '../shared/model.js';
 import { getPropLibrary, removePropDef, savePropLibrary, upsertPropDef } from '../state/prop-library.js';
-import { showToast } from './toast.js';
+import { pickDialog } from './dialog.js';
+import { runWrite, showToast } from './toast.js';
 import { editorProps } from './card-editor.js';
 
 export function renderEditorProps() {
@@ -106,7 +107,7 @@ export function closePropForm() {
 }
 
 /** 添加/编辑属性：校验保留字 → 加入当前卡（自动保存到属性库，便于复用/编辑） */
-export function onPropFormOk() {
+export async function onPropFormOk() {
   const key = (propKey.value || '').trim().replace(/\s+/g, '_');
   if (!key) { showToast('属性名不能为空', 'error'); return; }
   if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
@@ -120,23 +121,32 @@ export function onPropFormOk() {
   }
   if (!(key in editorProps)) editorProps[key] = '';
   upsertPropDef(key, def);
-  void savePropLibrary();
+  // 属性库落 host；失败时明确告知“本机已生效但未持久化”，不谎报成功
+  const res = await runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接（本次已在本机生效）');
   const wasEdit = propEditKey !== null;
   renderEditorProps();
   closePropForm();
   propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
+  if (!res.ok) return;
   showToast(wasEdit ? `已更新属性「${key}」` : `已添加属性「${key}」（已入库）`, 'success');
 }
 
 /** 从属性库复用属性到当前卡 */
-export function openPropLibrary() {
-  const keys = Object.keys(getPropLibrary());
+export async function openPropLibrary() {
+  const lib = getPropLibrary();
+  const keys = Object.keys(lib);
   if (!keys.length) { showToast('属性库为空', ''); return; }
-  const lines = keys.map((k, i) => `${i}. ${getPropLibrary()[k].icon || ''} ${getPropLibrary()[k].label || k}`).join('\n');
-  const pick = prompt('从属性库选择（多个用逗号分隔）：\n' + lines, '0');
-  if (pick === null) return;
-  const idxs = pick.split(/[,，\s]+/).map(s => parseInt(s, 10))
-    .filter(n => !Number.isNaN(n) && n >= 0 && n < keys.length);
-  for (const i of idxs) { const k = keys[i]; if (!(k in editorProps)) editorProps[k] = ''; }
+  const picked = await pickDialog({
+    title: '从属性库添加',
+    items: keys.map((k) => `${lib[k].icon || ''} ${lib[k].label || k}`),
+    multi: true,
+    okLabel: '添加',
+  });
+  if (!Array.isArray(picked) || !picked.length) return;
+  for (const i of picked) {
+    const k = keys[i];
+    if (!(k in editorProps)) editorProps[k] = '';
+  }
   renderEditorProps();
+  showToast(`已添加 ${picked.length} 个属性`, 'success');
 }

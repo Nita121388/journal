@@ -12,7 +12,7 @@ import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
 import { shortDate, typeIcon } from '../shared/format.js';
 import { els } from '../components/dom-refs.js';
 import { vs } from '../state/view-state.js';
-import { updateCardEntry, deleteCardEntry } from '../state/repository.js';
+import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { actions } from '../state/actions.js';
 
 const STATUS_OPTIONS = [
@@ -253,9 +253,11 @@ export async function renderCardPool() {
     schedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const st = snapUpToQuarter(currentTime());
-      updateCardEntry(card.id, { assignedDate: vs.selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) })
-        .then(() => actions.refreshAll())
-        .catch(err => console.error('[journal] schedule card failed:', err));
+      void patchCard(
+        card.id,
+        { assignedDate: vs.selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) },
+        '安排失败：本机服务未连接',
+      );
     });
 
     const delBtn = document.createElement('button');
@@ -264,11 +266,7 @@ export async function renderCardPool() {
     delBtn.title = '删除卡片';
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (confirm('删除这张卡片？')) {
-        deleteCardEntry(card.id)
-          .then(() => actions.refreshAll())
-          .catch(err => console.error('[journal] delete card failed:', err));
-      }
+      void deleteCardWithUndo(card);
     });
 
     // 点击编辑（拖拽后抑制一次，避免 drop 后误触）

@@ -11,6 +11,7 @@
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
+  --color-canvas: var(--color-bg);
   --color-surface: var(--color-surface);
   --color-muted: var(--color-muted);
   --color-accent: var(--color-accent);
@@ -58,6 +59,9 @@
 }
 .hidden {
   display: none;
+}
+.inline {
+  display: inline;
 }
 .inline-flex {
   display: inline-flex;
@@ -231,6 +235,31 @@
   .toast.toast-warn {
     background-color: var(--color-warn);
     color: var(--color-on-accent);
+  }
+  .toast.has-action {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 3);
+    white-space: normal;
+  }
+  .toast-action {
+    flex-shrink: 0;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.18);
+    color: inherit;
+    cursor: pointer;
+  }
+  .toast-action:hover {
+    background: rgba(255, 255, 255, 0.34);
+  }
+  .toast-action:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
   }
 }
 @property --tw-rotate-x {

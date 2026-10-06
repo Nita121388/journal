@@ -127,6 +127,18 @@
 
   <!-- 操作提示 toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- 应用内对话框（替代原生 alert/confirm/prompt） -->
+  <div id="app-dialog" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
+    <div class="app-dialog">
+      <div class="app-dialog-header">
+        <span id="app-dialog-title" class="app-dialog-title"></span>
+        <button id="app-dialog-close" class="card-editor-close-btn" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div id="app-dialog-body" class="app-dialog-body"></div>
+      <div id="app-dialog-actions" class="app-dialog-actions"></div>
+    </div>
+  </div>
   <!-- 模板构建器弹窗 -->
   <div id="template-builder-overlay" class="overlay hidden">
     <div class="template-builder">

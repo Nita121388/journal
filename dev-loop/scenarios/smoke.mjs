@@ -168,5 +168,21 @@ export async function runSmoke({ page, width }) {
   await page.waitForTimeout(250);
   add('编辑器可取消关闭', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
 
+  // 14) 应用内对话框（替代原生 prompt）：命名视图入口
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(300);
+  await page.locator('#btn-save-view').click();
+  await page.waitForTimeout(300);
+  const dlgVisible = await page.locator('#app-dialog').isVisible().catch(() => false);
+  add('命名视图用应用内对话框', dlgVisible);
+  add('对话框含输入框', (await page.locator('#app-dialog .app-dialog-input').count()) === 1);
+  const dlgFocused = await page.evaluate(() => document.activeElement?.classList?.contains('app-dialog-input') === true);
+  add('对话框自动聚焦输入框', dlgFocused);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(250);
+  add('对话框 Esc 可取消', !(await page.locator('#app-dialog').isVisible().catch(() => true)));
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(250);
+
   return { checks };
 }

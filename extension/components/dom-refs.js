@@ -51,6 +51,13 @@ export const els = {
   poolExtraFilter: document.getElementById('pool-extra-filter'),
 };
 
+// ── 应用内对话框（替代原生 prompt/confirm）──
+export const appDialog = document.getElementById('app-dialog');
+export const appDialogTitle = document.getElementById('app-dialog-title');
+export const appDialogBody = document.getElementById('app-dialog-body');
+export const appDialogActions = document.getElementById('app-dialog-actions');
+export const appDialogClose = document.getElementById('app-dialog-close');
+
 // ── 卡片编辑器 / 属性表单的静态元素（原 entries/sidepanel.js 模块级常量）──
 export const editorOverlay = document.getElementById('card-editor-overlay');
 export const editorDate = document.getElementById('card-editor-date');

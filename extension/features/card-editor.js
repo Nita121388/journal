@@ -306,10 +306,16 @@ export function closeEditor() {
 
 export async function saveEditor() {
   const content = editorContent.value.trim();
+  const title = editorTitle?.value?.trim() ?? '';
   const type = editorType.value;
   const pendingTag = editorTagInput?.value;
   if (pendingTag) addEditorTag(pendingTag);
-  if (!content && !editingCardId) { closeEditor(); return; }
+  // 新建：标题或内容至少填一个。
+  // 曾经只判 content → 用户只填了「标题」（编辑器第一个字段）点保存会**静默丢弃**整张卡。
+  if (!content && !title && !editingCardId) {
+    showToast('标题和内容至少要填一个', 'warn');
+    return;
+  }
 
   // 时间：开始时间为空 → 不排具体时间（全天卡片，startTime/endTime = null）
   const startRaw = (editorStart?.value || '').trim();
@@ -335,7 +341,7 @@ export async function saveEditor() {
     const priority = PRIORITY_PRESETS.includes(editorPriority?.value) ? editorPriority.value : 'medium';
     const progress = status === 'done' ? 100 : Number(editorProgress?.value || 0);
     const duration = (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null;
-    const title = editorTitle?.value?.trim() ?? '';
+    // title 已在函数开头读取（用于「标题或内容至少填一个」校验）
     const props = editorProps;
     const basePatch = {
       content, type, title, status, priority, progress, duration: duration ?? undefined, props,

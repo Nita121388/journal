@@ -70,10 +70,29 @@ describe('meta', () => {
     expect(await host.setHostMeta('savedViews', [])).toEqual({ ok: 1 });
     expect(lastCall().method).toBe('PUT');
   });
-  it('离线返回 null', async () => {
+  it('getHostMeta 离线返回 null', async () => {
     setPort(makePort());
     expect(await host.getHostMeta('templates')).toBeNull();
-    expect(await host.setHostMeta('templates', {})).toBeNull();
+  });
+
+  it('setHostMeta 离线必须抛错（否则 UI 会谎报已保存并继续）', async () => {
+    setPort(makePort());
+    await expect(host.setHostMeta('templates', {})).rejects.toThrow();
+  });
+
+  it('updateHostMeta：读不到已有值就拒绝写入（防离线覆盖）', async () => {
+    setPort(makePort());
+    let mutated = false;
+    await expect(host.updateHostMeta('templates', () => { mutated = true; return []; })).rejects.toThrow();
+    expect(mutated).toBe(false);
+  });
+
+  it('updateHostMeta：读到后基于当前值改再写', async () => {
+    port._pushResponse(apiOk([{ id: 't1' }]));
+    port._pushResponse(apiOk([{ id: 't1' }, { id: 't2' }]));
+    const next = await host.updateHostMeta('templates', (cur) => [...cur, { id: 't2' }]);
+    expect(next).toEqual([{ id: 't1' }, { id: 't2' }]);
+    expect(lastCall().method).toBe('PUT');
   });
 });
 

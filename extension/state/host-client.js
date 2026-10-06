@@ -84,9 +84,9 @@ export async function saveTodosToHost(todos) {
 /* ─── 本机配置 meta ───────────────────────────────────── */
 
 /**
- * 读取 host 本机配置。
+ * 读取 host 本机配置（模板 / 命名视图 / 属性库）。
  * @param {'savedViews'|'propertyLibrary'|'templates'} kind
- * @returns {Promise<any|null>}
+ * @returns {Promise<any|null>} host 离线 / 未设过 → null
  */
 export async function getHostMeta(kind) {
   const r = await hostApi('GET', routes.meta(kind));
@@ -95,12 +95,39 @@ export async function getHostMeta(kind) {
 
 /**
  * 写入 host 本机配置，返回保存后的值。
+ *
+ * **失败必须抛错**（而不是静默返回 null）：否则调用方会弹出"已保存"并继续，
+ * 而用户刷新后发现数据根本没变甚至被覆盖。
  * @param {'savedViews'|'propertyLibrary'|'templates'} kind
  * @param {any} value
+ * @throws {Error} host 离线或写入被拒
  */
 export async function setHostMeta(kind, value) {
   const r = await hostApi('PUT', routes.meta(kind), value);
-  return r.ok ? r.data : null;
+  if (!r.ok) throw new Error(r.error?.message || '本机服务未连接，未保存');
+  return r.data;
+}
+
+/**
+ * 安全地「读 → 改 → 写」host meta。
+ *
+ * 关键不变量：**读取失败时绝不拿空值当基线写回**。
+ * 旧写法 `(await getHostMeta(k)) || []` 在 host 离线时得到 `[]`，
+ * 再写回“新增一条”就会把用户原有的全部模板/视图**覆盖成一条**，
+ * 而 UI 还弹「已保存」。
+ *
+ * @param {'savedViews'|'propertyLibrary'|'templates'} kind
+ * @param {(current: any) => any} mutate 基于当前值产出新值
+ * @returns {Promise<any>} 保存后的值
+ * @throws {Error} 读取或写入失败（调用方必须提示用户，不得当成功）
+ */
+export async function updateHostMeta(kind, mutate) {
+  const current = await getHostMeta(kind);
+  if (current === null) {
+    throw new Error('本机服务未连接，无法读取已有数据（为避免覆盖，本次不保存）');
+  }
+  const next = mutate(current);
+  return await setHostMeta(kind, next);
 }
 
 /* ─── 同步（host /api/sync/*） ────────────────────────── */

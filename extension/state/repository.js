@@ -149,7 +149,10 @@ export async function createCardEntry(patch = {}) {
 export async function updateCardEntry(id, patch) {
   const { ok, card } = await host.updateCardToHost(id, { ...patch, provenance: patch.provenance });
   if (!ok) throw new Error('updateCard failed');
-  const merged = { ...card, ...patch };
+  // 合并前剔掉 undefined：JSON 传输会丢掉它（host 保留旧值），
+  // 但内存/缓存若留着 undefined，会让界面按“无值”渲染（如进度/时长徽标消失）。
+  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+  const merged = { ...card, ...clean };
   const idx = cards.findIndex((c) => c.id === id);
   if (idx === -1) cards = [...cards, merged];
   else cards = cards.map((c) => (c.id === id ? { ...c, ...merged } : c));
@@ -168,6 +171,39 @@ export async function deleteCardEntry(id) {
   cards = cards.filter((c) => c.id !== id);
   await persistCards();
   notify();
+}
+
+/**
+ * 撤销删除：用删除前的快照重建一张卡。
+ *
+ * 注：host 的建卡接口不接受外部 id，故新卡的 id 与 `createdAt` 会变（内容/标题/
+ * 状态/进度/优先级/排程/标签/属性/项目/emoji 全部保留）。墓碑语义仍成立：
+ * 删除照样传播，恢复相当于新建。
+ * @param {object} card 删除前的卡片快照
+ * @returns {Promise<object>} 新卡片
+ */
+export async function restoreCardEntry(card) {
+  return await createCardEntry({
+    content: card.content,
+    type: card.type,
+    title: card.title,
+    status: card.status,
+    progress: card.progress,
+    duration: card.duration,
+    props: card.props,
+    project: card.project,
+    assignedDate: card.assignedDate,
+    time: card.time,
+    startTime: card.startTime,
+    endTime: card.endTime,
+    priority: card.priority,
+    tags: card.tags,
+    emoji: card.emoji,
+    provenance: {
+      origin: 'human',
+      project: card.meta?.updatedBy?.project ?? card.meta?.createdBy?.project ?? undefined,
+    },
+  });
 }
 
 /* ─── 类型 ─────────────────────────────────────────────── */

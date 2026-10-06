@@ -5,13 +5,17 @@
  */
 
 import { els } from '../components/dom-refs.js';
-import { showToast } from '../features/toast.js';
+import { promptDialog } from '../features/dialog.js';
+import { runWrite, showToast } from '../features/toast.js';
 import { getPort } from '../platform/index.js';
-import { getHostMeta, setHostMeta } from '../state/host-client.js';
+import { getHostMeta, updateHostMeta } from '../state/host-client.js';
 import { vs } from '../state/view-state.js';
 import { renderCardPool } from './pool.js';
+
 export async function loadPoolViews() {
-  vs.savedViews = (await getHostMeta('savedViews')) || [];
+  // host 离线时保留已有内存列表（不拿空值覆盖）
+  const saved = await getHostMeta('savedViews');
+  if (Array.isArray(saved)) vs.savedViews = saved;
   const sel = els.viewSelect;
   if (!sel) return;
   sel.replaceChildren();
@@ -28,7 +32,13 @@ export async function loadPoolViews() {
 
 /** 把当前筛选 + 布局存成命名视图 */
 export async function saveCurrentView() {
-  const name = (prompt('视图名称：', '我的视图') || '').trim();
+  const name = await promptDialog({
+    title: '保存为命名视图',
+    label: '视图名称',
+    value: '我的视图',
+    placeholder: '如：本周待办',
+    okLabel: '保存',
+  });
   if (!name) return;
   const id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
   const view = {
@@ -38,8 +48,13 @@ export async function saveCurrentView() {
     project: vs.poolProjectFilter,
     layout: vs.poolLayout,
   };
-  vs.savedViews = [...vs.savedViews, view];
-  await setHostMeta('savedViews', vs.savedViews);
+  // 先读后改：host 离线时 updateHostMeta 会抛错，**不会**把已有视图覆盖成一条
+  const res = await runWrite(
+    () => updateHostMeta('savedViews', (cur) => [...(Array.isArray(cur) ? cur : []), view]),
+    '视图保存失败：本机服务未连接',
+  );
+  if (!res.ok) return;
+  vs.savedViews = res.value;
   vs.activeViewId = id;
   await loadPoolViews();
   showToast('✅ 已保存视图：' + name, 'success');

@@ -8,13 +8,14 @@ import { els } from '../components/dom-refs.js';
 import { writeValueToCard } from '../shared/field-registry.js';
 import { RESERVED_PROPS, currentTime } from '../shared/model.js';
 import { actions } from '../state/actions.js';
-import { getHostMeta, setHostMeta } from '../state/host-client.js';
+import { getHostMeta, updateHostMeta } from '../state/host-client.js';
 import { savePropLibrary, upsertPropDef } from '../state/prop-library.js';
 import { createCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
 import { editingCardId, openEditor } from './card-editor.js';
+import { confirmDialog, pickDialog, promptDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
-import { showToast } from './toast.js';
+import { runWrite, showToast } from './toast.js';
 import { REQUIRED_DEFS, closeTemplateBuilder, closeTplPropDialog, findPropDef, isBuiltinKey, normalizeTemplateFields, openTemplateBuilder, openTplPropDialog, renderTemplateBuilder, tplBuilderCleanup, tplBuilderEmoji, tplBuilderName, tplBuilderPicker, tplBuilderState, tplEditKey, tplEditingId, tplNpIcon, tplNpIconPreview, tplNpKey, tplNpLabel, tplNpOk, tplNpOptions, tplNpType } from './template-builder.js';
 import { defaultTplValue } from './template-fields.js';
 
@@ -40,12 +41,20 @@ export async function saveTemplateBuilder() {
   });
   const fields = [...requiredFields, ...extraFields];
   const tpl = { id: tplEditingId || ('t_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6)), name, emoji: tplBuilderState.emoji, fields };
-  const templates = (await getHostMeta('templates')) || [];
-  const idx = templates.findIndex(t => t.id === tpl.id);
-  const next = idx === -1 ? [...templates, tpl] : templates.map(t => (t.id === tpl.id ? tpl : t));
-  await setHostMeta('templates', next);
+  // 先读后改：host 离线时 updateHostMeta 会抛错（**不会**把已有模板覆盖成一条）
+  let created = false;
+  const res = await runWrite(
+    () => updateHostMeta('templates', (cur) => {
+      const list = Array.isArray(cur) ? cur : [];
+      const i = list.findIndex(t => t.id === tpl.id);
+      created = i === -1;
+      return created ? [...list, tpl] : list.map(t => (t.id === tpl.id ? tpl : t));
+    }),
+    '模板保存失败：本机服务未连接',
+  );
+  if (!res.ok) return; // 失败：保留构建器内容，用户可重试
   closeTemplateBuilder();
-  showToast(idx === -1 ? '✅ 已保存模板：' + name : '✅ 已更新模板：' + name, 'success');
+  showToast(created ? '✅ 已保存模板：' + name : '✅ 已更新模板：' + name, 'success');
 }
 
 /** 以当前卡片为蓝本预填构建器 */
@@ -231,30 +240,52 @@ export function renderTemplateMenu(templates) {
   }, 0);
 }
 
-/** 模板管理：重命名 / 删除 / 编辑 */
+/** 模板管理：重命名 / 删除 / 编辑（应用内对话框，不再用原生 prompt/confirm） */
 export async function manageTemplates(templates) {
   if (!templates.length) return;
-  const lines = templates.map((t, i) => `${i}. ${t.emoji || ''} ${t.name}`).join('\n');
-  const pick = prompt('选择要管理的模板（输入编号）：\n' + lines, '');
-  const i = pick === null ? -1 : parseInt(pick, 10);
-  if (i < 0 || i >= templates.length) return;
-  const action = prompt(`「${templates[i].name}」 — 输入操作：\n1 重命名  2 删除  3 编辑属性`, '1');
-  if (action === null) return;
-  let list = [...templates];
-  const tpl = list[i];
-  if (action === '2') {
-    if (confirm(`删除模板「${tpl.name}」？`)) list = list.filter(t => t.id !== tpl.id);
-  } else if (action === '1') {
-    const nn = (prompt('新名称：', tpl.name) || '').trim();
-    if (nn) list[i] = { ...tpl, name: nn };
-  } else if (action === '3') {
+  const idx = await pickDialog({
+    title: '选择要管理的模板',
+    items: templates.map(t => `${t.emoji || '🗂️'} ${t.name}`),
+    okLabel: '下一步',
+  });
+  if (typeof idx !== 'number') return;
+  const tpl = templates[idx];
+
+  const action = await pickDialog({
+    title: `「${tpl.name}」`,
+    items: ['重命名', '删除', '编辑属性'],
+    okLabel: '执行',
+  });
+  if (typeof action !== 'number') return;
+  if (action === 2) {
     closeTemplateMenu();
     openTemplateBuilder(tpl);
     return;
-  } else {
-    return;
   }
-  await setHostMeta('templates', list);
+
+  /** @type {{ok: boolean}} */
+  let res;
+  if (action === 0) {
+    const nn = await promptDialog({ title: '重命名模板', label: '新名称', value: tpl.name, okLabel: '保存' });
+    if (!nn) return;
+    res = await runWrite(
+      () => updateHostMeta('templates', (cur) => (Array.isArray(cur) ? cur : []).map(t => (t.id === tpl.id ? { ...t, name: nn } : t))),
+      '重命名失败：本机服务未连接',
+    );
+  } else {
+    const yes = await confirmDialog({
+      title: '删除模板',
+      message: `删除模板「${tpl.name}」？已用该模板创建的卡片不受影响。`,
+      okLabel: '删除',
+      danger: true,
+    });
+    if (!yes) return;
+    res = await runWrite(
+      () => updateHostMeta('templates', (cur) => (Array.isArray(cur) ? cur : []).filter(t => t.id !== tpl.id)),
+      '删除失败：本机服务未连接',
+    );
+  }
+  if (!res.ok) return;
   showToast('✅ 模板已更新', 'success');
 }
 

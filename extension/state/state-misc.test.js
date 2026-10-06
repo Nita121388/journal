@@ -54,13 +54,24 @@ describe('prop-library', () => {
     await lib.loadPropLibrary();
     expect(lib.getPropLibrary()).toEqual({ keep: 1 });
   });
-  it('savePropLibrary 写 host meta', async () => {
+  it('savePropLibrary 先读后写（合并到 host 当前值）', async () => {
     const lib = await import('./prop-library.js');
-    port._pushResponse(apiOk(null));
+    lib.setPropLibrary({ mine: { key: 'mine' } });
+    port._pushResponse(apiOk({ existing: { key: 'existing' } })); // GET 基线
+    port._pushResponse(apiOk(null));                              // PUT
     await lib.savePropLibrary();
-    const call = port.calls.filter((c) => c.kind === 'hostFetch').at(-1);
-    expect(call.method).toBe('PUT');
-    expect(call.path).toBe('/api/meta/propertyLibrary');
+    const gets = port.calls.filter((c) => c.kind === 'hostFetch' && c.method === 'GET');
+    const put = port.calls.filter((c) => c.kind === 'hostFetch').at(-1);
+    expect(gets.at(-1).path).toBe('/api/meta/propertyLibrary');
+    expect(put.method).toBe('PUT');
+    expect(put.path).toBe('/api/meta/propertyLibrary');
+    expect(put.body).toMatchObject({ existing: { key: 'existing' }, mine: { key: 'mine' } });
+  });
+
+  it('savePropLibrary 离线抛错（不静默丢失）', async () => {
+    const lib = await import('./prop-library.js');
+    setPort(makePort());
+    await expect(lib.savePropLibrary()).rejects.toThrow();
   });
 });
 

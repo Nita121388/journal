@@ -9,7 +9,7 @@
  * 所以属性库变更后无需重新 init。
  */
 
-import { getHostMeta, setHostMeta } from './host-client.js';
+import { getHostMeta, updateHostMeta } from './host-client.js';
 
 /** @type {Record<string, object>} key → 属性定义 */
 let library = {};
@@ -43,9 +43,13 @@ export async function loadPropLibrary() {
   return library;
 }
 
-/** 写回 host。 */
+/** 写回 host（失败抛错，由调用方提示；不静默吞掉）。 */
 export async function savePropLibrary() {
-  await setHostMeta('propertyLibrary', library);
+  // 先读后改：以 host 上的当前值为基线合并，避免离线时用本地空库覆盖
+  await updateHostMeta('propertyLibrary', (cur) => {
+    const base = (cur && typeof cur === 'object') ? cur : {};
+    return { ...base, ...library };
+  });
 }
 
 /* ─── 类型 ─────────────────────────────────────────────── */
