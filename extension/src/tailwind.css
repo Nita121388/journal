@@ -32,6 +32,7 @@
   --color-muted: var(--color-muted);
   --color-line: var(--color-border);
   --color-accent: var(--color-accent);
+  --color-accent-strong: var(--color-accent-strong);
   --color-accent-light: var(--color-accent-light);
   --color-cell-empty: var(--color-cell-empty);
   --color-cell-mid: var(--color-cell-mid);
@@ -75,7 +76,7 @@
 
   /* 按钮 */
   .btn-primary {
-    @apply bg-accent text-white border-none rounded-sm px-4 py-[7px] text-[13px] font-sans font-medium cursor-pointer;
+    @apply bg-accent-strong text-white border-none rounded-sm px-4 py-[7px] text-[13px] font-sans font-medium cursor-pointer;
   }
   .btn-primary:hover { @apply [filter:brightness(0.9)]; }
 
@@ -88,8 +89,8 @@
   .chip {
     @apply font-sans text-[11px] px-[7px] py-0.5 rounded-[12px] border border-line bg-canvas text-muted cursor-pointer;
   }
-  .chip:hover { @apply border-accent text-accent; }
-  .chip.is-active { @apply bg-accent border-accent text-white; }
+  .chip:hover { @apply border-accent text-accent-strong; }
+  .chip.is-active { @apply bg-accent-strong border-accent-strong text-white; }
 
   /* 空状态 */
   .empty-state {
@@ -111,7 +112,7 @@
   }
   .toast.hidden { display: none; }
   .toast.toast-error { @apply bg-danger text-on-accent; }
-  .toast.toast-success { @apply bg-accent text-on-accent; }
+  .toast.toast-success { @apply bg-accent-strong text-on-accent; }
   .toast.toast-warn { @apply bg-warn text-on-accent; }
   /* 带「撤销」等操作按钮的 toast：需横向布局，故去掉 pre-wrap */
   .toast.has-action {

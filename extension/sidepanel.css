@@ -1383,7 +1383,7 @@ body.is-dragging .timeline-card.is-short {
   cursor: pointer;
 }
 .tag-chip.is-static { cursor: default; }
-.tag-chip.is-active { background: var(--color-accent, #4caf50); color: #fff; border-color: transparent; }
+.tag-chip.is-active { background: var(--color-accent-strong); color: #fff; border-color: transparent; }
 .card-editor-tags { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .card-editor-tags input {
   width: 100%; box-sizing: border-box;
@@ -2081,17 +2081,18 @@ html.wide-mode .timeline-card { max-width: 300px; }
 }
 .seg:hover { border-color: var(--color-accent); }
 .seg.is-active { color: #fff; border-color: transparent; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
-.status-seg .seg[data-status="none"].is-active { background: #607d8b; }
-.status-seg .seg[data-status="todo"].is-active { background: #f9a825; }
-.status-seg .seg[data-status="doing"].is-active { background: #1e88e5; }
-.status-seg .seg[data-status="done"].is-active { background: #43a047; }
+.status-seg .seg[data-status="none"].is-active { background: #455a64; }   /* 白字 7.24:1 */
+.status-seg .seg[data-status="todo"].is-active { background: #8d6e00; }   /* 4.81:1 */
+.status-seg .seg[data-status="doing"].is-active { background: #1565c0; }  /* 5.75:1 */
+.status-seg .seg[data-status="done"].is-active { background: #2e7d32; }   /* 5.13:1 */
 
 /* 优先级分段：与状态分段同构（复用 .seg），仅 3 档 */
 .ce-prio-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .prio-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: 1; }
-.prio-seg .seg[data-priority="high"].is-active { background: #e53935; }
-.prio-seg .seg[data-priority="medium"].is-active { background: #f9a825; }
-.prio-seg .seg[data-priority="low"].is-active { background: #43a047; }
+/* 对比度需 ≥4.5:1（白字）：原 #e53935/#f9a825/#43a047 分别只有 4.2/1.9/3.3 */
+.prio-seg .seg[data-priority="high"].is-active { background: #c62828; }
+.prio-seg .seg[data-priority="medium"].is-active { background: #8d6e00; }
+.prio-seg .seg[data-priority="low"].is-active { background: #2e7d32; }
 
 /* 进度条 */
 .ce-progress-row { display: flex; align-items: center; gap: 10px; }
@@ -2278,7 +2279,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 /* 去渐变：纯色 */
 .card-editor-accent { background: var(--color-accent); }
 .ce-emoji-tile { background: var(--color-accent); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-.card-editor-footer .btn-primary { background: var(--color-accent); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.card-editor-footer .btn-primary { background: var(--color-accent-strong); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
 .card-editor-footer .btn-primary:hover { box-shadow: 0 4px 10px rgba(0,0,0,.18); filter: brightness(1.04); }
 
 /* 自定义状态 */
@@ -2915,7 +2916,7 @@ body.tpl-dragging { user-select: none; }
   border: none;
   border-radius: var(--r-sm);
   color: #fff;
-  background: var(--color-accent);
+  background: var(--color-accent-strong);
   box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
   cursor: pointer;
   transition: transform .12s, box-shadow .12s, filter .12s;

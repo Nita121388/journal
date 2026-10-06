@@ -51,10 +51,34 @@ export async function runTailwindMigrated({ page, width }) {
 
   if (probe.error) return { checks: [['probe injection', false, probe.error]] };
 
-  // btn-primary: green bg (#4caf50 accent), white text
-  const accentRGB = 'rgb(76, 175, 80)'; // #4caf50
-  add('btn-primary 背景=accent', probe.primary.bg === accentRGB, probe.primary.bg);
+  /**
+   * WCAG 相对亮度对比度。
+   * @param {string} fg 'rgb(r, g, b)'
+   * @param {string} bg 'rgb(r, g, b)'
+   * @returns {number}
+   */
+  const contrast = (fg, bg) => {
+    const parse = (s) => {
+      const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(s || '');
+      return m ? [1, 2, 3].map((i) => Number(m[i]) / 255) : null;
+    };
+    const lin = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+    const a = parse(fg); const b = parse(bg);
+    if (!a || !b) return 0;
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  // 正文阈值 4.5:1（WCAG AA）。断言语义从「比对 hex」改为「算对比度」——
+  // 改色不再是红灯，只有真的降到不可读才失败。
+  const AA = 4.5;
+  const addContrast = (name, fg, bg) => {
+    const r = contrast(fg, bg);
+    add(name, r >= AA, `${r.toFixed(2)}:1 (${fg} on ${bg})`);
+  };
+
   add('btn-primary 文字=white', probe.primary.color === 'rgb(255, 255, 255)', probe.primary.color);
+  addContrast('btn-primary 对比度 ≥4.5', probe.primary.color, probe.primary.bg);
   add('btn-primary 圆角=6px', probe.primary.radius === '6px', probe.primary.radius);
   add('btn-primary 边框=none', probe.primary.border === 'none', probe.primary.border);
 
@@ -78,13 +102,13 @@ export async function runTailwindMigrated({ page, width }) {
   // toast variants resolve via the token bridge (--color-danger/--color-warn/--color-on-accent
   // must be defined in sidepanel.css :root, not hardcoded in dist) — guards the @theme inline
   // self-reference from collapsing to an invalid cycle.
-  add('toast-error 背景=--color-danger', probe.toastError.bg === 'rgb(211, 47, 47)', probe.toastError.bg); // #d32f2f
-  add('toast-warn 背景=--color-warn', probe.toastWarn.bg === 'rgb(239, 108, 0)', probe.toastWarn.bg); // #ef6c00
-  add('toast-success 背景=--color-accent', probe.toastSuccess.bg === accentRGB, probe.toastSuccess.bg);
+  addContrast('toast-error 对比度 ≥4.5', probe.toastError.color, probe.toastError.bg);
+  addContrast('toast-warn 对比度 ≥4.5', probe.toastWarn.color, probe.toastWarn.bg);
+  addContrast('toast-success 对比度 ≥4.5', probe.toastSuccess.color, probe.toastSuccess.bg);
   add('toast 前景=--color-on-accent (white)', probe.toastError.color === 'rgb(255, 255, 255)', probe.toastError.color);
 
-  // chip.is-active: accent bg
-  add('chip.is-active 背景=accent', probe.chip.bg === accentRGB, probe.chip.bg);
+  // chip.is-active：背景与文字必须达 AA
+  addContrast('chip.is-active 对比度 ≥4.5', probe.chip.color, probe.chip.bg);
 
   // font-sans bridge: font-family should contain Segoe UI (from --font)
   add('字体桥接 font-sans', /Segoe UI|PingFang|Microsoft YaHei/.test(probe.primary.font), probe.primary.font);
@@ -99,12 +123,14 @@ export async function runTailwindMigrated({ page, width }) {
     host.appendChild(wrap);
     const p = getComputedStyle(document.querySelector('#probe-primary-dark'));
     const b = getComputedStyle(document.querySelector('#probe-badge-dark'));
-    const out = { primaryBg: p.backgroundColor, badgeBg: b.backgroundColor };
+    const out = { primaryBg: p.backgroundColor, primaryColor: p.color, badgeBg: b.backgroundColor, badgeColor: b.color, pageBg: getComputedStyle(document.body).backgroundColor };
     wrap.remove();
     document.documentElement.removeAttribute('data-theme');
     return out;
   });
   add('暗色主题跟随 token（badge 变暗底）', darkProbe.badgeBg !== 'rgb(235, 237, 240)', darkProbe.badgeBg);
+  addContrast('暗色 badge 文字对比度 ≥4.5', darkProbe.badgeColor, darkProbe.badgeBg);
+  addContrast('暗色 btn-primary 对比度 ≥4.5', darkProbe.primaryColor, darkProbe.primaryBg);
 
   return { checks };
 }
