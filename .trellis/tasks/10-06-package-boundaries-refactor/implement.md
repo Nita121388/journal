@@ -94,3 +94,62 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 
 每个子任务 = 一个回滚点。因依赖单调向下，回滚第 N 步不会影响第 N-1 步的产物；
 `ui-split` 期间保留 `platforms/chrome/sidepanel.js` 旧副本作为 fallback，验收后删除。
+
+---
+
+## 最终集成验证（2026-10-06）
+
+### 子任务完成情况
+
+| # | 子任务 | 状态 |
+|---|---|---|
+| S1 | baseline-cleanup | ✅ 归档 |
+| S2 | shared-package | ✅ 归档 |
+| S3 | platform-port | ✅ 归档 |
+| S4 | state-repository | ✅ 归档 |
+| S5 | ui-split | ✅ 归档 |
+| S6 | style-consolidation | ✅ 归档 |
+| S7 | desktop-shell | ⏸ 归档（用户决定本期不做，可行性由 S3 交付） |
+| S8 | type-and-tests | ✅ 归档 |
+
+### AC 逐条核验
+
+| AC | 要求 | 实测 |
+|---|---|---|
+| AC1 | `chrome.*` 不在 shared/ui 命中（仅 platforms） | ✅ `extension/{shared,state,views,features,components,entries}` 零命中 |
+| AC2 | ESLint 边界规则 0 违规 | ✅ `npm run lint` **0 errors**（基线 23） |
+| AC3 | 入口 < 120 行；无单文件 > 400 行 UI 模块 | ✅ 入口 **13 行**；受限层最大 **353 行** |
+| AC4 | UI 侧无直接 chrome.storage；repository 为唯一卡片读写入口 | ✅ 视图/功能层零 storage 访问；卡片读写全部经 `state/repository.js` |
+| AC5 | token 单一来源；多宽度截图与 computed-style 断言全绿 | ✅ `sidepanel.css`/`options.css` 零 `:root`；`tailwind-migrated` **20/20** |
+| AC6 | vitest `shared/` + `ui/state/` 覆盖率 ≥ 80% | ✅ 语句 **91.40%** / 分支 **81.58%** / 函数 **96.63%** / 行 **94.65%** |
+| AC7 | 桌面可行性：`chrome.*` 零外泄；`web` 端口可构造 | ✅ 端口 11 个方法可构造（Electron PoC 不要求，已由 S3 证明） |
+| AC8 | Chrome load unpacked 正常，side panel 与 options 不回归 | ✅ dev-loop 在**真实 Chromium** 加载扩展：5 个场景全绿 |
+| AC9 | 每个子任务独立可验收、可回滚 | ✅ 每阶段独立提交，依赖单调向下 |
+
+### 最终回归
+
+| 门禁 | 结果 |
+|---|---|
+| `npm run lint` | ✅ 0 errors |
+| `npm test`（extension + host） | ✅ **124 + 103 = 227** 全通过 |
+| `npm run test:coverage` | ✅ 阈值全过 |
+| dev-loop `smoke` 320/360/400/500 | ✅ **60/60** |
+| dev-loop `select` / `options` / `tpl` / `tailwind-migrated` | ✅ 46/46 · 10/10 · 17/17 · 20/20 |
+
+### 规模对比
+
+| 指标 | 重构前 | 重构后 |
+|---|---|---|
+| `extension/sidepanel.js` | 3695 行 | 13 行（拆分：1 组合根 + 3 bind + views/features 共 17 个模块） |
+| 最大 UI 模块 | 3695 行 | 353 行 |
+| `extension/lib/` | 11 个混杂模块 | 已消失（shared / state / features 各归其位） |
+| `chrome.*` 出现位置 | 6 个文件 | 仅 `platform/` |
+| `localStorage` 出现位置 | 4 个文件 | 仅 `platform/` |
+| 测试 | 0 个扩展测试 | 124 个用例，覆盖率 91.4% |
+| `npm run lint` | 23 errors（存量） | 0 errors |
+
+### 行为冻结确认
+
+全程未新增功能、未改样式、未改 DOM 结构、未改事件语义（唯一有意变更为 S6 把两处按钮基样式对齐到设计系统，
+并因此使既有失败断言转绿）。期间发现并修复 2 个**既有**缺陷（`select` 场景折叠失修、离线空态缺按钮的判定），
+均用 git worktree 在 `8e61690` 复现确认非本次引入。
