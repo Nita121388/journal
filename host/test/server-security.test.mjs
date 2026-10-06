@@ -20,6 +20,10 @@ mkdirSync(dataDir, { recursive: true });
 // 必须在 import server.js **之前**设好：模块级 CONFIG_PATH 在导入时即解析。
 const cfgPath = join(dataDir, 'config.json');
 process.env.JOURNAL_AI_CONFIG = cfgPath;
+// 扩展 ID 白名单：正式安装由 install-host.bat 写入 host/extension-ids.txt；
+// 测试用环境变量固定一个已知 ID，同时验证「不在白名单的扩展被拒」。
+const ALLOWED_EXT = 'abcdefghijklmnop';
+process.env.JOURNAL_ALLOWED_EXTENSION_IDS = ALLOWED_EXT;
 const { startServer } = await import('../server.js');
 
 const { server, store, url } = await startServer({
@@ -59,9 +63,16 @@ test('沙箱来源 Origin: null 被拒', async () => {
 });
 
 test('扩展页面来源放行并回显 Origin', async () => {
-  const r = await req('GET', '/api/cards', { origin: 'chrome-extension://abcdefghijklmnop' });
+  const r = await req('GET', '/api/cards', { origin: `chrome-extension://${ALLOWED_EXT}` });
   assert.equal(r.status, 200);
-  assert.equal(r.cors, 'chrome-extension://abcdefghijklmnop');
+  assert.equal(r.cors, `chrome-extension://${ALLOWED_EXT}`);
+});
+
+test('不在白名单的扩展来源被拒（安全 P2-5：任意扩展不得读全库）', async () => {
+  const r = await req('GET', '/api/cards', { origin: 'chrome-extension://someotherextensionid' });
+  assert.equal(r.status, 403);
+  assert.equal(r.json.error.code, 'FORBIDDEN_ORIGIN');
+  assert.equal(r.cors, null);
 });
 
 test('本机回环来源放行（web 实现 / dev-loop）', async () => {
@@ -82,9 +93,9 @@ test('OPTIONS 预检来自网页 → 403', async () => {
 });
 
 test('OPTIONS 预检来自扩展 → 204 且回显 Origin', async () => {
-  const r = await req('OPTIONS', '/api/cards', { origin: 'chrome-extension://abc' });
+  const r = await req('OPTIONS', '/api/cards', { origin: `chrome-extension://${ALLOWED_EXT}` });
   assert.equal(r.status, 204);
-  assert.equal(r.cors, 'chrome-extension://abc');
+  assert.equal(r.cors, `chrome-extension://${ALLOWED_EXT}`);
 });
 
 test('请求体超过 8MB → 413（用裸 socket 取证：服务端确实回了状态码）', async () => {
@@ -94,7 +105,7 @@ test('请求体超过 8MB → 413（用裸 socket 取证：服务端确实回了
     const sock = connect(Number(u.port), u.hostname, () => {
       sock.write(
         `POST /api/cards HTTP/1.1\r\nHost: ${u.host}\r\n` +
-        'Origin: chrome-extension://abc\r\n' +
+        `Origin: chrome-extension://${ALLOWED_EXT}\r\n` +
         'Content-Type: application/json\r\n' +
         `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n` + body,
       );
@@ -117,7 +128,7 @@ test('AI 配置：改 baseURL 但不重交 Key → 400（防密钥被发往新�
   writeFileSync(cfgPath, JSON.stringify({ provider: 'openai', baseURL: 'https://api.openai.com', model: 'gpt-4', apiKey: 'sk-secret' }), 'utf-8');
 
   const blocked = await req('PUT', '/api/ai/config', {
-    origin: 'chrome-extension://abc',
+    origin: `chrome-extension://${ALLOWED_EXT}`,
     body: { baseURL: 'https://evil.example/v1' },
   });
   assert.equal(blocked.status, 400);
@@ -125,14 +136,14 @@ test('AI 配置：改 baseURL 但不重交 Key → 400（防密钥被发往新�
 
   // 同时提交新 key 则放行
   const allowed = await req('PUT', '/api/ai/config', {
-    origin: 'chrome-extension://abc',
+    origin: `chrome-extension://${ALLOWED_EXT}`,
     body: { baseURL: 'https://evil.example/v1', apiKey: 'sk-new' },
   });
   assert.equal(allowed.status, 200);
 
   // 仅改 model（端点不变）不需要重交 key
   const modelOnly = await req('PUT', '/api/ai/config', {
-    origin: 'chrome-extension://abc',
+    origin: `chrome-extension://${ALLOWED_EXT}`,
     body: { model: 'gpt-4o' },
   });
   assert.equal(modelOnly.status, 200);
@@ -141,7 +152,7 @@ test('AI 配置：改 baseURL 但不重交 Key → 400（防密钥被发往新�
 
 test('密钥永不回显', async () => {
   writeFileSync(cfgPath, JSON.stringify({ provider: 'openai', baseURL: 'https://x', model: 'm', apiKey: 'sk-verysecret' }), 'utf-8');
-  const r = await req('GET', '/api/ai/config', { origin: 'chrome-extension://abc' });
+  const r = await req('GET', '/api/ai/config', { origin: `chrome-extension://${ALLOWED_EXT}` });
   assert.equal(JSON.stringify(r.json).includes('sk-verysecret'), false);
   assert.ok(readFileSync(cfgPath, 'utf-8').length > 0);
 });

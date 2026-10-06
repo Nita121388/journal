@@ -84,7 +84,17 @@ export function startHost({ port, projectDir = REPO_ROOT }) {
   const dataDir = mkdtempSync(join(tmpdir(), 'journal-devloop-data-'));
   const proc = spawn(process.execPath, [HOST_JS], {
     cwd: HOST_DIR,
-    env: { ...process.env, JOURNAL_PORT: String(port), JOURNAL_DATA_DIR: dataDir, JOURNAL_PROJECT_DIR: projectDir, JOURNAL_AI_CONFIG: join(dataDir, 'config.json') },
+    env: {
+      ...process.env,
+      JOURNAL_PORT: String(port),
+      JOURNAL_DATA_DIR: dataDir,
+      JOURNAL_PROJECT_DIR: projectDir,
+      JOURNAL_AI_CONFIG: join(dataDir, 'config.json'),
+      // 测试扩展是每次临时构建的，ID 不固定（且与 host/extension-ids.txt 里的正式 ID 不同）。
+      // 显式 '*' = 只在 dev-loop 里允许任意 chrome-extension 来源；
+      // 正式安装必须靠 install-host.bat 生成的白名单。
+      JOURNAL_ALLOWED_EXTENSION_IDS: '*',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   proc.stdout.on('data', (d) => log('host', String(d).trim()));

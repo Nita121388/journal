@@ -80,9 +80,51 @@ const MAX_DRAIN_BYTES = 64 * 1024 * 1024;
  * @param {string|undefined} origin
  * @returns {string|null} 可回显的 Origin（'' = 无需 CORS 头）；null = 拒绝
  */
+/**
+ * 允许的扩展 ID 白名单。
+ *
+ * 安全评审 P2-5：`chrome-extension://` 一律放行意味着**任意其它已装扩展**
+ * 都能读全库、删卡片、改 AI 端点。安装脚本（install-host.bat）本来就会把本项目
+ * 的扩展 ID 写进 `host/extension-ids.txt`（native messaging 的 allowed_origins 用同一份），
+ * 这里复用它。
+ *
+ * 白名单为空时（开发态：unpacked 扩展 ID 每台机器不同）退回「允许任意扩展」，
+ * 但**只警告一次**，避免把开发体验和安全性一起牺牲掉。
+ */
+function loadAllowedExtensionIds() {
+  const fromEnv = String(process.env.JOURNAL_ALLOWED_EXTENSION_IDS || '')
+    .split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  if (fromEnv.includes('*')) return null;
+  if (fromEnv.length) return new Set(fromEnv);
+  try {
+    const raw = readFileSync(join(__dirname, 'extension-ids.txt'), 'utf-8');
+    const ids = raw.split(/[\s]+/).map(s => s.trim()).filter(Boolean);
+    if (ids.length) return new Set(ids);
+  } catch { /* 没有白名单文件 */ }
+  return null; // null = 未配置
+}
+
+const ALLOWED_EXTENSION_IDS = loadAllowedExtensionIds();
+let warnedOpenExtensionOrigin = false;
+
+/** @param {string} origin @returns {string|null} 允许则返回 origin 本身 */
+function resolveExtensionOrigin(origin) {
+  if (!ALLOWED_EXTENSION_IDS) {
+    if (!warnedOpenExtensionOrigin) {
+      warnedOpenExtensionOrigin = true;
+      console.warn('[security] 未配置扩展 ID 白名单（host/extension-ids.txt 或 '
+        + 'JOURNAL_ALLOWED_EXTENSION_IDS），当前允许任意 chrome-extension:// 来源。'
+        + '安装正式版请运行 host/install-host.bat 生成白名单。');
+    }
+    return origin;
+  }
+  const id = origin.slice('chrome-extension://'.length).replace(/\/$/, '');
+  return ALLOWED_EXTENSION_IDS.has(id) ? origin : null;
+}
+
 function resolveCorsOrigin(origin) {
   if (!origin) return '';
-  if (origin.startsWith('chrome-extension://')) return origin;
+  if (origin.startsWith('chrome-extension://')) return resolveExtensionOrigin(origin);
   try {
     const u = new URL(origin);
     const isLoopback = u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]';

@@ -199,10 +199,10 @@
           <div class="ce-section-label">⚙️ 状态</div>
           <input type="hidden" id="card-editor-status" value="none" />
           <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
-            <button type="button" class="seg is-active" data-status="none">📝 纯记录</button>
-            <button type="button" class="seg" data-status="todo">📌 未开始</button>
-            <button type="button" class="seg" data-status="doing">🔥 进行中</button>
-            <button type="button" class="seg" data-status="done">✅ 已完成</button>
+            <button type="button" class="seg is-active" role="radio" aria-checked="true" data-status="none">📝 纯记录</button>
+            <button type="button" class="seg" role="radio" aria-checked="false" data-status="todo">📌 未开始</button>
+            <button type="button" class="seg" role="radio" aria-checked="false" data-status="doing">🔥 进行中</button>
+            <button type="button" class="seg" role="radio" aria-checked="false" data-status="done">✅ 已完成</button>
           </div>
           <div class="ce-status-custom">
             <span class="ce-status-custom-label">自定义状态</span>
@@ -218,9 +218,9 @@
           <div class="ce-prio-row">
             <span class="ce-progress-caption">优先级</span>
             <div class="prio-seg" id="card-editor-priority-seg" role="radiogroup" aria-label="优先级">
-              <button type="button" class="seg" data-priority="high" title="高优先级">🔴 高</button>
-              <button type="button" class="seg is-active" data-priority="medium" title="中优先级">🟡 中</button>
-              <button type="button" class="seg" data-priority="low" title="低优先级">🟢 低</button>
+              <button type="button" class="seg" role="radio" aria-checked="false" data-priority="high" title="高优先级">🔴 高</button>
+              <button type="button" class="seg is-active" role="radio" aria-checked="true" data-priority="medium" title="中优先级">🟡 中</button>
+              <button type="button" class="seg" role="radio" aria-checked="false" data-priority="low" title="低优先级">🟢 低</button>
             </div>
             <input type="hidden" id="card-editor-priority" value="medium" />
           </div>

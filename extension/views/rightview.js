@@ -36,10 +36,11 @@ function viewHeaderLabel() {
   }
   const date = vs.selectedDate;
   const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
+  // 人话而不是 emoji 密码：`2📝 3☑️` 人与读屏都读不出「几条未完成、几条记录」
   const parts = [];
-  if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
-  if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  const countStr = parts.length ? ` · ${parts.join(' ')}` : '';
+  if (typeCounts.task) parts.push(`${typeCounts.task} 任务`);
+  if (typeCounts.text) parts.push(`${typeCounts.text} 记录`);
+  const countStr = parts.length ? ` · ${parts.join(' · ')}` : ' · 暂无记录';
   return `📅 ${compactDateLabel(date)}${countStr}`;
 }
 
@@ -59,7 +60,12 @@ export function getCardsByDaySync(date) {
 
 /** 高亮当前视图模式按钮 */
 export function markViewMode() {
-  els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === vs.viewMode));
+  els.viewModeBtns?.forEach((b) => {
+    const on = b.dataset.mode === vs.viewMode;
+    b.classList.toggle('is-active', on);
+    // 视觉高亮之外必须有可访问状态：读屏用户否则完全不知道当前是哪个视图
+    b.setAttribute('aria-pressed', String(on));
+  });
 }
 
 /**

@@ -34,6 +34,7 @@ export function showToast(msg, kind = '', opts = {}) {
     btn.type = 'button';
     btn.className = 'toast-action';
     btn.textContent = opts.action;
+    btn.setAttribute('aria-keyshortcuts', 'Control+Z Meta+Z');
     btn.addEventListener('click', () => {
       const fn = toastAction;
       toastAction = null;
@@ -49,6 +50,9 @@ export function showToast(msg, kind = '', opts = {}) {
   }
 
   el.className = 'toast' + (kind ? ' toast-' + kind : '') + (hasAction ? ' has-action' : '');
+  // 有「撤销」时必须能键盘到达：否则只有鼠标用户能撤销（a11y 缺口）。
+  // 卡片池/时间线的删除按钮都可 Tab 聚焦，toast 上的撤销此前 tabIndex=-1 不可达。
+  el.tabIndex = hasAction ? 0 : -1;
   if (toastTimer) clearTimeout(toastTimer);
   const ms = opts.durationMs ?? (kind === 'error' ? 12000 : hasAction ? 6000 : 2600);
   toastTimer = setTimeout(hideToast, ms);

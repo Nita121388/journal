@@ -287,7 +287,11 @@ export function updateStatusSeg(value) {
   const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
   if (editorStatus) editorStatus.value = v;
   if (editorStatusSeg) {
-    for (const b of editorStatusSeg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
+    for (const b of editorStatusSeg.querySelectorAll('.seg')) {
+      const on = b.dataset.status === v;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', String(on));
+    }
   }
   if (editorStatusCustom) {
     editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
@@ -304,7 +308,11 @@ export function updatePrioritySeg(value) {
   const v = PRIORITY_PRESETS.includes(value) ? value : 'medium';
   if (editorPriority) editorPriority.value = v;
   if (editorPrioritySeg) {
-    for (const b of editorPrioritySeg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.priority === v);
+    for (const b of editorPrioritySeg.querySelectorAll('.seg')) {
+      const on = b.dataset.priority === v;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', String(on));
+    }
   }
 }
 

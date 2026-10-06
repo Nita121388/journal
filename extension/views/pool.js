@@ -43,7 +43,9 @@ function renderPoolFilters() {
   for (const { value, label } of STATUS_OPTIONS) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'chip' + (vs.poolStatusFilter === value ? ' is-active' : '');
+    const on = vs.poolStatusFilter === value;
+    btn.className = 'chip' + (on ? ' is-active' : '');
+    btn.setAttribute('aria-pressed', String(on));
     btn.textContent = label;
     btn.addEventListener('click', () => {
       vs.poolStatusFilter = value;
