@@ -109,10 +109,22 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
 
   // 点击卡片编辑（拖拽后抑制一次；阻止冒泡到 canvas，避免二次打开空编辑器）
   let suppressClick = false;
+  const openFromCard = () => actions.openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? vs.selectedDate);
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     if (suppressClick) { suppressClick = false; return; }
-    actions.openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? vs.selectedDate);
+    openFromCard();
+  });
+  // 键盘可达：与卡片池项一致（Tab 聚焦 + Enter/Space 打开）
+  el.tabIndex = 0;
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-label', `${cardPrimaryText(card, '空卡片')}${!allday && getCardStartTime(card) ? `，${getCardStartTime(card)}` : ''}`);
+  el.addEventListener('keydown', (e) => {
+    if (e.target !== el) return; // 内部按钮自行处理
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openFromCard();
+    }
   });
 
   // 非全天卡片：底部 resize 手柄调整结束时间

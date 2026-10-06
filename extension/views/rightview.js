@@ -62,13 +62,12 @@ export function markViewMode() {
   els.viewModeBtns?.forEach(b => b.classList.toggle('is-active', b.dataset.mode === vs.viewMode));
 }
 
-/** 右侧视图统一入口 */
 /**
- * 一次性聚焦滚动：打开面板 / 切换日期 / 切换视图后，让「当前时刻」垂直居中。
- * 不足以居中时钳制到边界（顶部 0 / 底部 maxScroll），不强拽；非今天则聚焦
- * 当天最早一张定时卡（无卡则不滚）。消费后不再干预用户滚动与每分钟 marker 刷新。
+ * 请求一次「聚焦滚动」：打开面板 / 切换日期 / 切换视图后，让当前时刻垂直居中。
+ * 不足以居中时钳制到边界，不强拽；非今天则聚焦当天最早一张定时卡；
+ * **当天无卡片时回到顶部**（否则空态引导会被滚出视口）。
+ * 消费一次后即失效，不再干预用户滚动与每分钟的 marker 刷新。
  */
-// pendingFocusScroll 已并入 state/view-state.js 的 vs.pendingFocusScroll
 export function requestFocusScroll() { vs.pendingFocusScroll = true; }
 
 function scrollTimelineToFocus(container, prevScroll = 0) {
@@ -169,16 +168,7 @@ function renderMonthGrid(container) {
   container.append(weekday, grid);
 }
 
-/** 周历 7 列 */
 /**
- * 绑定「拖动框选创建时间范围」交互（周视图列 body）。
- * mousedown 起点 → mousemove 实时选区 → mouseup 松手以选中起止时间创建。
- * 纯点击（拖动 < 3px）不触发，由调用方的 click 处理单格创建。
- * @param {HTMLElement} el 容器
- * @param {(startMin:number, endMin:number)=>void} onRange 框选完成回调（分钟）
- */
-// 已提取到 views/week.js（见顶部 import）。
-
 /** 卡片摘要（月历/周历共用）：时间 + 类型图标 + 内容截断，点击进编辑器 */
 function buildCalSummary(card) {
   const type = CARD_TYPES.includes(card.type) ? card.type : 'text';

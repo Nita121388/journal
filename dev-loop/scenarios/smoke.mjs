@@ -271,5 +271,29 @@ export async function runSmoke({ page, width }) {
   }
   add('时间线拖动框选可建卡（range-select）', rangeOk, rangeDetail);
 
+  // 17) 只填标题也能建卡（评审 P0-1 回归）+ 时间线卡片键盘可达（评审 P2-5）
+  await page.locator('#btn-quick-add').click();
+  await page.waitForTimeout(400);
+  await page.locator('#card-editor-title').fill('只填标题的卡');
+  await page.locator('#card-editor-save').click();
+  await page.waitForTimeout(900);
+  const titleOnly = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('#timeline-container .timeline-card')];
+    const hit = cards.find((c) => (c.textContent || '').includes('只填标题的卡'));
+    return {
+      total: cards.length,
+      found: Boolean(hit),
+      notEmptyPlaceholder: !/空卡片/.test(hit ? hit.textContent || '' : ''),
+      tabIndex: hit ? hit.tabIndex : -1,
+      role: hit ? hit.getAttribute('role') || '' : '',
+      aria: hit ? hit.getAttribute('aria-label') || '' : '',
+    };
+  });
+  add('只填标题也能建卡（P0 回归）', titleOnly.found, `时间线卡片数=${titleOnly.total}`);
+  add('只填标题的卡不显示「空卡片」', titleOnly.found && titleOnly.notEmptyPlaceholder);
+  add('时间线卡片键盘可达（tabIndex=0 + role=button）',
+    titleOnly.tabIndex === 0 && titleOnly.role === 'button', `tabIndex=${titleOnly.tabIndex} role=${titleOnly.role}`);
+  add('时间线卡片有可访问名', /只填标题的卡/.test(titleOnly.aria), titleOnly.aria);
+
   return { checks };
 }
