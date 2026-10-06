@@ -26,11 +26,47 @@ header#header {
   z-index: 10;
 }
 
-#header-left { display: flex; align-items: baseline; gap: 12px; }
-#app-title { font-weight: 600; font-size: 16px; }
-#today-display { color: var(--color-muted); font-size: 13px; }
+#header-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1 1 auto; }
+#app-title { font-weight: 600; font-size: 16px; white-space: nowrap; }
+#today-display { color: var(--color-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-#header-right { display: flex; align-items: center; gap: 4px; }
+#header-right { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+
+/* 侧边栏最窄 320px：收 padding、收字号，保证标题与日期不被折行/覆盖 */
+@media (max-width: 420px) {
+  header#header { padding: 8px 10px; gap: 6px; }
+  #header-left { gap: 8px; }
+  #app-title { font-size: 15px; }
+  #today-display { font-size: 12px; }
+}
+
+/* ─── Host 离线持久横幅 ─────────────────────────────── */
+
+.host-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  background: #fff4e5;
+  color: #8a4b00;
+  border-bottom: 1px solid #ffd8a8;
+}
+.host-banner.hidden { display: none; }
+.host-banner-text { flex: 1; min-width: 0; }
+.host-banner-btn {
+  flex-shrink: 0;
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 6px;
+  border: 1px solid currentColor; background: transparent; color: inherit;
+  cursor: pointer;
+}
+.host-banner-btn:hover { background: rgba(138, 75, 0, 0.08); }
+.host-banner-btn:disabled { opacity: 0.6; cursor: progress; }
+
+[data-theme="dark"] .host-banner {
+  background: #3a2a10;
+  color: #ffcc80;
+  border-bottom-color: #5a4220;
+}
 
 #btn-settings,
 #btn-panels {
@@ -611,16 +647,21 @@ body.panels-open #board::before {
   padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
+  /* 窄侧栏（320–400）工具组换行，而不是把日期标签挤成 0 宽 */
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 .view-nav {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 .view-nav #timeline-date-header {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  /* 保证日期至少可读：低于此宽宁可让工具组换行 */
+  min-width: 76px;
   padding: 0;
   border: none;
   background: none;
@@ -634,7 +675,7 @@ body.panels-open #board::before {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 .view-span-btn {
   border: 1px solid var(--color-border);

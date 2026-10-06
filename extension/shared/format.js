@@ -19,6 +19,22 @@ export function formatDateLabel(dayKey) {
 }
 
 /**
+ * 紧凑日期标签，如「10月6日 周二」（非当年时补年份）。
+ *
+ * 侧边栏最窄只有 320px，主视图标题会与右侧工具组抢空间；
+ * `formatDateLabel`（2026年10月6日星期二）会直接被挤成 0 宽，故单独提供短式。
+ * @param {string} dayKey YYYY-MM-DD
+ * @returns {string}
+ */
+export function compactDateLabel(dayKey) {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const wk = '日一二三四五六'[dt.getUTCDay()];
+  const yearPrefix = y === new Date().getFullYear() ? '' : `${y}年`;
+  return `${yearPrefix}${m}月${d}日 周${wk}`;
+}
+
+/**
  * 渲染「今天 / 昨天 / 具体日期」。
  * @param {string} dayKey YYYY-MM-DD
  * @returns {string}

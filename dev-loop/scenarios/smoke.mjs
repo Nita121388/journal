@@ -16,9 +16,44 @@ export async function runSmoke({ page, width }) {
   const today = (await page.locator('#today-display').textContent().catch(() => '')) || '';
   add('今日日期渲染', /\d{4}/.test(today), today.trim());
 
-  // 3) Host connected → banner hidden
-  const bannerVisible = await page.locator('#host-banner').isVisible().catch(() => true);
-  add('host 已连接（banner 隐藏）', !bannerVisible);
+  // 3) host 状态：状态灯必须已判定，且与离线横幅可见性一致（真实信号，非空断言）
+  const hostState = await page.evaluate(() => {
+    const btn = document.getElementById('btn-host-status');
+    const banner = document.getElementById('host-banner');
+    return {
+      online: !!btn && btn.classList.contains('is-online'),
+      offline: !!btn && btn.classList.contains('is-offline'),
+      bannerHidden: !banner || banner.classList.contains('hidden'),
+    };
+  });
+  add('host 状态灯已判定', hostState.online || hostState.offline, JSON.stringify(hostState));
+  add('离线横幅与状态灯一致', hostState.offline !== hostState.bannerHidden, JSON.stringify(hostState));
+
+  // 3b) 窄侧栏布局硬约束（320–500px 是侧边栏的常态宽度）
+  const layout = await page.evaluate(() => {
+    /** 行内元素折行时 boundingRect 会跨多个 line box → 用它算实际行数 */
+    const lines = (el) => {
+      if (!el) return -1;
+      const cs = getComputedStyle(el);
+      const fs = parseFloat(cs.fontSize) || 0;
+      const lh = cs.lineHeight === 'normal' ? fs * 1.4 : parseFloat(cs.lineHeight);
+      return lh ? Math.round(el.getBoundingClientRect().height / lh) : -1;
+    };
+    const header = document.getElementById('header');
+    const dateEl = document.getElementById('timeline-date-header');
+    return {
+      overflowX: document.documentElement.scrollWidth - window.innerWidth,
+      headerH: header ? Math.round(header.getBoundingClientRect().height) : -1,
+      titleLines: lines(document.getElementById('app-title')),
+      todayLines: lines(document.getElementById('today-display')),
+      dateW: dateEl ? Math.round(dateEl.getBoundingClientRect().width) : -1,
+      dateText: dateEl ? (dateEl.textContent || '').trim() : '',
+    };
+  });
+  add('无横向溢出', layout.overflowX <= 1, `overflowX=${layout.overflowX}px`);
+  add('标题不折行', layout.titleLines <= 1, `${layout.titleLines} 行`);
+  add('日期不折行', layout.todayLines <= 1, `${layout.todayLines} 行（header h=${layout.headerH}px）`);
+  add('主视图日期可读（宽 ≥ 60px）', layout.dateW >= 60, `w=${layout.dateW}px "${layout.dateText}"`);
 
   // 4) P0: main workspace (timeline) must be near the top, not buried below panels
   const tlTop = await page.locator('#timeline-section').evaluate((el) => Math.round(el.getBoundingClientRect().top)).catch(() => 9999);

@@ -5,9 +5,8 @@
  * 重渲染 / 打开编辑器经 state/actions.js 由组合根注入。
  */
 
-import { todayKey, currentTime, timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter, getCardStartTime, getCardEndTime, layoutScheduleLanes, getCardTypeCounts } from '../shared/model.js';
+import { todayKey, currentTime, timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter, getCardStartTime, getCardEndTime, layoutScheduleLanes } from '../shared/model.js';
 import { getCardsByDay, updateCardEntry } from '../state/repository.js';
-import { formatDateLabel } from '../shared/format.js';
 import { els } from '../components/dom-refs.js';
 import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
 import { renderTimelineCard } from './timeline-card.js';
@@ -20,17 +19,10 @@ import { actions } from '../state/actions.js';
 export async function renderTimeline() {
   const date = vs.selectedDate;
   const dayCards = await getCardsByDay(date);
-  const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
 
-  // ── 视图切换：timeline 模式才写入 dateHeader ──
-  if (vs.viewMode === 'timeline') {
-    // 标题
-    const parts = [];
-    if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
-    if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-    const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
-    els.timelineDateHeader.textContent = `📅 ${formatDateLabel(date)}${countStr}`;
-  }
+  // 注：主视图标题由 renderRightView() 统一写入（viewHeaderLabel）。
+  // 此处不要再写 #timeline-date-header —— 曾经两处都写，后者会覆盖前者
+  // （导致窄栏短式标题失效、且两处格式逐渐分叉）。
 
   // 日程画布（08:00–22:30，15 分钟网格）
   const container = els.timelineContainer;

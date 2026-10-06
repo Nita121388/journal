@@ -32,15 +32,22 @@ export async function openSidePanel(ctx, extId, width, { height = 800, settleTim
   await page.setViewportSize({ width, height });
   await page.goto(`chrome-extension://${extId}/sidepanel.html`, { waitUntil: 'domcontentloaded' });
 
-  // Settle: wait for host banner to hide (host connected) and today's date to render.
+  // Settle: 等 host 连通性**已判定**（在线或离线）+ 今日日期渲染。
+  // 同时校验不变量：离线横幅的可见性必须与状态灯一致（防止两者不同步）。
   let settled = false;
   try {
     await page.waitForFunction(
       () => {
+        const btn = document.getElementById('btn-host-status');
         const banner = document.getElementById('host-banner');
         const today = document.getElementById('today-display');
+        if (!btn || !today) return false;
+        const online = btn.classList.contains('is-online');
+        const offline = btn.classList.contains('is-offline');
+        if (!online && !offline) return false;              // 状态尚未判定
         const bannerHidden = !banner || banner.classList.contains('hidden');
-        return bannerHidden && today && /\d{4}/.test(today.textContent || '');
+        if (banner && (offline === bannerHidden)) return false; // 横幅与状态不一致
+        return /\d{4}/.test(today.textContent || '');
       },
       { timeout: settleTimeout },
     );

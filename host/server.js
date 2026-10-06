@@ -54,13 +54,61 @@ function cardToTodo(c) {
 
 /* ─── HTTP 工具 ────────────────────────────────────────── */
 
-function json(res, status, body) {
-  const str = JSON.stringify(body);
-  res.writeHead(status, {
+/** 请求体上限：8MB。配合来源限制，避免被恶意页面用于内存/DB 膨胀。 */
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
+/** 超限后仍愿丢弃的最大字节数；超过直接断连（防慢速持续灌入）。 */
+const MAX_DRAIN_BYTES = 64 * 1024 * 1024;
+
+/**
+ * 解析请求来源，决定是否放行。
+ *
+ * 威胁模型：host 监听 127.0.0.1，而**任意网页**都能向 localhost 发请求。
+ * 若不校验来源，任何网站都可跨源读写用户全部日志，甚至改写 AI `baseURL` 后
+ * 诱导 host 用用户的真 key 去请求攻击者服务器。因此：
+ *
+ *   - 无 Origin（CLI / agent / curl）→ 放行（本机进程，无额外提权）；不返回 CORS 头
+ *   - `chrome-extension://…` → 放行并回显（扩展 ID 因环境而异，且该 scheme 只有
+ *     已安装扩展能提供；扩展侧另由 manifest `host_permissions` 授权）
+ *   - `http://127.0.0.1|localhost|::1` → 放行并回显（web 参考实现 / dev-loop 测试页）
+ *   - 其余（任何真实网站，含 `Origin: null`）→ 403，且不下发任何 CORS 头
+ *
+ * @param {string|undefined} origin
+ * @returns {string|null} 可回显的 Origin（'' = 无需 CORS 头）；null = 拒绝
+ */
+function resolveCorsOrigin(origin) {
+  if (!origin) return '';
+  if (origin.startsWith('chrome-extension://')) return origin;
+  try {
+    const u = new URL(origin);
+    const isLoopback = u.hostname === '127.0.0.1' || u.hostname === 'localhost' || u.hostname === '[::1]';
+    if (isLoopback && (u.protocol === 'http:' || u.protocol === 'https:')) return origin;
+  } catch { /* 非法 Origin → 拒绝 */ }
+  return null;
+}
+
+/** 来源被拒时的统一响应（不下发 CORS 头）。 */
+function forbid(res, code, message) {
+  const str = JSON.stringify({ ok: false, error: { code, message } });
+  res.writeHead(403, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
     'Content-Length': Buffer.byteLength(str),
   });
+  res.end(str);
+}
+
+function json(res, status, body) {
+  const str = JSON.stringify(body);
+  /** @type {Record<string, string|number>} */
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(str),
+  };
+  // 只回显白名单来源；无 Origin 的本机进程不需要 CORS 头。
+  if (res.__corsOrigin) {
+    headers['Access-Control-Allow-Origin'] = res.__corsOrigin;
+    headers['Vary'] = 'Origin';
+  }
+  res.writeHead(status, headers);
   res.end(str);
 }
 
@@ -71,14 +119,30 @@ function parseReq(req) {
   return new Promise((resolve, reject) => {
     const url = new URL(req.url, `http://${DEFAULT_HOST}:${DEFAULT_PORT}`);
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    let size = 0;
+    let oversize = false;
+    let done = false;
+    /** 超限错误：在请求收尾后统一 reject，以保证 413 能完整写回客户端。 */
+    const tooLarge = () => { const e = new Error('payload too large'); e.code = 'PAYLOAD_TOO_LARGE'; return e; };
+    const fail = (e) => { if (!done) { done = true; reject(e); } };
+    req.on('data', (c) => {
+      if (done) return;
+      size += c.length;
+      if (size > MAX_DRAIN_BYTES) { req.destroy(); fail(tooLarge()); return; }
+      // 超过存储上限：丢弃后续字节（不缓存），但让请求正常收尾以回 413
+      if (size > MAX_BODY_BYTES) { oversize = true; return; }
+      chunks.push(c);
+    });
     req.on('end', () => {
+      if (done) return;
+      done = true;
+      if (oversize) { reject(tooLarge()); return; }
       const raw = Buffer.concat(chunks).toString('utf-8');
       let body = null;
       if (raw) { try { body = JSON.parse(raw); } catch { body = null; } }
       resolve({ method: req.method, path: url.pathname, body, query: url.searchParams });
     });
-    req.on('error', reject);
+    req.on('error', fail);
   });
 }
 
@@ -276,17 +340,30 @@ export async function createApp(store, { logger } = {}) {
   }
 
   return async function handle(req, res) {
-    const { method, path, body } = await parseReq(req);
+    const cors = resolveCorsOrigin(req.headers.origin);
+    if (cors === null) return forbid(res, 'FORBIDDEN_ORIGIN', '来源不被允许（仅限本扩展页面与本机进程）');
+    res.__corsOrigin = cors;
 
     // CORS preflight
-    if (method === 'OPTIONS') {
+    if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
+        ...(cors ? { 'Access-Control-Allow-Origin': cors, 'Vary': 'Origin' } : {}),
         'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
       });
       return res.end();
     }
+
+    let parsed;
+    try {
+      parsed = await parseReq(req);
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') {
+        return err(res, 413, 'PAYLOAD_TOO_LARGE', '请求体过大（上限 8MB）');
+      }
+      throw e;
+    }
+    const { method, path, body } = parsed;
 
     const dayMatch = path.match(/^\/api\/journals\/(\d{4}-\d{2}-\d{2})$/);
     const todoMatch = path.match(/^\/api\/todos\/([\w-]+)$/);
@@ -504,6 +581,18 @@ export async function createApp(store, { logger } = {}) {
         if (typeof body?.model === 'string') patch.model = body.model.slice(0, 100);
         if (typeof body?.apiKey === 'string' && body.apiKey.trim()) patch.apiKey = body.apiKey.slice(0, 300);
         if (Number.isFinite(body?.timeoutMs)) patch.timeoutMs = Math.max(1000, Math.min(body.timeoutMs, 120000));
+        // 防「改端点继承旧 key」：baseURL 变更时必须同时重新提交 apiKey。
+        // 否则攻击者只需把 baseURL 改成自己的服务器，host 就会拿着**用户已保存的真 key**
+        // 去请求它（`lib/llm.js:writeConfig` 在 apiKey 缺省时会保留旧值）。
+        const current = readAiConfig();
+        const prevBase = String(current?.baseURL ?? '').trim();
+        const nextBase = patch.baseURL !== undefined ? String(patch.baseURL).trim() : prevBase;
+        const changingEndpoint = nextBase !== '' && nextBase !== prevBase;
+        const hasNewKey = typeof patch.apiKey === 'string' && patch.apiKey.trim();
+        if (changingEndpoint && !hasNewKey && current?.apiKey) {
+          return err(res, 400, 'AI_ENDPOINT_CHANGE_REQUIRES_KEY',
+            '修改 baseURL 时必须同时重新提交 API Key（防止已保存的 Key 被发往新端点）');
+        }
         try {
           const next = writeAiConfig(patch);
           const cfg = readAiConfig();

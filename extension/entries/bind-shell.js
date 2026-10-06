@@ -80,4 +80,5 @@ export async function bindShell() {
   });
 
   els.hostStatusBtn?.addEventListener('click', startHost);
+  els.hostBannerStart?.addEventListener('click', startHost);
 }

@@ -42,6 +42,8 @@ export const els = {
   skillsList: document.getElementById('skills-list'),
   skillsCopyAll: document.getElementById('btn-skills-copy'),
   hostStatusBtn: document.getElementById('btn-host-status'),
+  hostBanner: document.getElementById('host-banner'),
+  hostBannerStart: document.getElementById('host-banner-start'),
   btnPanels: document.getElementById('btn-panels'),
   board: document.getElementById('board'),
   btnQuickAdd: document.getElementById('btn-quick-add'),

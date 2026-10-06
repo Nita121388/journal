@@ -13,6 +13,13 @@
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
+  <!-- 离线持久横幅：host 是本机权威数据源，离线时改动无法保存。
+       用持久横幅而非瞬时 toast —— 用户可能几分钟后才继续操作。 -->
+  <div id="host-banner" class="host-banner hidden" role="status" aria-live="polite">
+    <span class="host-banner-text">⚠️ 本机服务未连接，改动不会保存</span>
+    <button id="host-banner-start" class="host-banner-btn" type="button">启动服务</button>
+  </div>
+
   <header id="header">
     <div id="header-left">
       <span id="app-title">📓 Journal</span>
@@ -120,7 +127,6 @@
 
   <!-- 操作提示 toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-
   <!-- 模板构建器弹窗 -->
   <div id="template-builder-overlay" class="overlay hidden">
     <div class="template-builder">

@@ -6,7 +6,7 @@
  */
 
 import { els } from '../components/dom-refs.js';
-import { formatDateLabel, typeIcon } from '../shared/format.js';
+import { compactDateLabel, typeIcon } from '../shared/format.js';
 import { currentTime, getCardStartTime, getCardTypeCounts, getMonthMatrix, timeToMinutes, toDayKey, todayKey } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { monthOf, vs } from '../state/view-state.js';
@@ -31,15 +31,16 @@ function viewHeaderLabel() {
     const [y, m, d] = vs.weekAnchor.split('-').map(Number);
     const sun = new Date(y, m - 1, d); sun.setDate(sun.getDate() - sun.getDay());
     const sat = new Date(sun); sat.setDate(sun.getDate() + 6);
-    return `${toDayKey(sun).slice(5).replace('-', '/')} – ${toDayKey(sat).slice(5).replace('-', '/')} · ${toDayKey(sun).slice(0, 4)}`;
+    // 窄侧栏下用短式（月/日），避免被右侧工具组挤没
+    return `${toDayKey(sun).slice(5).replace('-', '/')} – ${toDayKey(sat).slice(5).replace('-', '/')}`;
   }
   const date = vs.selectedDate;
   const typeCounts = getCardTypeCounts(vs.allCardsCache, date);
   const parts = [];
   if (typeCounts.text) parts.push(`${typeCounts.text}📝`);
   if (typeCounts.task) parts.push(`${typeCounts.task}☑️`);
-  const countStr = parts.length ? ` · ${parts.join(' ')}` : ' · 无卡片';
-  return `📅 ${formatDateLabel(date)}${countStr}`;
+  const countStr = parts.length ? ` · ${parts.join(' ')}` : '';
+  return `📅 ${compactDateLabel(date)}${countStr}`;
 }
 
 /** 同步取某天卡片（从缓存，按时间排序） */

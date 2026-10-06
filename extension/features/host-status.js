@@ -26,7 +26,7 @@ export async function checkHostHealth() {
   }
 }
 
-/** 切换 header 右上角 host 状态按钮外观 */
+/** 切换 header 右上角 host 状态按钮外观 + 离线持久横幅 */
 export function setHostStatus(status) {
   const btn = els.hostStatusBtn;
   if (!btn) return;
@@ -46,6 +46,17 @@ export function setHostStatus(status) {
     btn.textContent = '⏳';
     btn.title = '正在启动 Host…';
     btn.setAttribute('aria-label', '正在启动 Host…');
+  }
+  // 离线横幅：持久提示（不是瞬时 toast），并在「启动中」可看到反馈
+  if (els.hostBanner) {
+    els.hostBanner.classList.toggle('hidden', status === 'online');
+    const label = els.hostBanner.querySelector('.host-banner-text');
+    if (label) {
+      label.textContent = status === 'starting'
+        ? '⏳ 正在启动本机服务…'
+        : '⚠️ 本机服务未连接，改动不会保存';
+    }
+    if (els.hostBannerStart) els.hostBannerStart.disabled = status === 'starting';
   }
 }
 

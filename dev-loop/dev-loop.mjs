@@ -137,13 +137,17 @@ try {
   const passed = allChecks.filter((c) => c[1]).length;
   const total = allChecks.length;
   const errorCount = results.reduce((n, r) => n + r.errors.length, 0);
-  exitCode = errorCount > 0 ? 1 : 0;
+  const failedChecks = total - passed;
+  // 退出码必须同时看「console error」「断言失败」「是否 settled」——
+  // 只看 console error 会让全挂的断言也打印 LOOP PASS（假门禁）。
+  const unsettled = results.filter((r) => !r.settled).length;
+  exitCode = (errorCount > 0 || failedChecks > 0 || unsettled > 0) ? 1 : 0;
 
   writeReport({
     outDir, startedAt, results, hostMode: args.hostMode,
-    summary: { ok: exitCode === 0, passed, total, errorCount },
+    summary: { ok: exitCode === 0, passed, total, errorCount, failedChecks, unsettled },
   });
-  log('info', exitCode === 0 ? 'LOOP PASS' : 'LOOP FAIL');
+  log('info', exitCode === 0 ? 'LOOP PASS' : `LOOP FAIL（断言失败 ${failedChecks} / error ${errorCount} / 未稳定 ${unsettled}）`);
 } catch (e) {
   log('error', String(e.stack || e.message));
   exitCode = 1;
