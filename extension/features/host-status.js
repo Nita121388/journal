@@ -8,16 +8,16 @@
 import { els } from '../components/dom-refs.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
-import { DEFAULT_HOST_BASE, ROUTES } from '../shared/protocol.js';
+import { ROUTES } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
 import { pullFromHost } from '../state/sync-bridge.js';
-const HOST_HEALTH_URL = `${DEFAULT_HOST_BASE}${ROUTES.health}`;
 
 export async function checkHostHealth() {
   try {
-    const res = await fetch(HOST_HEALTH_URL, { signal: AbortSignal.timeout(1200) });
-    const data = await res.json();
-    const online = data.ok || data.status === 'running';
+    // 经端口契约探测（不再裸 fetch）：桌面版/测试可替换传输层
+    const r = await getPort().hostFetch('GET', ROUTES.health);
+    const d = r.ok ? r.data : null;
+    const online = Boolean(d && (d.ok || d.status === 'running'));
     setHostStatus(online ? 'online' : 'offline');
     return online;
   } catch {

@@ -23,6 +23,19 @@ const KEY = Object.freeze({ CARDS: 'cards', JOURNALS: 'journals', TODOS: 'todos'
 /** @type {import('../shared/protocol.js').Card[]} 内存真源 */
 let cards = [];
 
+/**
+ * 本地写入代号（单调递增）。
+ *
+ * 用途：拉取/轮询是异步的，响应可能在本地写入之后才到 —— 那种响应已是陈旧快照。
+ * 调用方在发起请求前记下本值，响应到达时若已变化就丢弃，避免用旧数据覆盖刚保存的内容。
+ */
+let writeSeq = 0;
+
+/** @returns {number} 当前写入代号 */
+export function getWriteSeq() {
+  return writeSeq;
+}
+
 /** @type {Set<(cards: object[]) => void>} */
 const listeners = new Set();
 
@@ -48,6 +61,7 @@ export function subscribe(cb) {
  */
 export function hydrate(next) {
   cards = Array.isArray(next) ? next : [];
+  writeSeq++;
   notify();
 }
 
@@ -133,6 +147,7 @@ export async function createCardEntry(patch = {}) {
   });
   if (!ok) throw new Error('createCard failed');
   cards = [...cards, saved];
+  writeSeq++;
   await persistCards();
   notify();
   return saved;
@@ -156,6 +171,7 @@ export async function updateCardEntry(id, patch) {
   const idx = cards.findIndex((c) => c.id === id);
   if (idx === -1) cards = [...cards, merged];
   else cards = cards.map((c) => (c.id === id ? { ...c, ...merged } : c));
+  writeSeq++;
   await persistCards();
   notify();
   return merged;
@@ -169,6 +185,7 @@ export async function deleteCardEntry(id) {
   const { ok } = await host.deleteCardFromHost(id);
   if (!ok) throw new Error('deleteCard failed');
   cards = cards.filter((c) => c.id !== id);
+  writeSeq++;
   await persistCards();
   notify();
 }

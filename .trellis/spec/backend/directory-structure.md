@@ -46,8 +46,8 @@ host/
 | Item | Rule |
 |------|------|
 | Files | `kebab-case.js` (same as frontend) |
-| Routes | plural nouns: `journal.js`, `todo.js` |
-| Services | singular nouns: `ai.js`, `intent.js` |
+| 路由句柄 | 集中在 `server.js` 的 `createApp()` 内（本层极薄，尚未拆 `routes/`） |
+| 能力模块 | 单数名词：`lib/llm.js`、`lib/storage.js`、`sync/engine.js` |
 | Exported route handlers | `handle<Action>`: `handleGetToday`, `handleAddEntry` |
 | HTTP methods | `GET` read, `POST` write, `DELETE` remove (REST-ish, JSON in/out) |
 
@@ -55,7 +55,10 @@ host/
 
 ## Examples
 
-- `host/routes/journal.js` — `handleAddEntry(req, res)` → `services/intent.js` parses → `services/ai.js` builds entry → writes via `lib/storage.js`.
+- `host/server.js` — `createApp(store)` 内的 `handle(req, res)` 路由表；每支只管校验 + 调 `store`/`sync`/`lib/llm` 后返回统一包络。
+- `host/lib/storage.js` — SQLite 权威存储（`node:sqlite`，含加列迁移与零丢失校验）。
+- `host/sync/` — `engine.js`（编排）+ `merge.js`（逐卡 LWW + 墓碑）+ `backplane.js`（local/webdav/github 介质）。
+- `host/cli.mjs` — agent / CLI 客户端（直连同一 REST）。
 
 ## LLM Proxy (`lib/llm.js`)
 
@@ -74,4 +77,4 @@ host/
 - **结构化输出三级降级链**：`response_format: json_schema` → `json_object` → prompt-only（`extractJson()` 去围栏 + 平衡括号扫描 + `normalizePropDef()` 校验修复）→ `source:'fallback'`。provider 不遵守 `response_format` 时仍能拿到结构化结果。
 - **静默降级**：LLM 故障/超时/未配置统一返回 `200 + source:'fallback'|'not_configured'` + 本地结果（见 `error-handling.md`），扩展 UI 永不因 AI 故障中断。
 - **可测试**：`fetchImpl` 注入 → `test/llm.test.mjs` + `test/ai.test.mjs` 纯单测/本地 mock，不联网（`quality-guidelines.md` 要求）。
-- **触发策略**：扩展侧按本地规则置信度决定是否调 LLM（`auto` / `always` / `never`，见 `extension/lib/prop-llm.js`）——本地规则高置信时不发请求，省成本。
+- **触发策略**：扩展侧按本地规则置信度决定是否调 LLM（`auto` / `always` / `never`，见 `extension/features/prop-llm.js`）——本地规则高置信时不发请求，省成本。

@@ -81,6 +81,47 @@ export async function saveTodosToHost(todos) {
   return r.ok;
 }
 
+/* ─── 健康 / AI 配置 ──────────────────────────────────── */
+// 说明：设置页曾直接 `fetch(`${HOST}/api/...`)`，绕过端口契约（桌面版/测试
+// 无法替换传输层）。现全部收进这里。
+
+/**
+ * 健康探测。
+ * @returns {Promise<object|null>} host 离线 / 超时 → null
+ */
+export async function checkHealth() {
+  const r = await hostApi('GET', ROUTES.health);
+  return r.ok ? r.data : null;
+}
+
+/**
+ * AI provider 元数据（含建议模型、是否需要 key）。
+ * @returns {Promise<object|null>}
+ */
+export async function getAiProviders() {
+  const r = await hostApi('GET', ROUTES.aiProviders);
+  return r.ok ? r.data : null;
+}
+
+/**
+ * AI 配置（密钥已由 host 脱敏，只回 `apiKeySet` 标记）。
+ * @returns {Promise<object|null>}
+ */
+export async function getAiConfig() {
+  const r = await hostApi('GET', ROUTES.aiConfig);
+  return r.ok ? r.data : null;
+}
+
+/**
+ * 保存 AI 配置。
+ * @param {object} patch
+ * @returns {Promise<{ok:true, data:object}|{ok:false, error:object}>}
+ */
+export async function saveAiConfig(patch) {
+  const r = await hostApi('PUT', ROUTES.aiConfig, patch);
+  return r.ok ? { ok: true, data: r.data } : { ok: false, error: r.error };
+}
+
 /* ─── 本机配置 meta ───────────────────────────────────── */
 
 /**

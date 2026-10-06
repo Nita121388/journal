@@ -50,6 +50,8 @@
           <div id="pool-filter-row" class="pool-filter-row">
             <!-- 状态筛选：由 JS 渲染 -->
           </div>
+          <input id="pool-search" type="search" class="pool-search"
+                 placeholder="搜索标题 / 内容 / 标签…" aria-label="搜索卡片" autocomplete="off" />
           <button id="pool-extra-filter" class="pool-extra-filter" aria-expanded="false" aria-controls="pool-extra">⛁ 项目/标签筛选</button>
           <div id="pool-extra" class="pool-extra"></div>
           <ul id="cardpool-list"></ul>
@@ -198,7 +200,7 @@
           <input type="hidden" id="card-editor-status" value="none" />
           <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
             <button type="button" class="seg is-active" data-status="none">📝 纯记录</button>
-            <button type="button" class="seg" data-status="todo">📌 待办</button>
+            <button type="button" class="seg" data-status="todo">📌 未开始</button>
             <button type="button" class="seg" data-status="doing">🔥 进行中</button>
             <button type="button" class="seg" data-status="done">✅ 已完成</button>
           </div>

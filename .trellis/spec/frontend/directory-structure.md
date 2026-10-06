@@ -101,41 +101,33 @@ extension/
 ## 依赖方向（铁律）
 
 ```
-                    shared  ◀── platform
-                       ▲
-                       ├── state / views / features / components
-                       └── entries（组合根）
-                    shared  ◀── host
-        extension/** , host  ◀── desktop（本期未实现，仅保留可行性）
+shared ◀── platform                        （平台适配层：chrome.* / localStorage / fetch 的唯一归属地）
+shared ◀── state                           （数据层）
+shared ◀── components                      （DOM 原子）
+           components ◀── features | views  （UI 层，同层对等，允许互相引用）
+           {state, components, features, views} ◀── entries（组合根）
+host    ◀── 只依赖 shared（纯逻辑叶子）
+desktop ◀── extension/** 与 host（本期未实现）
 ```
 
-1. `shared/` 是最底层叶子：**不得 import 任何其他层**，不得出现 `document/window/chrome/node:*`。
-2. `platform/` 只依赖 `shared/`；`chrome.*` / `localStorage` **只允许**出现在这里。
-3. `state/` `views/` `features/` `components/` 可依赖 `shared/`；**不得 import `platform/chrome.js|web.js|desktop.js`**，
-   平台能力一律通过 `getPort()` 拿到的端口对象获得。
-4. `entries/` 是组合根：可依赖全部，负责选择端口与注入。
-5. `host/` 只可 import `extension/shared/**`（纯逻辑叶子）。
-6. 循环依赖的出路：**用 `state/actions.js` 注入回调**，不要让 `views/` 反向 import `entries/`。
+1. `shared/` 是最底层叶子：**不得 import 任何其他层**，不得出现 `document/window/chrome/fetch/node:*`。
+2. `platform/` 只依赖 `shared/`；`chrome.*` / `localStorage` / `fetch` **只允许**出现在这里。
+3. `state/` `components/` 可依赖 `shared/` 与 `platform/index.js` 的**契约**；
+   不得 import `views/` `features/` `entries/`。
+4. `features/` 与 `views/` 是**同层对等**（交互 vs 渲染），允许互相引用；
+   但两者都**不得 import `entries/`** —— 反向调用一律经 `state/actions.js`。
+5. 任何非 `platform/` 层都**不得 import `platform/chrome.js|web.js|desktop.js`** 具体实现，
+   只可用 `getPort()` 拿到的端口对象。
+6. `entries/` 是组合根：可依赖全部，负责选择端口与注入。
+7. `host/` 只可 import `extension/shared/**`。
 
 ### 强制手段
 
-`extension/eslint.config.js` 用 `no-restricted-imports` / `no-restricted-globals` 三组规则落地：
-
-| 规则 | 内容 |
-|---|---|
-| 全局 | `chrome` `localStorage` 报错（仅 `platform/**` 解除） |
-| `shared/**` | 禁 import 其他任何层、禁 `node:*`、禁 `document/window/fetch` |
-| `platform/**` | 禁 import `state/views/features/components/entries` |
-| `state|views|features|components/**` | 禁 import `platform/chrome.js` `platform/web.js` `platform/desktop.js` |
+`extension/eslint.config.js` 用 `no-restricted-imports`（完整层序矩阵）+ `no-restricted-globals`
+（`chrome` `localStorage` `fetch`）+ `no-undef` 落地。与 [`docs/adr/0001`](../../../docs/adr/0001-layered-packaging-within-chrome-root.md)
+的约束表必须逐条同步。
 
 校验：`npm run lint` 必须 **0 error**。
-
-### 可运行性检查
-
-```bash
-cd extension && npm run lint          # 边界规则 + 未用变量
-npx vitest run --coverage             # shared/ + state/ 覆盖率门禁
-```
 
 ---
 

@@ -29,6 +29,9 @@ export default [
         CustomEvent: 'readonly',
         Event: 'readonly',
         HTMLElement: 'readonly',
+        HTMLSelectElement: 'readonly',
+        Option: 'readonly',
+        matchMedia: 'readonly',
         Node: 'readonly',
         URLSearchParams: 'readonly',
         Blob: 'readonly',
@@ -47,7 +50,6 @@ export default [
         confirm: 'readonly',
         prompt: 'readonly',
         globalThis: 'readonly',
-        URLSearchParams: 'readonly',
       },
     },
     rules: {
@@ -55,6 +57,9 @@ export default [
       'no-implied-eval': 'error',
       'no-new-func': 'error',
       'no-script-url': 'error',
+      // 未声明标识符即报错：否则“忘了 import”会在 lint 里静默通过，
+      // 只到浏览器里变成 ReferenceError（曾真实发生：cardPrimaryText）。
+      'no-undef': 'error',
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
@@ -75,6 +80,7 @@ export default [
       'no-restricted-globals': ['error',
         { name: 'chrome', message: 'chrome.* 只能出现在 extension/platform/**（平台适配层）。' },
         { name: 'localStorage', message: 'localStorage 只能出现在 platform/**；其余层请用 getPort().prefGet/prefSet。' },
+        { name: 'fetch', message: '网络请求只能出现在 platform/**；业务层请用 state/host-client.js（经端口 hostFetch）。' },
       ],
     },
   },
@@ -118,6 +124,43 @@ export default [
         patterns: [
           { group: ['**/platform/chrome.js', '**/platform/web.js', '**/platform/desktop.js'],
             message: '只可依赖 platform/index.js 的端口契约；具体实现由 entries/ 选择并注入。' },
+        ],
+      }],
+    },
+  },
+  // ── 完整层序矩阵（评审 P1-6：原来只有 4 组窄规则，实际越层不会被发现）──
+  // 声明层序：shared → platform / state / components → (features | views) → entries
+  // features 与 views 是**同层对等**（交互 vs 渲染），允许互相引用；
+  // 但两者都不得反向依赖 entries，也不得依赖更上层的组合根。
+  {
+    files: ['state/**/*.js'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['**/views/**', '**/features/**', '**/components/**', '**/entries/**'],
+            message: 'state/ 不得依赖 UI 层（views/features/components/entries）。' },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['components/**/*.js'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['**/state/**', '**/views/**', '**/features/**', '**/entries/**'],
+            message: 'components/ 是最底层 UI 原子，不得依赖 state/views/features/entries。' },
+        ],
+      }],
+    },
+  },
+  {
+    files: ['views/**/*.js', 'features/**/*.js'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['**/entries/**'],
+            message: 'UI 层不得依赖组合根 entries/；反向调用请经 state/actions.js。' },
         ],
       }],
     },

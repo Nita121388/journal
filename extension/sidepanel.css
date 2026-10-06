@@ -32,6 +32,28 @@ header#header {
 
 #header-right { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
 
+/* ─── 卡片池搜索框 ───────────────────────────────── */
+
+.pool-search {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 5px 9px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.pool-search::placeholder { color: var(--color-muted); }
+.pool-search:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* 时间线卡片正文：标题首行 + 内容次要行（只填其一时不显示「(空卡片)」） */
+.card-body .card-primary { font-weight: 500; }
+.card-body .card-secondary { font-size: 11px; color: var(--color-muted); margin-top: 2px; }
+
 /* 侧边栏最窄 320px：收 padding、收字号，保证标题与日期不被折行/覆盖 */
 @media (max-width: 420px) {
   header#header { padding: 8px 10px; gap: 6px; }

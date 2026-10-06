@@ -160,7 +160,7 @@ try {
       hostProc.once('exit', () => { clearTimeout(t); resolve(); });
     });
   }
-  if (hostDataDir) { cleanupDir(hostDataDir); cleanupDir(hostDataDir); }
+  if (hostDataDir) cleanupDir(hostDataDir);
   if (workDir && process.env.DEV_LOOP_KEEP !== '1') cleanupDir(workDir);
 }
 process.exit(exitCode);

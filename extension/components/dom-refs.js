@@ -32,6 +32,7 @@ export const els = {
   saveViewBtn: document.getElementById('btn-save-view'),
   viewSelect: document.getElementById('pool-view-select'),
   poolFilterRow: document.getElementById('pool-filter-row'),
+  poolSearch: document.getElementById('pool-search'),
 
   // skills
   skillsSection: document.getElementById('skills-section'),

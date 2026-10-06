@@ -57,6 +57,8 @@ export const vs = {
   // ── 卡片池筛选 ──
   /** @type {''|'active'|'todo'|'doing'|'done'|'none'} */
   poolStatusFilter: '',
+  /** @type {string} 卡片池搜索关键词（标题/内容/标签/属性子串） */
+  poolQuery: '',
   /** @type {string} */
   poolTagFilter: '',
   /** @type {string} */

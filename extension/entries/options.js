@@ -4,7 +4,10 @@
  */
 
 import { getSettings, saveSettings } from '../state/settings.js';
-import { getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync } from '../state/host-client.js';
+import {
+  getSyncStatus, syncNow, getSyncConfig, saveSyncConfig, testSync,
+  checkHealth, getAiProviders, getAiConfig, saveAiConfig,
+} from '../state/host-client.js';
 import { autoEnhance as enhanceSelects } from '../features/select.js';
 import { getPort } from '../platform/index.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
@@ -13,7 +16,6 @@ import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 
 const REPO = 'https://github.com/Nita121388/journal';
 const RAW_SKILL = `${REPO}/raw/main/.agents/skills/journal/SKILL.md`;
-const HOST = DEFAULT_HOST_BASE;
 
 const PROMPT_TEMPLATE = `我想用 Journal 扩展的 AI 能力写日志。请先获取并阅读技能文件：
 
@@ -101,9 +103,8 @@ async function applyTheme() {
 
 async function probeHost() {
   try {
-    const res = await fetch(`${HOST}/api/health`, { signal: AbortSignal.timeout(2000) });
-    const data = await res.json();
-    if (data.ok || data.status === 'running') {
+    const data = await checkHealth();
+    if (data && (data.ok || data.status === 'running')) {
       els.hostDot.classList.add('is-online');
       els.hostLabel.textContent = 'host 已就绪';
       els.hostCmdHint.classList.add('hidden');
@@ -321,8 +322,7 @@ const providerEmoji = (key) => PROVIDER_EMOJI[key] || '🤖';
 /** 拉取 host 的服务商表（失败用内置兜底表） */
 async function loadAiTable() {
   try {
-    const res = await fetch(`${HOST}/api/ai/providers`, { signal: AbortSignal.timeout(3000) });
-    const data = (await res.json())?.data;
+    const data = await getAiProviders();
     if (data?.providerInfo && Object.keys(data.providerInfo).length) {
       aiTable = {
         providerInfo: data.providerInfo,
@@ -414,8 +414,7 @@ function applyAiKeyRequirement(provider) {
 async function loadAiSettings() {
   await loadAiTable();
   try {
-    const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
-    const data = (await res.json())?.data;
+    const data = await getAiConfig();
     if (data) {
       if (els.aiEnabled && !els.aiEnabled.dataset.touched) els.aiEnabled.checked = Boolean(data.enabled);
       if (els.aiBase) els.aiBase.value = data.baseURL || '';
@@ -477,17 +476,14 @@ async function onAiSave() {
   const key = (els.aiKey.value || '').trim();
   if (key) payload.apiKey = key;
   try {
-    const res = await fetch(`${HOST}/api/ai/config`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(5000),
-    });
-    const data = (await res.json())?.data;
+    const saved = await saveAiConfig(payload);
+    const data = saved.ok ? saved.data : null;
     if (data) {
       if (els.aiKey) els.aiKey.value = ''; // 只在成功时清空 key（失败让用户改完重试）
       renderAiStatus(data.configured);
       setAiFeedback(data.configured ? '✅ 已保存（AI 已启用）' : '已保存，但缺少 API Key 或 Base URL 尚未启用', 'ok');
+    } else if (!saved.ok && saved.error?.code === 'AI_ENDPOINT_CHANGE_REQUIRES_KEY') {
+      setAiFeedback('修改 Base URL 时必须同时重填 API Key（防止已保存的 Key 被发往新端点）', 'err');
     } else {
       setAiFeedback('保存失败：host 返回异常', 'err');
     }
@@ -504,8 +500,7 @@ async function onAiSave() {
 /** 连接测试：只读状态，不写、不含 key */
 async function onAiTest() {
   try {
-    const res = await fetch(`${HOST}/api/ai/config`, { signal: AbortSignal.timeout(3000) });
-    const data = (await res.json())?.data;
+    const data = await getAiConfig();
     if (data) {
       renderAiStatus(data.configured);
       setAiFeedback(

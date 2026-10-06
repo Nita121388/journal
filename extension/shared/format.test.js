@@ -2,7 +2,7 @@
  * format.test.js — 纯展示格式化
  */
 import { describe, it, expect } from 'vitest';
-import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji } from './format.js';
+import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel } from './format.js';
 import { todayKey } from './model.js';
 
 describe('formatDateLabel', () => {
@@ -67,6 +67,30 @@ describe('sanitizeEmoji', () => {
     expect(sanitizeEmoji(null)).toBe('');
     expect(sanitizeEmoji('')).toBe('');
     expect(sanitizeEmoji('   ')).toBe('');
+  });
+});
+
+describe('cardPrimaryText', () => {
+  it('标题优先，其次内容', () => {
+    expect(cardPrimaryText({ title: '周会', content: '讨论 A' })).toBe('周会');
+    expect(cardPrimaryText({ content: '讨论 A' })).toBe('讨论 A');
+  });
+  it('只填标题不再落成「空卡片」（关键回归）', () => {
+    expect(cardPrimaryText({ title: '开会', content: '' })).toBe('开会');
+  });
+  it('都没填才返回 fallback', () => {
+    expect(cardPrimaryText({}, '(空卡片)')).toBe('(空卡片)');
+    expect(cardPrimaryText(null, '(空)')).toBe('(空)');
+  });
+});
+
+describe('compactDateLabel', () => {
+  it('当年不重复年份', () => {
+    const y = new Date().getFullYear();
+    expect(compactDateLabel(`${y}-10-06`)).toBe('10月6日 周二');
+  });
+  it('跨年补年份', () => {
+    expect(compactDateLabel('2000-01-01')).toBe('2000年1月1日 周六');
   });
 });
 

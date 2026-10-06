@@ -52,12 +52,16 @@ export function startHostSync(onChange, intervalMs = 20000) {
   let lastSig = null;
 
   const tick = async () => {
+    // 先记下写入代（本地写 / 迁移都会自增）：请求在途期间若发生过本地写入，
+    // 本次响应就是陈旧快照，不能拿它覆盖真源（否则刚保存的卡会被回退 20s 前的样子）。
+    const seq = repo.getWriteSeq();
     const [cards, journals, todos] = await Promise.all([
       host.listCards(),
       host.listJournals(),
       host.listTodos(),
     ]);
     if (cards === null || journals === null || todos === null) return; // host 离线：保留当前真源
+    if (repo.getWriteSeq() !== seq) return; // 期间本地写过 → 丢弃陈旧响应
 
     const sig = JSON.stringify([cards, journals, todos]);
     // 首轮只建基线，不触发渲染（避免与 init 的首次全量渲染重复）

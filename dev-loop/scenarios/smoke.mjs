@@ -184,5 +184,18 @@ export async function runSmoke({ page, width }) {
   await page.locator('#btn-panels').click();
   await page.waitForTimeout(250);
 
+  // 15) 卡片池搜索（本地过滤，零请求）
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(300);
+  add('卡片池有搜索框', await page.locator('#pool-search').isVisible().catch(() => false));
+  await page.locator('#pool-search').fill('zzz-no-match-zzz');
+  await page.waitForTimeout(250);
+  const emptyText = (await page.locator('#cardpool-list .empty-title').first().textContent().catch(() => '')) || '';
+  add('搜索无结果给出明确空态', /没有匹配/.test(emptyText), emptyText.trim());
+  await page.locator('#pool-search').fill('');
+  await page.waitForTimeout(250);
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(250);
+
   return { checks };
 }

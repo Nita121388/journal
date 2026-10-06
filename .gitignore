@@ -47,3 +47,6 @@ host/extension-ids.txt
 
 # 测试覆盖率产物（可重建）
 coverage/
+
+# 一次性备份快照（重构前代码副本，不入库）
+_backup_*/

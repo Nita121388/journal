@@ -75,4 +75,42 @@ describe('startHostSync', () => {
     clearInterval(id);
     vi.useRealTimers();
   });
+
+  it('响应在本地写入之后到达 → 丢弃陈旧快照（不会把刚保存的卡回退）', async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    repo.hydrate([{ id: 'a', content: 'base' }]);
+
+    // 第 1 轮：建基线
+    pushPullResponses([{ id: 'a', content: 'base' }]);
+    const id = startHostSync(() => {}, 150);
+    await sleep(220);
+
+    // 第 2 轮：cards 响应挂起（模拟慢请求）
+    let releaseGet = null;
+    port._pushResponse(() => new Promise((res) => {
+      releaseGet = () => res(apiOk([{ id: 'a', content: 'stale' }]));
+    }));
+    port._pushResponse(apiOk({}));
+    port._pushResponse(apiOk([]));
+    await sleep(220);
+    expect(typeof releaseGet).toBe('function');
+
+    // 请求在途期间发生本地写入
+    port._pushResponse(apiOk({ id: 'a', content: 'local' }));
+    await repo.updateCardEntry('a', { content: 'local' });
+    expect(repo.getAllCards()[0].content).toBe('local');
+
+    // 陈旧响应现在才到 —— 必须被丢弃
+    releaseGet();
+    await sleep(120);
+    expect(repo.getAllCards()[0].content).toBe('local');
+
+    clearInterval(id);
+  });
+
+  it('getWriteSeq 随 hydrate 与本地写入递增', () => {
+    const before = repo.getWriteSeq();
+    repo.hydrate([]);
+    expect(repo.getWriteSeq()).toBeGreaterThan(before);
+  });
 });

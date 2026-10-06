@@ -14,6 +14,7 @@ import { currentTime } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { getSettings } from '../state/settings.js';
 import { vs } from '../state/view-state.js';
+import { renderCardPool } from '../views/pool.js';
 import { startNowMarkerTimer } from '../views/timeline.js';
 
 /** 绑定外壳级交互（不含数据拉取与视图导航）。 */
@@ -81,4 +82,10 @@ export async function bindShell() {
 
   els.hostStatusBtn?.addEventListener('click', startHost);
   els.hostBannerStart?.addEventListener('click', startHost);
+
+  // 卡片池搜索：纯本地过滤（对 vs.allCardsCache），零请求
+  els.poolSearch?.addEventListener('input', (e) => {
+    vs.poolQuery = String(e.target.value || '').trim();
+    renderCardPool();
+  });
 }

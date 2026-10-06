@@ -6,7 +6,7 @@
  */
 
 import { els } from '../components/dom-refs.js';
-import { compactDateLabel, typeIcon } from '../shared/format.js';
+import { cardPrimaryText, compactDateLabel, typeIcon } from '../shared/format.js';
 import { currentTime, getCardStartTime, getCardTypeCounts, getMonthMatrix, timeToMinutes, toDayKey, todayKey } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { monthOf, vs } from '../state/view-state.js';
@@ -185,7 +185,7 @@ function buildCalSummary(card) {
   el.append(...[
     start ? spanEl('calview-summary-time', start) : null,
     spanEl('card-type-icon', typeIcon(type, card.emoji)),
-    spanEl('calview-summary-text', card.content || '(空卡片)'),
+    spanEl('calview-summary-text', cardPrimaryText(card)),
   ].filter(Boolean));
   el.addEventListener('click', (e) => {
     e.stopPropagation();

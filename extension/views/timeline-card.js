@@ -4,7 +4,7 @@
 单张时间线卡片（含拖拽/缩放交互）与卡片底部操作区。
  */
 
-import { formatProvenance, typeIcon } from '../shared/format.js';
+import { cardPrimaryText, formatProvenance, typeIcon } from '../shared/format.js';
 import { addMinutes, currentTime, getCardDuration, getCardEndTime, getCardStartTime, minutesToTime, timeToMinutes } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
@@ -85,10 +85,24 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
     spanEl('card-meta', !allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''),
   );
 
-  // Body
+  // Body：标题优先作为首行，内容作为次要行。
+  // 之前只渲染 content，导致「只填标题」的卡片在时间线里显示「(空卡片)」。
   const body = document.createElement('div');
   body.className = 'card-body' + (card.type === 'task' && card.done ? ' is-done' : '');
-  body.textContent = card.content || '(空卡片)';
+  const primary = cardPrimaryText(card, '');
+  if (primary) {
+    const line = document.createElement('div');
+    line.className = 'card-primary';
+    line.textContent = primary;
+    body.append(line);
+  }
+  if (card.title && card.content) {
+    const sub = document.createElement('div');
+    sub.className = 'card-secondary';
+    sub.textContent = card.content;
+    body.append(sub);
+  }
+  if (!body.childNodes.length) body.textContent = '(空卡片)';
 
   // Footer
   const footer = buildCardFooter(card);

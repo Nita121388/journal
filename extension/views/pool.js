@@ -9,21 +9,24 @@
 
 import { currentTime, snapUpToQuarter, addMinutes } from '../shared/model.js';
 import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
-import { shortDate, typeIcon } from '../shared/format.js';
+import { shortDate, typeIcon, cardPrimaryText } from '../shared/format.js';
 import { els } from '../components/dom-refs.js';
 import { vs } from '../state/view-state.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { actions } from '../state/actions.js';
 
+// 术语统一（评审 P1-5）：`待办` 曾同时指「一个筛选集」「一个状态」「一个类型」
+// 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「未开始/进行中/已完成/纯记录」。
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
-  { value: 'active', label: '⏳ 待办' },
+  { value: 'active', label: '⏳ 未完成' },
   { value: 'todo', label: '📌 未开始' },
   { value: 'doing', label: '🔥 进行中' },
   { value: 'done', label: '✅ 已完成' },
   { value: 'none', label: '📝 纯记录' },
 ];
-const STATUS_LABEL = { todo: '待办', doing: '进行中', done: '已完成', none: '纯记录' };
+/** 与筛选条共用同一套词，避免同一状态两个名字 */
+const STATUS_LABEL = { todo: '未开始', doing: '进行中', done: '已完成', none: '纯记录' };
 
 /** 状态匹配：active = todo ∪ doing（待办视图） */
 function statusMatches(card, f) {
@@ -116,6 +119,26 @@ function chipSpan(cls, text) {
   return s;
 }
 
+/**
+ * 卡片池本地搜索：标题 / 内容 / 标签 / 项目 / 自定义属性值 子串匹配（大小写无关）。
+ * @param {object} card
+ * @param {string} q
+ * @returns {boolean}
+ */
+function queryMatches(card, q) {
+  if (!q) return true;
+  const needle = q.toLowerCase();
+  const hay = [
+    card.title, card.content, card.project,
+    ...(Array.isArray(card.tags) ? card.tags : []),
+    ...Object.values(card.props ?? {}).map(v => (Array.isArray(v) ? v.join(' ') : v)),
+  ];
+  return hay.some(v => typeof v === 'string' && v.toLowerCase().includes(needle));
+}
+
+/** 列表一次最多渲染的卡片数（避免几百张卡时侧栏卡顿）；更多靠筛筛选/搜索缩小范围。 */
+const POOL_RENDER_LIMIT = 200;
+
 /** 渲染整个卡片池（含筛选条与空态）。 */
 export async function renderCardPool() {
   const all = vs.allCardsCache.filter(c => !c.deleted);
@@ -123,7 +146,8 @@ export async function renderCardPool() {
     const sOk = statusMatches(c, vs.poolStatusFilter);
     const tagOk = !vs.poolTagFilter || (c.tags ?? []).includes(vs.poolTagFilter);
     const projOk = !vs.poolProjectFilter || (c.project ?? '') === vs.poolProjectFilter;
-    return sOk && tagOk && projOk;
+    const qOk = queryMatches(c, vs.poolQuery ?? '');
+    return sOk && tagOk && projOk && qOk;
   });
   els.cardpoolCount.textContent = pool.length;
   els.cardpoolList.replaceChildren();
@@ -134,17 +158,19 @@ export async function renderCardPool() {
   if (!pool.length) {
     const li = document.createElement('li');
     li.className = 'todo-empty';
-    const filtering = !!(vs.poolStatusFilter || vs.poolTagFilter || vs.poolProjectFilter || vs.activeViewId);
+    const filtering = !!(vs.poolStatusFilter || vs.poolTagFilter || vs.poolProjectFilter || vs.poolQuery || vs.activeViewId);
     const title = document.createElement('div');
     title.className = 'empty-title';
     if (filtering) {
-      title.textContent = '没有符合当前筛选的卡片';
+      title.textContent = vs.poolQuery ? `没有匹配「${vs.poolQuery}」的卡片` : '没有符合当前筛选的卡片';
       const act = document.createElement('button');
       act.type = 'button';
       act.className = 'empty-action';
       act.textContent = '清除筛选';
       act.addEventListener('click', () => {
-        vs.poolStatusFilter = ''; vs.poolTagFilter = ''; vs.poolProjectFilter = ''; vs.activeViewId = '';
+        vs.poolStatusFilter = ''; vs.poolTagFilter = ''; vs.poolProjectFilter = '';
+        vs.poolQuery = ''; vs.activeViewId = '';
+        if (els.poolSearch) els.poolSearch.value = '';
         renderCardPool();
       });
       li.append(title, act);
@@ -161,7 +187,7 @@ export async function renderCardPool() {
     return;
   }
 
-  for (const card of pool) {
+  for (const card of pool.slice(0, POOL_RENDER_LIMIT)) {
     const li = document.createElement('li');
     // 状态灯类：按注册表 behavior:'status' 读取（等价于 card.status，集中声明）
     const statusVal = readValueFromCard(card, 'status') ?? card.status;
@@ -171,7 +197,7 @@ export async function renderCardPool() {
     // 键盘可达：卡片可 Tab 聚焦，Enter/空格打开编辑器
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
-    li.setAttribute('aria-label', `${card.title || card.content || '空卡片'}${card.status ? '，' + card.status : ''}`);
+    li.setAttribute('aria-label', `${cardPrimaryText(card, '空卡片')}${statusVal && statusVal !== 'none' ? '，' + (STATUS_LABEL[statusVal] || statusVal) : ''}`);
     // 支持拖拽到今日时间线（HTML5 DnD）
     li.draggable = true;
     let cardDragged = false; // 真拖拽后抑制 click 打开编辑器
@@ -193,7 +219,7 @@ export async function renderCardPool() {
 
     const text = document.createElement('span');
     text.className = 'cardpool-text';
-    text.textContent = (card.title || card.content || '(空)');
+    text.textContent = cardPrimaryText(card, '(空)');
 
     li.append(icon, text);
 

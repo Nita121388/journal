@@ -232,8 +232,32 @@ const LOSS_FIELDS = [
   'createdAt', 'updatedAt', 'deleted',
 ];
 
+/**
+ * 值相等（结构比较）。
+ *
+ * 为什么不能直接用 `===`：`props` 是对象，`{} === {}` 恒为 false。
+ * 旧代码用引用比较且 before 是 after 的恒等拷贝，所以既不会误报也永远不会命中——
+ * 一旦换成真实的迁移前后快照，就必须做结构比较。
+ * @param {*} a
+ * @param {*} b
+ * @returns {boolean}
+ */
+function valueEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return a == null && b == null;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b)
+      && a.length === b.length && a.every((v, i) => valueEqual(v, b[i]));
+  }
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && valueEqual(a[k], b[k]));
+}
+
 export function cardsEqualExceptTags(a, b) {
-  return LOSS_FIELDS.every(f => a?.[f] === b?.[f] || (a?.[f] == null && b?.[f] == null));
+  return LOSS_FIELDS.every(f => valueEqual(a?.[f], b?.[f]));
 }
 
 /**
@@ -252,7 +276,11 @@ export function verifyNoDataLoss(before, after) {
   const afterMap = new Map(after.map(c => [c.id, c]));
   for (const prev of before) {
     const next = afterMap.get(prev.id);
-    if (!cardsEqualExceptTags(prev, next)) return { ok: false, reason: `field mismatch ${prev.id}` };
+    if (!cardsEqualExceptTags(prev, next)) {
+      // 精确到字段：迁移失败时能直接看出是哪个字段漂了
+      const field = LOSS_FIELDS.find(f => !valueEqual(prev?.[f], next?.[f]));
+      return { ok: false, reason: `field mismatch ${prev.id}${field ? ' @ ' + field : ''}` };
+    }
   }
   return { ok: true };
 }
@@ -269,9 +297,12 @@ function migrateAddColumn({ db, log, file, cols, column, ddl }) {
   const backup = `${file}.pre-${column}-${stamp}.bak`;
   db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
   log.info(`${column} migration backup: ${backup}`);
+  // before 必须在 ALTER **之前**取。
+  // 旧写法是 `after.map(c => ({ ...c, [column]: c[column] }))` —— 从 after 派生 before，
+  // 恒等拷贝，校验永远通过（假保险，永远不会触发回滚）。
+  const before = db.prepare('SELECT * FROM cards').all().map(rowToCard);
   db.exec(`ALTER TABLE cards ADD COLUMN ${ddl}`);
   const after = db.prepare('SELECT * FROM cards').all().map(rowToCard);
-  const before = after.map(c => ({ ...c, [column]: c[column] }));
   const check = verifyNoDataLoss(before, after);
   if (!check.ok) {
     log.error(`${column} migration failed verification (${check.reason}); restoring backup`);

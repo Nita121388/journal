@@ -13,9 +13,10 @@ import {
 } from '../../extension/shared/card-schema.js';
 
 /** 会被同步的卡片业务字段 */
+/** 会被同步的卡片业务字段（漏字段会让该字段差异被 cardsEqual 判为「相等」而不同步） */
 export const CARD_FIELDS = Object.freeze([
   'content', 'type', 'done', 'title', 'status', 'progress', 'duration', 'props', 'project',
-  'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags', 'meta',
+  'assignedDate', 'time', 'startTime', 'endTime', 'priority', 'tags', 'emoji', 'meta',
 ]);
 
 function normalizeMeta(input) {

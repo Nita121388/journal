@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -102,6 +102,41 @@ test('verifyNoDataLoss：字段变化判失败', () => {
   assert.equal(ok.ok, true);
   const bad = verifyNoDataLoss(before, before.map(c => ({ ...c, content: 'changed' })));
   assert.equal(bad.ok, false);
+});
+
+test('SQLite：旧 schema 加列迁移走真实路径且不丢数据', async () => {
+  const dir = tmp();
+  const file = join(dir, 'legacy.db');
+  // 造一个「缺 emoji/title/status/... 列」的旧库（只有最先的几列）
+  const legacy = new DatabaseSync(file);
+  legacy.exec(`
+    CREATE TABLE cards (
+      id TEXT PRIMARY KEY, content TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'text',
+      done INTEGER NOT NULL DEFAULT 0, assignedDate TEXT, time TEXT,
+      startTime TEXT, endTime TEXT, priority TEXT NOT NULL DEFAULT 'medium',
+      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT INTO cards (id, content, type, done, priority, createdAt, updatedAt, deleted)
+    VALUES ('c_old_1', '迁移前数据', 'task', 1, 'high', '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 0);
+  `);
+  legacy.close();
+
+  const s = await createStore({ file });
+  try {
+    const cards = await s.listCards();
+    assert.equal(cards.length, 1, '迁移后卡片数不变');
+    assert.equal(cards[0].id, 'c_old_1');
+    assert.equal(cards[0].content, '迁移前数据', '旧字段零丢失');
+    assert.equal(cards[0].done, true);
+    assert.equal(cards[0].priority, 'high');
+    assert.equal(cards[0].createdAt, '2026-01-01T00:00:00.000Z');
+    // 新列以默认值补齐
+    assert.equal(cards[0].emoji, '');
+    assert.deepEqual(cards[0].tags, []);
+    // 迁移前必须留有备份（失败回滚的兑现物）
+    const baks = readdirSync(dir).filter(f => /\.pre-.+\.bak$/.test(f));
+    assert.ok(baks.length > 0, '应生成迁移前备份');
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('SQLite：journals 由 c_mj_ 卡片派生', async () => {

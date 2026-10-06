@@ -4,7 +4,7 @@
  * 供各视图共用；无 DOM / 无 storage / 无平台依赖。
  */
 
-import { todayKey } from './model.js';
+import { todayKey, toDayKey } from './model.js';
 
 /**
  * 长日期标签，如「2026年10月6日星期二」。
@@ -16,6 +16,19 @@ export function formatDateLabel(dayKey) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('zh-CN', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   });
+}
+
+/**
+ * 卡片的主文本：标题优先，其次内容。
+ *
+ * 卡片池、时间线、月/周摘要统一用它，避免同一张卡在不同视图显示不同文字
+ * （历史上池用 `title || content`，时间线只用 `content`，只有标题的卡会显示“空卡片”）。
+ * @param {object} card
+ * @param {string} [fallback='(空卡片)']
+ * @returns {string}
+ */
+export function cardPrimaryText(card, fallback = '(空卡片)') {
+  return card?.title || card?.content || fallback;
 }
 
 /**
@@ -43,7 +56,9 @@ export function shortDate(dayKey) {
   const t = todayKey();
   if (dayKey === t) return '今天';
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  if (dayKey === yesterday.toISOString().slice(0, 10)) return '昨天';
+  // 必须用本地字段构造 dayKey：`toISOString()` 在 UTC+8 的 00:00–08:00
+  // 会算成前一天，导致“昨天”标签整体错一天（与 shared/model 的策略一致）。
+  if (dayKey === toDayKey(yesterday)) return '昨天';
   return dayKey;
 }
 

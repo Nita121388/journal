@@ -7,10 +7,10 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { hostname, platform, release } from 'node:os';
+import { hostname, platform, release, homedir } from 'node:os';
 
 import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
 import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './lib/llm.js';
@@ -25,8 +25,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PORT = 8766;
 const DEFAULT_HOST = '127.0.0.1';
 
-// skills 物理目录（junction 指向 skillshare）。可用环境变量覆盖
-const SKILLS_DIR = process.env.JOURNAL_SKILLS_DIR || 'C:\\Users\\chemclin\\AppData\\Roaming\\skillshare\\skills';
+// skills 物理目录：按候选列表探测（都从 homedir 推导，不把某个人的绝对路径写进源码）。
+// 可用 JOURNAL_SKILLS_DIR 显式覆盖。
+const SKILLS_DIR_CANDIDATES = [
+  process.env.JOURNAL_SKILLS_DIR,
+  join(homedir(), '.agents', 'skills'),
+  join(homedir(), '.claude', 'skills'),
+  join(homedir(), 'AppData', 'Roaming', 'skillshare', 'skills'),
+].filter(Boolean);
+const SKILLS_DIR = SKILLS_DIR_CANDIDATES.find(p => existsSync(p)) || SKILLS_DIR_CANDIDATES[0];
 
 // ── 小工具 ────────────────────────────────────────────
 
@@ -38,6 +45,23 @@ function addMinutes(hhmm, mins) {
   const [h, m] = hhmm.split(':').map(Number);
   const t = (((h * 60 + m + mins) % 1440) + 1440) % 1440;
   return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+}
+
+/**
+ * 卡片是否匹配搜索关键词（标题/内容/项目/标签/自定义属性值，大小写无关）。
+ * 与侧栏卡片池的本地搜索保持同一语义；供 `GET /api/cards?q=` 使用。
+ * @param {object} card
+ * @param {string} q 已小写的关键词
+ * @returns {boolean}
+ */
+function cardMatchesQuery(card, q) {
+  if (!q) return true;
+  const hay = [
+    card.title, card.content, card.project,
+    ...(Array.isArray(card.tags) ? card.tags : []),
+    ...Object.values(card.props ?? {}).map(v => (Array.isArray(v) ? v.join(' ') : v)),
+  ];
+  return hay.some(v => typeof v === 'string' && v.toLowerCase().includes(q));
 }
 
 /** task card → todo 视图（CLI / 旧接口兼容） */
@@ -363,7 +387,7 @@ export async function createApp(store, { logger } = {}) {
       }
       throw e;
     }
-    const { method, path, body } = parsed;
+    const { method, path, body, query } = parsed;
 
     const dayMatch = path.match(/^\/api\/journals\/(\d{4}-\d{2}-\d{2})$/);
     const todoMatch = path.match(/^\/api\/todos\/([\w-]+)$/);
@@ -372,7 +396,10 @@ export async function createApp(store, { logger } = {}) {
     try {
       // ── Cards ────────────────────────────────────────
       if (path === '/api/cards' && method === 'GET') {
-        return ok(res, await store.listCards());
+        const cards = await store.listCards();
+        const q = (query.get('q') || '').trim().toLowerCase();
+        // ?q= 供 CLI / agent 按子串检索（与侧栏卡片池搜索同一语义）
+        return ok(res, q ? cards.filter(c => cardMatchesQuery(c, q)) : cards);
       }
       if (path === '/api/cards' && method === 'POST') {
         if (typeof body?.content !== 'string') return err(res, 400, 'VALIDATION_ERROR', 'body.content 必须是字符串');

@@ -59,6 +59,25 @@ test('校验：缺少 content 返回 400 VALIDATION_ERROR', async () => {
   assert.equal(json.error.code, 'VALIDATION_ERROR');
 });
 
+test('GET /api/cards?q= 按标题/内容/标签子串检索', async () => {
+  await api('POST', '/api/cards', { content: 'alpha 唯一词', tags: ['zzz'] });
+  await api('POST', '/api/cards', { content: 'beta', title: 'Alpha 标题' });
+  await api('POST', '/api/cards', { content: 'gamma', tags: ['alpha-tag'] });
+
+  const hit = (await api('GET', '/api/cards?q=alpha')).json;
+  assert.equal(hit.ok, true);
+  assert.equal(hit.data.length, 3, '正文/标题/标签命中均应返回');
+
+  const titleOnly = (await api('GET', '/api/cards?q=' + encodeURIComponent('Alpha 标题'))).json;
+  assert.equal(titleOnly.data.length, 1);
+
+  const none = (await api('GET', '/api/cards?q=nope-nope')).json;
+  assert.equal(none.data.length, 0);
+
+  const all = (await api('GET', '/api/cards')).json;
+  assert.ok(all.data.length >= 3, '不带 q 时返回全部');
+});
+
 test('journals：PUT 写入、GET 读回、heatmap 计数', async () => {
   assert.equal((await api('PUT', '/api/journals/2026-09-08', { markdown: '今天的记录' })).json.ok, true);
   const got = (await api('GET', '/api/journals/2026-09-08')).json;
