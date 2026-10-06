@@ -1,0 +1,10 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "架构契约 §5：UI 拆分设计与来源行区间；§2 依赖铁律"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "父任务 R4/AC3（入口<120行、无模块>400行）"}
+{"file": ".trellis/tasks/10-06-ui-split/prd.md", "reason": "本任务需求、依赖分析结论、分阶段计划与验收标准"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "无框架组件的写法约定：纯函数式 DOM 构建、禁 innerHTML 注入、渲染幂等"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "模块纯度与依赖图规则，拆分后不得出现反向依赖"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "目录与命名约定（kebab-case、entry 薄胶水）"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "状态归属与访问点约定；视图状态集中化需与之一致"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门：lint / dev-loop"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "各场景用法与回归要求"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "JSDoc 约定"}

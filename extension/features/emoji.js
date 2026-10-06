@@ -1,5 +1,5 @@
 /* ================================================================
-   Journal — lib/emoji.js
+   Journal — features/emoji.js
    emoji Picker（渲染 + 最近使用持久化）。
    纯搜素与数据已下沉到 shared/emoji-search.js（叶子层）；
    本文件保留 DOM 渲染 renderEmojiPicker 与 localStorage 的「最近使用」。

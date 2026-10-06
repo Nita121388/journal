@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/10-06-ui-split/prd.md", "reason": "逐条核对验收标准（行数、目录、状态集中化）"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "核对拆分结果是否符合 §5 与依赖铁律"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "检查渲染函数纯度、幂等、a11y、无 innerHTML 注入"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门：lint / dev-loop 全绿"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "检查状态是否集中、无隐式双份状态"}

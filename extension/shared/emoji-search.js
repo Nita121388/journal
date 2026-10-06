@@ -3,7 +3,7 @@
  *
  * 只做纯函数检索，不碰 DOM / localStorage。
  * 数据来自 ./emoji-data.js（完整库，含中英文关键词）。
- * 渲染与「最近使用」持久化见 features/emoji.js（尚未搬迁，暂在 lib/emoji.js）。
+ * 渲染与「最近使用」持久化见 features/emoji.js。
  *
  * 约束（由 ESLint 边界规则强制）：无 DOM / 无 storage / 无 chrome / 无 node:。
  */

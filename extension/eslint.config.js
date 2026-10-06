@@ -96,7 +96,7 @@ export default [
       'no-restricted-imports': ['error', {
         patterns: [
           { group: ['**/platform/**', '**/state/**', '**/views/**', '**/features/**',
-                    '**/components/**', '**/entries/**', '**/lib/**'],
+                    '**/components/**', '**/entries/**'],
             message: 'shared/ 是纯逻辑叶子，不得依赖其他层。' },
           { group: ['node:*'], message: 'shared/ 必须可在浏览器与 Node 双方运行，禁止 node: 内置模块。' },
         ],

@@ -12,24 +12,26 @@ import {
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
   RESERVED_PROPS, normalizeProgress,
-} from './shared/model.js';
+} from '../shared/model.js';
 import {
   getAllCards, getCardsByDay,
   createCardEntry, updateCardEntry, deleteCardEntry,
-} from './state/repository.js';
-import { getSettings } from './state/settings.js';
-import { pullFromHost, startHostSync } from './state/sync-bridge.js';
-import { getHostMeta, setHostMeta } from './state/host-client.js';
-import { getPort } from './platform/index.js';
-import { DEFAULT_HOST_BASE, ROUTES } from './shared/protocol.js';
-import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
-import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from './shared/prop-infer.js';
-import { inferPropWithLLM } from './lib/prop-llm.js';
-import { autoEnhance as enhanceSelects } from './lib/select.js';
+} from '../state/repository.js';
+import { getSettings } from '../state/settings.js';
+import { pullFromHost, startHostSync } from '../state/sync-bridge.js';
+import { getHostMeta, setHostMeta } from '../state/host-client.js';
+import { getPort } from '../platform/index.js';
+import { DEFAULT_HOST_BASE, ROUTES } from '../shared/protocol.js';
+import { els } from '../components/dom-refs.js';
+import { showToast } from '../features/toast.js';
+import { renderEmojiPicker, recordRecentEmoji } from '../features/emoji.js';
+import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from '../shared/prop-infer.js';
+import { inferPropWithLLM } from '../features/prop-llm.js';
+import { autoEnhance as enhanceSelects } from '../features/select.js';
 import {
   initFieldRegistry, getFieldDef, listFieldDefs, isReservedKey,
   writeValueToCard, readValueFromCard,
-} from './shared/field-registry.js';
+} from '../shared/field-registry.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 
@@ -611,60 +613,10 @@ async function saveEditor() {
 }
 
 /* ─── Toast 提示 ────────────────────────────────────── */
-
-let toastTimer = null;
-function showToast(msg, kind = '') {
-  const el = document.getElementById('toast');
-  if (!el) return;
-  el.textContent = msg;
-  el.className = 'toast' + (kind ? ' toast-' + kind : '');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.add('hidden'), kind === 'error' ? 12000 : 2600);
-}
+// 已提取到 features/toast.js（见顶部 import）。
 
 /* ─── DOM 引用 ────────────────────────────────────────── */
-
-const els = {
-  todayDisplay: document.getElementById('today-display'),
-  heatmap: document.getElementById('heatmap-container'),
-  heatmapStreak: document.getElementById('heatmap-streak'),
-  calPrev: document.getElementById('cal-prev'),
-  calNext: document.getElementById('cal-next'),
-  calToday: document.getElementById('cal-today'),
-  calMonthLabel: document.getElementById('cal-month-label'),
-  calendarGrid: document.getElementById('calendar-grid'),
-  timelineContainer: document.getElementById('timeline-container'),
-  timelineDateHeader: document.getElementById('timeline-date-header'),
-  viewPrev: document.getElementById('view-prev'),
-  viewNext: document.getElementById('view-next'),
-  viewToday: document.getElementById('view-today'),
-  viewModeBtns: document.querySelectorAll('.view-mode-btn'),
-  btnSpan: document.getElementById('btn-span'),
-  btnWide: document.getElementById('btn-wide-mode'),
-  cardpoolList: document.getElementById('cardpool-list'),
-  cardpoolCount: document.getElementById('cardpool-count'),
-  btnNewCard: document.getElementById('btn-new-card'),
-  btnTemplate: document.getElementById('btn-template'),
-  poolLayoutBtn: document.getElementById('btn-pool-layout'),
-  saveViewBtn: document.getElementById('btn-save-view'),
-  viewSelect: document.getElementById('pool-view-select'),
-  poolFilterRow: document.getElementById('pool-filter-row'),
-
-  // skills
-  skillsSection: document.getElementById('skills-section'),
-  skillsCount: document.getElementById('skills-count'),
-  skillsToggle: document.getElementById('btn-skills-toggle'),
-  skillsPanel: document.getElementById('skills-panel'),
-  skillsOverall: document.getElementById('skills-overall'),
-  skillsList: document.getElementById('skills-list'),
-  skillsCopyAll: document.getElementById('btn-skills-copy'),
-  hostStatusBtn: document.getElementById('btn-host-status'),
-  btnPanels: document.getElementById('btn-panels'),
-  board: document.getElementById('board'),
-  btnQuickAdd: document.getElementById('btn-quick-add'),
-  poolExtra: document.getElementById('pool-extra'),
-  poolExtraFilter: document.getElementById('pool-extra-filter'),
-};
+// 已提取到 components/dom-refs.js（见顶部 import）。
 
 const HOST_HEALTH_URL = `${DEFAULT_HOST_BASE}${ROUTES.health}`;
 
