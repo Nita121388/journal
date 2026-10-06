@@ -2492,6 +2492,10 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* ─── 应用内对话框（替代原生 prompt/confirm） ─────────── */
 
+/* 对话框可能从编辑器 / 模板构建器内部触发；三者 z-index 相同时由 DOM 顺序决定，
+ * 而它们在 HTML 里都排在 #app-dialog 之后 → 会把对话框盖住并拦截其上的点击。 */
+#app-dialog { z-index: 300; }
+
 .app-dialog {
   width: 88%;
   max-width: 380px;

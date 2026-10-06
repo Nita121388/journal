@@ -190,8 +190,13 @@ export async function runSmoke({ page, width }) {
   add('「高」胶囊高亮（单选语义）', prioActive === 'high', String(prioActive));
 
   await page.locator('#card-editor-cancel').click();
-  await page.waitForTimeout(250);
-  add('编辑器可取消关闭', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
+  await page.waitForTimeout(300);
+  // 优先级刚被改过 → 脏状态 → closeEditor 前会先确认（新增行为）
+  if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+    await page.locator('#app-dialog-actions .btn-primary').click();
+    await page.waitForTimeout(300);
+  }
+  add('编辑器可取消关闭（脏状态经确认）', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
 
   // 14) 应用内对话框（替代原生 prompt）：命名视图入口
   await page.locator('#btn-panels').click();
@@ -294,6 +299,60 @@ export async function runSmoke({ page, width }) {
   add('时间线卡片键盘可达（tabIndex=0 + role=button）',
     titleOnly.tabIndex === 0 && titleOnly.role === 'button', `tabIndex=${titleOnly.tabIndex} role=${titleOnly.role}`);
   add('时间线卡片有可访问名', /只填标题的卡/.test(titleOnly.aria), titleOnly.aria);
+
+  // 清理：删掉本场景创建的卡片。否则后续宽度会带着它跑，
+  // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
+  await page.evaluate(() => {
+    const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
+      .find((el) => (el.textContent || '').includes('只填标题的卡'));
+    hit?.querySelector('button[aria-label="删除卡片"]')?.click();
+  });
+  await page.waitForTimeout(400);
+  if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+    await page.locator('#app-dialog-actions .btn-primary').click();
+    await page.waitForTimeout(600);
+  }
+  const cleaned = await page.evaluate(
+    () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,
+  ).catch(() => false);
+  add('场景自清理（删除本场景创建的卡片）', cleaned);
+
+  // 18) 关闭语义统一：遮罩点击与 Esc 同义（不再“点击保存”）；脏状态先确认
+  await page.locator('#btn-quick-add').click();
+  await page.waitForTimeout(400);
+  // 必须在浮层**已打开**后再取 bbox（隐藏时 boundingBox() 返回 null）
+  const ov = await page.locator('#card-editor-overlay').boundingBox();
+  // 干净状态：点遮罩边缘 → 直接关闭
+  if (ov) await page.mouse.click(ov.x + 6, ov.y + 6);
+  await page.waitForTimeout(350);
+  add('遮罩点击=关闭（干净状态）', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
+
+  // 脏状态：填标题后点遮罩 → 先确认，不得静默丢弃
+  await page.locator('#btn-quick-add').click();
+  await page.waitForTimeout(400);
+  await page.locator('#card-editor-title').fill('未保存的改动');
+  if (ov) await page.mouse.click(ov.x + 6, ov.y + 6);
+  await page.waitForTimeout(400);
+  const dirtyDlg = await page.locator('#app-dialog').isVisible().catch(() => false);
+  const stillOpen = await page.locator('#card-editor-overlay').isVisible().catch(() => false);
+  add('脏状态关闭会先确认（不静默丢弃）', dirtyDlg && stillOpen, `dialog=${dirtyDlg} editor=${stillOpen}`);
+
+  if (dirtyDlg) {
+    await page.locator('#app-dialog-actions .btn-secondary').click(); // 取消
+    await page.waitForTimeout(350);
+    add('确认框取消后编辑器保留', await page.locator('#card-editor-overlay').isVisible().catch(() => false));
+    add('取消后确认框已关闭', !(await page.locator('#app-dialog').isVisible().catch(() => true)));
+
+    await page.locator('#card-editor-cancel').click();
+    await page.waitForTimeout(400);
+    await page.locator('#app-dialog-actions .btn-primary').click(); // 放弃
+    await page.waitForTimeout(400);
+    add('确认放弃后编辑器关闭', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
+  } else {
+    add('确认框取消后编辑器保留', false, '确认框未出现');
+    add('取消后确认框已关闭', false, '确认框未出现');
+    add('确认放弃后编辑器关闭', false, '确认框未出现');
+  }
 
   return { checks };
 }

@@ -155,7 +155,9 @@ export async function confirmDialog({ title, message, okLabel = '确定', danger
     },
     actions: [
       { label: '取消', value: null },
-      { label: okLabel, primary: !danger, danger, value: true },
+      // 主按钮始终是 primary（危险操作用 is-danger 变红）；
+      // 否则危险确认框会出现两个外观相同的次要按钮，用户无法判断该点哪个。
+      { label: okLabel, primary: true, danger, value: true },
     ],
   });
   return r === true;

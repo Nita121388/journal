@@ -14,8 +14,9 @@ import {
   tplNpOk, tplNpCancel, tplNpType, tplNpOptions,
 } from '../components/dom-refs.js';
 import {
-  openEmojiPicker, saveEditor, closeEditor, updateEditorDuration, onEditorDurationInput,
+  openEmojiPicker, saveEditor, updateEditorDuration, onEditorDurationInput,
   onEditorStatusChange, onStatusClicked, onEditorProgressChange, updateStatusSeg, updatePrioritySeg,
+  requestCloseEditor,
 } from '../features/card-editor.js';
 import { openPropForm, closePropForm, onPropFormOk, openPropLibrary } from '../features/editor-props.js';
 import { tplPropOverlay, closeTplPropDialog, closeTemplateBuilder } from '../features/template-builder.js';
@@ -52,7 +53,7 @@ export function bindEditor() {
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (tplOpen) closeTemplateBuilder(); else closeEditor();
+      if (tplOpen) closeTemplateBuilder(); else void requestCloseEditor();
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -62,8 +63,8 @@ export function bindEditor() {
   });
 
   editorSave.addEventListener('click', saveEditor);
-  editorCancel.addEventListener('click', closeEditor);
-  editorClose.addEventListener('click', closeEditor);
+  editorCancel.addEventListener('click', () => void requestCloseEditor());
+  editorClose.addEventListener('click', () => void requestCloseEditor());
   editorStart?.addEventListener('change', updateEditorDuration);
   editorEnd?.addEventListener('change', updateEditorDuration);
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
@@ -103,8 +104,10 @@ export function bindEditor() {
     if (wrap) wrap.classList.toggle('hidden', propType.value !== 'select' && propType.value !== 'multi');
   });
   saveTemplateBtn?.addEventListener('click', saveEditorAsTemplate);
+  // 遮罩点击 = 关闭（与 Esc / 取消同一语义）；有未保存改动时先确认。
+  // 曾经是「点遮罩=保存」，与 Esc 的丢弃语义相反 —— 同一点击动作两种相反结果。
   editorOverlay.addEventListener('click', (e) => {
-    if (e.target === editorOverlay) saveEditor();
+    if (e.target === editorOverlay) void requestCloseEditor();
   });
 
   // ── 模板构建器事件 ──

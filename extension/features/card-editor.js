@@ -7,6 +7,7 @@
  */
 
 import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { confirmDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
@@ -172,6 +173,61 @@ export function openEditor(card, time, date, assignedDate = undefined) {
 
   editorOverlay.classList.remove('hidden');
   editorContent.focus();
+  editorSnapshot = formSnapshot();
+}
+
+/* ─── 脏检查与关闭确认 ─────────────────────────────────── */
+
+/** 打开编辑器时的表单快照；用于判断是否存在未保存改动。 */
+let editorSnapshot = '';
+
+/** 当前表单字段的规范化快照（只看用户可改的字段）。 */
+function formSnapshot() {
+  return JSON.stringify({
+    title: editorTitle?.value ?? '',
+    content: editorContent?.value ?? '',
+    type: editorType?.value ?? '',
+    date: editorDate?.value ?? '',
+    status: editorStatus?.value ?? '',
+    statusCustom: editorStatusCustom?.value ?? '',
+    progress: editorProgress?.value ?? '',
+    priority: editorPriority?.value ?? '',
+    start: editorStart?.value ?? '',
+    end: editorEnd?.value ?? '',
+    duration: editorDurationMin?.value ?? '',
+    project: editorProjectInput?.value ?? '',
+    tags: editorTags,
+    emoji: editorEmoji,
+    props: editorProps,
+  });
+}
+
+/**
+ * 编辑器是否有未保存改动。
+ * @returns {boolean}
+ */
+export function isEditorDirty() {
+  return formSnapshot() !== editorSnapshot;
+}
+
+/**
+ * 请求关闭编辑器：有未保存改动时先确认。
+ *
+ * 遮罩点击、Esc、取消按钮**统一走这条路径** ——
+ * 之前是「点遮罩=保存、按 Esc=丢弃」，同一动作两种相反结果，极易误存/误丢；
+ * 且 closeEditor 会直接清空表单，没有二次确认。
+ */
+export async function requestCloseEditor() {
+  if (isEditorDirty()) {
+    const yes = await confirmDialog({
+      title: '放弃修改？',
+      message: '编辑器里有未保存的改动，关闭后不会保存。',
+      okLabel: '放弃',
+      danger: true,
+    });
+    if (!yes) return;
+  }
+  closeEditor();
 }
 
 /**
@@ -186,6 +242,9 @@ export function openEditorRange(start, end, date, assignedDate = undefined) {
   openEditor(null, start, date, assignedDate);
   if (editorEnd) editorEnd.value = end;
   updateEditorDuration();
+  // 快照必须在**所有**预填完成之后重取：否则「刚打开就是脏状态」，
+  // 点取消会弹确认框（拖选建卡后按取消 = 被问“要放弃修改吗”，很荒谬）。
+  editorSnapshot = formSnapshot();
 }
 
 /** 编辑器持续时长显示（起止 → 时长 双向） */
@@ -280,6 +339,7 @@ function updateEditorProgressLabel() {
 
 export function closeEditor() {
   editorOverlay.classList.add('hidden');
+  editorSnapshot = '';
   editingCardId = null;
   editorContent.value = '';
   editorTags = [];
