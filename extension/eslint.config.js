@@ -28,6 +28,7 @@ export default [
         MutationObserver: 'readonly',
         CustomEvent: 'readonly',
         Event: 'readonly',
+        KeyboardEvent: 'readonly',
         HTMLElement: 'readonly',
         HTMLSelectElement: 'readonly',
         Option: 'readonly',
