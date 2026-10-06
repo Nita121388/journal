@@ -1,7 +1,12 @@
 /**
  * model.js — 纯函数层，无 DOM，无 storage 读写，无外部依赖
- * 依赖图：model.js 导入 nothing（纯推导）
+ * 依赖图：model.js → card-schema.js（同为 shared 叶子）
  */
+
+import {
+  CARD_TYPES, PRIORITIES, RESERVED_PROPS,
+  statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeProps,
+} from './card-schema.js';
 
 /**
  * 生成当天日期 key，格式 "YYYY-MM-DD"
@@ -32,51 +37,9 @@ export function currentTime() {
 
 /* ─── 卡片操作 ───────────────────────────────────────────── */
 
-const STATUSES = ['none', 'todo', 'doing', 'done'];
-const PRIORITIES = ['high', 'medium', 'low'];
-
-/** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖 */
-export const RESERVED_PROPS = new Set([
-  'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime',
-  'priority', 'tags', 'emoji', 'title', 'status', 'progress', 'duration', 'props',
-  'project', 'meta', 'createdAt', 'updatedAt', 'deleted',
-  'createdBy', 'updatedBy', 'provenance', 'deviceId', 'lastAgent',
-]);
-
-/** 由 type+done 推导状态（历史数据读侧映射） */
-export function statusFromTypeDone(type, done) {
-  if (type === 'task') return done ? 'done' : 'todo';
-  return 'none';
-}
-
-/** 归一化进度 0-100；done 且无进度时补 100 */
-export function normalizeProgress(p, status) {
-  let v = null;
-  if (p !== null && p !== undefined && p !== '') {
-    const n = Number(p);
-    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
-  }
-  if (v == null && status === 'done') v = 100;
-  return v;
-}
-
-/** 归一化时长（分钟） */
-export function normalizeDuration(d) {
-  if (d === null || d === undefined || d === '') return null;
-  const n = Number(d);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
-}
-
-/** 归一化自定义属性：去保留字 */
-export function normalizeProps(input) {
-  if (!input || typeof input !== 'object') return {};
-  const out = {};
-  for (const [k, v] of Object.entries(input)) {
-    if (typeof k !== 'string' || !k || RESERVED_PROPS.has(k)) continue;
-    out[k] = v;
-  }
-  return out;
-}
+// 卡片字段枚举与归一化原语统一来自 card-schema.js（唯一真相）。
+// 以下 re-export 仅为兼容既有调用方；新代码请直接从 ./card-schema.js 引入。
+export { RESERVED_PROPS, statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeProps };
 
 /**
  * 创建一张新卡片
@@ -86,7 +49,7 @@ export function normalizeProps(input) {
 export function createCard(patch = {}) {
   const now = new Date().toISOString();
   const start = patch.startTime ?? patch.time ?? null;
-  const type = ['text', 'task', 'idea'].includes(patch.type) ? patch.type : 'text';
+  const type = CARD_TYPES.includes(patch.type) ? patch.type : 'text';
   const done = Boolean(patch.done);
   const status = typeof patch.status === 'string' && patch.status.trim() ? patch.status.trim() : statusFromTypeDone(type, done);
   const progress = normalizeProgress(patch.progress, status);

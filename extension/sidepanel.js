@@ -11,20 +11,20 @@ import {
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
   getCardStartTime, getCardEndTime, getCardDuration, layoutScheduleLanes,
   RESERVED_PROPS, normalizeProgress,
-} from './lib/model.js';
+} from './shared/model.js';
 import {
   getAllCards, getCardsByDay, getPoolCards, getHeatmapData,
   createCardEntry, updateCardEntry, deleteCardEntry, getSettings,
 } from './lib/store.js';
 import { pullFromHost, startHostSync, getHostMeta, setHostMeta } from './lib/host-sync.js';
 import { renderEmojiPicker, recordRecentEmoji } from './lib/emoji.js';
-import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from './lib/prop-infer.js';
+import { inferProp, dedupeKey, defaultValueForType, PROP_TYPES } from './shared/prop-infer.js';
 import { inferPropWithLLM } from './lib/prop-llm.js';
 import { autoEnhance as enhanceSelects } from './lib/select.js';
 import {
   initFieldRegistry, getFieldDef, listFieldDefs, isReservedKey,
   writeValueToCard, readValueFromCard,
-} from './lib/field-registry.js';
+} from './shared/field-registry.js';
 
 /* ─── 工具函数 ──────────────────────────────────────── */
 

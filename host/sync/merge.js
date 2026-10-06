@@ -6,6 +6,12 @@
  * 该模块不感知数据来自本地文件夹 / WebDAV / GitHub —— transport 与合并完全解耦。
  */
 
+// 卡片归一化原语统一来自 shared/card-schema.js（单一真相，跨 host 与 UI 共享）。
+import {
+  CARD_TYPES, PRIORITIES, STATUSES,
+  statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeTags,
+} from '../../extension/shared/card-schema.js';
+
 /** 会被同步的卡片业务字段 */
 export const CARD_FIELDS = Object.freeze([
   'content', 'type', 'done', 'title', 'status', 'progress', 'duration', 'props', 'project',
@@ -28,42 +34,11 @@ function normalizeMeta(input) {
   return Object.keys(out).length ? out : null;
 }
 
-function normalizeTags(input) {
-  if (!Array.isArray(input)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const t of input) {
-    if (typeof t !== 'string') continue;
-    const s = t.trim().toLowerCase();
-    if (!s || seen.has(s)) continue;
-    seen.add(s);
-    out.push(s);
-  }
-  return out;
-}
+const TYPES = CARD_TYPES; // 保留局部别名，避免改动下方引用
 
-const TYPES = ['text', 'task', 'idea'];
-const PRIORITIES = ['high', 'medium', 'low'];
-const STATUSES = ['none', 'todo', 'doing', 'done'];
-
-function statusFromTypeDone(type, done) {
-  if (type === 'task') return done ? 'done' : 'todo';
-  return 'none';
-}
-function normalizeProgress(p, status) {
-  let v = null;
-  if (p !== null && p !== undefined && p !== '') {
-    const n = Number(p);
-    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
-  }
-  if (v == null && status === 'done') v = 100;
-  return v;
-}
-function normalizeDuration(d) {
-  if (d === null || d === undefined || d === '') return null;
-  const n = Number(d);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
-}
+// 注意：本函数与 shared/card-schema.js 的 normalizeProps **故意不同**——
+// 合并引擎需要的是「对比形状」，不剔除保留字，以保持与历史合并结果逐字节一致。
+// 修改此行为需单独任务 + 合并回归用例，不得在重构中顺带改变。
 function normalizeProps(input) {
   if (!input || typeof input !== 'object') return {};
   const out = {};

@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "架构契约：shared 为纯逻辑叶子、依赖铁律 §2、目标结构 §1、ESLint 边界 §7"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/prd.md", "reason": "父任务 R1/R6 与 AC1 验收（shared 零依赖、host 去重）"}
+{"file": ".trellis/tasks/10-06-shared-package/prd.md", "reason": "本任务需求与验收标准"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "lib 纯逻辑、无 DOM 的现行约定；搬迁必须保持纯净度"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "lib 模块纯度规则与依赖图约定"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "JSDoc @typedef 约定，card-schema/protocol 需补齐类型"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "host SQLite 卡片归一化语义，去重时不得改变行为"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "去重与复用判断标准（host 与扩展重复的 normalizer 如何合并）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层契约检查：host 消费 shared 叶子的边界"}

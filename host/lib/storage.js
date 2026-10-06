@@ -17,55 +17,14 @@ import {
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createLogger } from './logger.js';
+// 卡片字段枚举与归一化原语统一来自 shared/card-schema.js（单一真相，跨 host 与 UI 共享）。
+import {
+  CARD_TYPES, PRIORITIES, STATUSES, RESERVED_PROPS,
+  statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeProps, normalizeTags,
+} from '../../extension/shared/card-schema.js';
 
-const CARD_TYPES = ['text', 'task', 'idea'];
-const PRIORITIES = ['high', 'medium', 'low'];
-const STATUSES = ['none', 'todo', 'doing', 'done'];
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const JOURNAL_PREFIX = 'c_mj_';
-
-/** 由 type+done 推导状态（历史数据读侧映射，不写库） */
-function statusFromTypeDone(type, done) {
-  if (type === 'task') return done ? 'done' : 'todo';
-  return 'none';
-}
-
-/** 归一化进度 0-100；done 且无进度时补 100（兼容旧 task+done） */
-function normalizeProgress(p, status) {
-  let v = null;
-  if (p !== null && p !== undefined && p !== '') {
-    const n = Number(p);
-    if (Number.isFinite(n)) v = Math.max(0, Math.min(100, Math.round(n)));
-  }
-  if (v == null && status === 'done') v = 100;
-  return v;
-}
-
-/** 归一化时长（分钟），非法/负数 → null */
-function normalizeDuration(d) {
-  if (d === null || d === undefined || d === '') return null;
-  const n = Number(d);
-  return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
-}
-
-/** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖 */
-export const RESERVED_PROPS = new Set([
-  'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime',
-  'endTime', 'priority', 'tags', 'emoji', 'title', 'status', 'progress',
-  'duration', 'props', 'project', 'meta', 'createdAt', 'updatedAt', 'deleted',
-  'createdBy', 'updatedBy', 'provenance', 'deviceId', 'lastAgent',
-]);
-
-/** 归一化自定义属性：去保留字 + 只保留字符串 key */
-function normalizeProps(input) {
-  if (!input || typeof input !== 'object') return {};
-  const out = {};
-  for (const [k, v] of Object.entries(input)) {
-    if (typeof k !== 'string' || !k || RESERVED_PROPS.has(k)) continue;
-    out[k] = v;
-  }
-  return out;
-}
 
 /* ─── 通用工具 ───────────────────────────────────────── */
 
@@ -80,20 +39,8 @@ export function genId(prefix = 'c_') {
 
 function asString(v) { return typeof v === 'string' ? v : (v == null ? null : String(v)); }
 
-/** 归一化标签数组：trim + 小写 + 去重 + 过滤空串 */
-export function normalizeTags(input) {
-  if (!Array.isArray(input)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const t of input) {
-    if (typeof t !== 'string') continue;
-    const s = t.trim().toLowerCase();
-    if (!s || seen.has(s)) continue;
-    seen.add(s);
-    out.push(s);
-  }
-  return out;
-}
+// 兼容既有调用方（如 host/test/storage.test.mjs）：原样再导出 shared 的叶子。
+export { RESERVED_PROPS, normalizeTags };
 
 /** 归一化卡片：补默认值 + 约束枚举，兼容旧数据 */
 export function normalizeCard(card = {}) {

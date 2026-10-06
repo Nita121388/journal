@@ -1,5 +1,5 @@
 /* ================================================================
-   Journal — lib/prop-infer.js
+   Journal — shared/prop-infer.js
    按属性名推断属性定义：type / icon / options / defaultValue / key。
    纯本地规则，零网络、零依赖、零副作用（不碰 storage）。
 
@@ -9,7 +9,7 @@
    - 不 import storage / DOM，可在任意环境（node 测试、service worker、host）复用。
    ================================================================ */
 
-import { searchEmojis } from './emoji.js';
+import { searchEmojis } from './emoji-search.js';
 
 /**
  * 关键词规则表。first-match-wins：按数组顺序匹配 name。

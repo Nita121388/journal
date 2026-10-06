@@ -1,11 +1,11 @@
 /* ================================================================
    Journal — lib/emoji.js
-   轻量 emoji Picker：分类浏览 + 搜索 + 最近使用 + 自由输入。
-   数据来自 lib/emoji-data.js（完整库，含中英文关键词）。
-   最近使用存 localStorage['journal.recentEmojis']。
+   emoji Picker（渲染 + 最近使用持久化）。
+   纯搜素与数据已下沉到 shared/emoji-search.js（叶子层）；
+   本文件保留 DOM 渲染 renderEmojiPicker 与 localStorage 的「最近使用」。
    ================================================================ */
 
-import { EMOJI_DB, EMOJI_CATS } from './emoji-data.js';
+import { EMOJI_DB, EMOJI_CATS, searchEmojis, emojisByCat } from '../shared/emoji-search.js';
 
 const RECENT_MAX = 15;
 const RECENT_KEY = 'journal.recentEmojis';
@@ -24,28 +24,8 @@ export function recordRecentEmoji(char) {
   try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* noop */ }
 }
 
-/** 搜索 emoji。匹配优先级：emoji 字符 > 短码前缀 > 名称前缀 > 子串。空查询返回 null。 */
-export function searchEmojis(query) {
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return null;
-  const exact = [];
-  const prefix = [];
-  const sub = [];
-  for (const item of EMOJI_DB) {
-    const haystack = `${item.e} ${item.n} ${item.k}`.toLowerCase();
-    if (item.e === q) exact.push(item);
-    else if (item.k.toLowerCase().includes(q) || item.n.toLowerCase().startsWith(q)) prefix.push(item);
-    else if (haystack.includes(q)) sub.push(item);
-  }
-  return [...exact, ...prefix, ...sub].slice(0, 48);
-}
-
-/** 获取分类下的 emoji 列表 */
-export function emojisByCat(catId) {
-  return EMOJI_DB.filter(e => e.c === catId);
-}
-
-export { EMOJI_DB, EMOJI_CATS };
+/** 搜索与分类检索：转出 shared 叶子实现，供既有调用方保持路径不变。 */
+export { EMOJI_DB, EMOJI_CATS, searchEmojis, emojisByCat };
 
 /* ---------- 渲染 ---------- */
 

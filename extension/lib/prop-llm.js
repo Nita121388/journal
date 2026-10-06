@@ -1,7 +1,7 @@
 /**
  * prop-llm.js — 模板属性推断的 LLM 增强层（扩展侧）
  *
- * 依赖图：prop-llm.js → prop-infer.js（本地规则）+ host-sync.js（host 代理）
+ * 依赖图：prop-llm.js → shared/prop-infer.js（本地规则）+ host-sync.js（host 代理）
  *
  * 设计要点：
  *  - prop-infer.js 保持纯本地、永不联网；本模块是唯一的 LLM 入口。
@@ -10,7 +10,7 @@
  *  - 结果缓存到 chrome.storage.local（按 name），重复属性名不重复计费
  */
 
-import { inferProp, defaultValueForType } from './prop-infer.js';
+import { inferProp, defaultValueForType } from '../shared/prop-infer.js';
 import { hostApi } from './host-sync.js';
 
 const CACHE_KEY = 'ai.inferCache';

@@ -11,7 +11,7 @@ import {
 import {
   createCard, migrateOldJournals, migrateOldTodos,
   getCardsByDate, getCardPool,
-} from './model.js';
+} from '../shared/model.js';
 
 const KEY = Object.freeze({
   CARDS: 'cards',

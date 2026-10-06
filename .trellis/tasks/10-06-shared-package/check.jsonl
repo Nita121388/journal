@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/10-06-shared-package/prd.md", "reason": "逐条核对验收标准"}
+{"file": ".trellis/tasks/10-06-package-boundaries-refactor/design.md", "reason": "核对 shared 是否真正零依赖、边界规则是否通过"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "检查 lib/shared 纯度与目录约定"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "确认 host 归一化行为未因去重而变化（回归测试 103 全绿）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "确认无反向依赖、契约未漂移"}
