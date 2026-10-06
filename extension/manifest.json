@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Journal (dev)",
   "version": "0.1.0",
-  "description": "每日日志 + 热力图打卡 + TODO + AI 增删改查",
-  "permissions": ["storage", "sidePanel", "nativeMessaging"],
+  "description": "卡片式日程日志：时间线 / 待办 / 热力图打卡 / 到点提醒 / AI 增删改查",
+  "permissions": ["storage", "sidePanel", "nativeMessaging", "alarms", "notifications"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
   "side_panel": {
     "default_path": "sidepanel.html"

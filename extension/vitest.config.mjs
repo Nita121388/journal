@@ -18,7 +18,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['{shared,state,views}/**/*.test.js', 'eslint-boundaries.test.js'],
+    include: ['{shared,state,views,features}/**/*.test.js', 'eslint-boundaries.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

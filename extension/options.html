@@ -166,6 +166,11 @@
         <span class="collapse-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div class="collapse-content">
+      <label class="field-row">
+        <input id="reminders-enabled" type="checkbox" checked />
+        <span>到点提醒（卡片有开始时间时发系统通知）</span>
+      </label>
+      <p class="desc">提醒完全在本机计算，不联网。关掉后不再弹通知。<a href="https://github.com/Nita121388/journal/blob/main/docs/user-guide.md" target="_blank" rel="noopener" id="help-link">使用指南</a></p>
       <p class="desc">从 <b>host 权威库</b>导出全部数据（不是扩展缓存副本）：JSON 可备份/交给 AI，Markdown 便于人读归档。<b>导出文件不含任何密钥</b>。</p>
       <button id="export-data" class="btn btn-block" type="button" title="从 host 权威库导出全部数据（非扩展缓存副本）">⬇️ 导出全部数据（JSON）</button>
       <button id="export-md" class="btn btn-block" type="button" title="导出为人类可读的 Markdown">📄 导出为 Markdown</button>

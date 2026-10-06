@@ -10,6 +10,7 @@ import {
 } from '../state/host-client.js';
 import { autoEnhance as enhanceSelects } from '../features/select.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
+import { getPort } from '../platform/index.js';
 import { cardsToMarkdown } from '../shared/md-export.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
@@ -47,6 +48,7 @@ const els = {
   copyBtn: document.getElementById('copy-prompt'),
   copyFeedback: document.getElementById('copy-feedback'),
   exportBtn: document.getElementById('export-data'),
+  remindersEnabled: document.getElementById('reminders-enabled'),
   exportMdBtn: document.getElementById('export-md'),
   exportFeedback: document.getElementById('export-feedback'),
   // 同步
@@ -542,6 +544,18 @@ async function init() {
   await applyTheme();
   els.promptTextarea.value = PROMPT_TEMPLATE;
   els.copyBtn.addEventListener('click', copyPrompt);
+  // 到点提醒开关（默认开）：写 chrome.storage.local，由 Service Worker 读取
+  const REMINDERS_KEY = 'journal.remindersEnabled';
+  try {
+    const prefs = await getPort().storageGet(REMINDERS_KEY);
+    if (els.remindersEnabled) els.remindersEnabled.checked = prefs?.[REMINDERS_KEY] !== false;
+  } catch { /* 读不到就保持默认开 */ }
+  els.remindersEnabled?.addEventListener('change', async (e) => {
+    try {
+      await getPort().storageSet({ [REMINDERS_KEY]: e.target.checked });
+    } catch { /* 忽略：写失败不影响其它设置 */ }
+  });
+
   els.exportBtn.addEventListener('click', exportData);
   els.exportMdBtn?.addEventListener('click', exportMarkdown);
 
