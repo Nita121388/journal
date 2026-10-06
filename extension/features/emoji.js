@@ -6,6 +6,7 @@
    ================================================================ */
 
 import { EMOJI_DB, EMOJI_CATS, searchEmojis, emojisByCat } from '../shared/emoji-search.js';
+import { escapeHtml as esc } from '../shared/format.js';
 import { getPort } from '../platform/index.js';
 
 const RECENT_MAX = 15;
@@ -30,10 +31,7 @@ export { EMOJI_DB, EMOJI_CATS, searchEmojis, emojisByCat };
 
 /* ---------- 渲染 ---------- */
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+// esc（HTML 转义）已统一到 shared/format.js 的 escapeHtml（唯一实现处）。
 
 /**
  * 渲染 emoji picker 到 container。

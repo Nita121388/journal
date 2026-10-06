@@ -7,19 +7,18 @@
 
 import {
   editorOverlay, editorStart, editorEnd, editorDurationMin, editorStatus,
-  editorStatusCustom, editorProgress, editorProgressNumber, btnAddProp, btnPropLib,
-  propFormOk, propFormCancel, propType, propOptions, saveTemplateBtn, editorSave,
-  editorCancel, editorClose,
+  editorStatusCustom, editorStatusSeg, editorPrioritySeg, editorProgress, editorProgressNumber,
+  btnAddProp, btnPropLib, btnEmojiTile, propFormOk, propFormCancel, propType, propOptions,
+  saveTemplateBtn, editorSave, editorCancel, editorClose,
+  tplBuilderOverlay, tplBuilderClose, tplCancel, tplSave, tplPrefill, tplBuilderTile,
+  tplNpOk, tplNpCancel, tplNpType, tplNpOptions,
 } from '../components/dom-refs.js';
 import {
   openEmojiPicker, saveEditor, closeEditor, updateEditorDuration, onEditorDurationInput,
-  onEditorStatusChange, onStatusClicked, onEditorProgressChange, updateStatusSeg,
+  onEditorStatusChange, onStatusClicked, onEditorProgressChange, updateStatusSeg, updatePrioritySeg,
 } from '../features/card-editor.js';
 import { openPropForm, closePropForm, onPropFormOk, openPropLibrary } from '../features/editor-props.js';
-import {
-  tplNpType, tplNpOptions, tplPropOverlay,
-  closeTplPropDialog, closeTemplateBuilder,
-} from '../features/template-builder.js';
+import { tplPropOverlay, closeTplPropDialog, closeTemplateBuilder } from '../features/template-builder.js';
 import {
   fieldPickerEl, closeFieldPicker, propRowMenuEl, closePropRowMenu,
   rowIconPop, closeRowIconPicker,
@@ -33,9 +32,8 @@ import {
 export function bindEditor() {
   // ── 键盘快捷键（Esc 关闭 / ⌘⏎ 保存） ──
   document.addEventListener('keydown', (e) => {
-    const tplOv = document.getElementById('template-builder-overlay');
     const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
-    const tplOpen = tplOv && !tplOv.classList.contains('hidden');
+    const tplOpen = tplBuilderOverlay && !tplBuilderOverlay.classList.contains('hidden');
     if (!cardOpen && !tplOpen) return;
     // 属性行右键菜单 / 图标浮层 / 字段选择浮层开着时，Esc 只关浮层
     if (propRowMenuEl && e.key === 'Escape') {
@@ -71,9 +69,14 @@ export function bindEditor() {
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
   editorStatus?.addEventListener('change', onEditorStatusChange);
   // 分段状态胶囊
-  document.getElementById('card-editor-status-seg')?.addEventListener('click', (e) => {
+  editorStatusSeg?.addEventListener('click', (e) => {
     const btn = e.target.closest('.seg');
     if (btn?.dataset.status) onStatusClicked(btn.dataset.status);
+  });
+  // 分段优先级胶囊（高/中/低）
+  editorPrioritySeg?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.seg');
+    if (btn?.dataset.priority) updatePrioritySeg(btn.dataset.priority);
   });
   // 自定义状态：输入即设为自定义状态，清空回退纯记录
   editorStatusCustom?.addEventListener('input', (e) => {
@@ -88,7 +91,7 @@ export function bindEditor() {
     onEditorProgressChange();
   });
   // 点击头部图标瓦片打开 emoji picker
-  document.getElementById('btn-emoji-tile')?.addEventListener('click', openEmojiPicker);
+  btnEmojiTile?.addEventListener('click', openEmojiPicker);
   editorProgress?.addEventListener('change', onEditorProgressChange);
   editorProgress?.addEventListener('input', onEditorProgressChange);
   btnAddProp?.addEventListener('click', openPropForm);
@@ -105,18 +108,18 @@ export function bindEditor() {
   });
 
   // ── 模板构建器事件 ──
-  document.getElementById('tpl-builder-close')?.addEventListener('click', closeTemplateBuilder);
-  document.getElementById('tpl-cancel')?.addEventListener('click', closeTemplateBuilder);
-  document.getElementById('tpl-save')?.addEventListener('click', saveTemplateBuilder);
-  document.getElementById('tpl-prefill')?.addEventListener('click', prefillTemplateFromCard);
-  document.getElementById('tpl-builder-tile')?.addEventListener('click', toggleTplBuilderPicker);
-  document.getElementById('tpl-np-ok')?.addEventListener('click', onTplNewPropOk);
-  document.getElementById('tpl-np-cancel')?.addEventListener('click', closeTplPropDialog);
-  document.getElementById('tpl-np-type')?.addEventListener('change', () => {
+  tplBuilderClose?.addEventListener('click', closeTemplateBuilder);
+  tplCancel?.addEventListener('click', closeTemplateBuilder);
+  tplSave?.addEventListener('click', saveTemplateBuilder);
+  tplPrefill?.addEventListener('click', prefillTemplateFromCard);
+  tplBuilderTile?.addEventListener('click', toggleTplBuilderPicker);
+  tplNpOk?.addEventListener('click', onTplNewPropOk);
+  tplNpCancel?.addEventListener('click', closeTplPropDialog);
+  tplNpType?.addEventListener('change', () => {
     const wrap = tplNpOptions?.closest('.prop-options-wrap');
     if (wrap) wrap.classList.toggle('hidden', tplNpType.value !== 'select' && tplNpType.value !== 'multi');
   });
-  document.getElementById('template-builder-overlay')?.addEventListener('click', (e) => {
+  tplBuilderOverlay?.addEventListener('click', (e) => {
     // 点击外部关闭；点击瓦片容器内的 emoji picker 不关
     const path = e.composedPath ? e.composedPath() : [e.target];
     if (path.some(el => el?.classList?.contains('ce-tile-wrap') || el?.classList?.contains('template-builder'))) return;

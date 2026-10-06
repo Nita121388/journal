@@ -11,6 +11,45 @@ import { deleteCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
 
+const ORIGIN_ICON = { human: '👤', 'agent-assisted': '🤖', 'agent-auto': '⚙️' };
+
+/** 建一个带 class 与文本的 `<span>`（文本走 textContent，天然安全）。 */
+function spanEl(className, text) {
+  const s = document.createElement('span');
+  s.className = className;
+  s.textContent = text;
+  return s;
+}
+
+/**
+ * Header 时间文案：全天 / 短卡片只显示开始 / 完整区间。
+ * @param {object} card
+ * @param {boolean} allday
+ * @param {boolean} isShort
+ * @returns {string}
+ */
+function headerTimeText(card, allday, isShort) {
+  if (allday) return '全天';
+  const start = getCardStartTime(card);
+  if (isShort) return start;
+  return `${start}–${getCardEndTime(card) ?? addMinutes(start, 15)}`;
+}
+
+/**
+ * 来源角标（标在 header，`title` 为完整 provenance，hover 可见）。无来源信息时不追加。
+ * @param {HTMLElement} header
+ * @param {object} card
+ */
+function appendOriginBadge(header, card) {
+  const by = card.meta?.createdBy ?? null;
+  if (!by?.origin) return;
+  const badge = document.createElement('span');
+  badge.className = 'card-origin';
+  badge.title = formatProvenance(by); // DOM 属性赋值：不经过 HTML 解析，无注入面
+  badge.textContent = ORIGIN_ICON[by.origin] ?? '👤';
+  header.append(badge);
+}
+
 export function renderTimelineCard(card, lane = null, allday = false, dateOverride = null) {
   const el = document.createElement('div');
   el.className = 'timeline-card' + (allday ? ' is-allday' : '');
@@ -34,20 +73,17 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
 
   const isShort = el.classList.contains('is-short');
 
-  // 来源角标：标在 header，title 为完整 provenance（hover 可见）
-  const originIcon = { human: '👤', 'agent-assisted': '🤖', 'agent-auto': '⚙️' };
-  const by = card.meta?.createdBy ?? null;
-  const originBadge = by?.origin ? `<span class="card-origin" title="${formatProvenance(by)}">${originIcon[by.origin] ?? '👤'}</span>` : '';
-
   // Header（短卡片只显示开始时间，把横向空间让给内容）
+  // 全部用 DOM API 构建：`provenance.project` 与 `card.emoji` 都可能来自用户输入 / AI 建卡 /
+  // 多端同步的任意文本，拼 innerHTML 会形成注入面（spec: 用户内容一律走 textContent）。
   const header = document.createElement('div');
   header.className = 'card-header';
-  header.innerHTML = `
-    ${originBadge}
-    <span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span>
-    <span class="card-time">${allday ? '全天' : isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15)}`}</span>
-    <span class="card-meta">${!allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''}</span>
-  `;
+  appendOriginBadge(header, card);
+  header.append(
+    spanEl('card-type-icon', typeIcon(card.type, card.emoji)),
+    spanEl('card-time', headerTimeText(card, allday, isShort)),
+    spanEl('card-meta', !allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''),
+  );
 
   // Body
   const body = document.createElement('div');

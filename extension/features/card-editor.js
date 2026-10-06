@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorTitle, editorType, emojiFreeInput, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiFreeInput, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
@@ -74,9 +74,8 @@ export let editingCardId = null;
 let editorTags = [];
 
 function renderEditorTags() {
-  const box = document.getElementById('card-editor-tag-chips');
-  if (!box) return;
-  box.replaceChildren();
+  if (!editorTagChips) return;
+  editorTagChips.replaceChildren();
   for (const name of editorTags) {
     const chip = document.createElement('button');
     chip.type = 'button';
@@ -86,7 +85,7 @@ function renderEditorTags() {
       editorTags = editorTags.filter(t => t !== name);
       renderEditorTags();
     });
-    box.append(chip);
+    editorTagChips.append(chip);
   }
 }
 
@@ -121,6 +120,8 @@ function renderProjectSuggest() {
 
 export function openEditor(card, time, date, assignedDate = undefined) {
   editingCardId = card?.id ?? null;
+  // 正在编辑的卡片在真源里的快照：项目预填与来源展示共用（只查一次）
+  const existing = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) ?? null : null;
   editorTags = Array.isArray(card?.tags) ? [...card.tags] : [];
   renderEditorTags();
   let start, end;
@@ -145,9 +146,10 @@ export function openEditor(card, time, date, assignedDate = undefined) {
   }
   editorType.value = card?.type ?? 'text';
   editorContent.value = card?.content ?? '';
-  // 阶段 C：标题 / 状态 / 进度 / 时长 / 自定义属性
+  // 阶段 C：标题 / 状态 / 进度 / 优先级 / 时长 / 自定义属性
   if (editorTitle) editorTitle.value = card?.title ?? '';
   if (editorStatus) updateStatusSeg(card?.status ?? 'none');
+  updatePrioritySeg(card?.priority ?? 'medium');
   if (editorProgress) editorProgress.value = card?.progress ?? 0;
   if (editorDurationMin) editorDurationMin.value = card?.duration ?? '';
   updateEditorProgressLabel();
@@ -156,16 +158,13 @@ export function openEditor(card, time, date, assignedDate = undefined) {
   setEditorEmoji(card?.emoji ?? '');
   closeEmojiPicker();
 
-  // 项目：已有卡片取现有值，否则取上次用过的
-  const lastProject = getPort().prefGet('journal.lastProject') ?? '';
-  const cardProject = (editingCardId ? (vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.updatedBy ?? null) : null)
-    ?.project ?? (editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId)?.meta?.createdBy?.project ?? null : null);
-  if (editorProjectInput) editorProjectInput.value = cardProject ?? lastProject ?? '';
+  // 项目：优先沿用卡片已记录的（先看修改者、再看创建者），否则用上次填过的
+  const recordedProject = existing?.meta?.updatedBy?.project ?? existing?.meta?.createdBy?.project ?? null;
+  if (editorProjectInput) editorProjectInput.value = recordedProject ?? getPort().prefGet('journal.lastProject') ?? '';
   renderProjectSuggest();
 
   // 来源：仅编辑已有卡片时展示
   if (editorMetaEl) {
-    const existing = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) : null;
     const m = existing?.meta ?? null;
     editorMetaEl.textContent = m
       ? `创建：${formatProvenance(m.createdBy)}　修改：${formatProvenance(m.updatedBy)}`
@@ -174,6 +173,20 @@ export function openEditor(card, time, date, assignedDate = undefined) {
 
   editorOverlay.classList.remove('hidden');
   editorContent.focus();
+}
+
+/**
+ * 打开编辑器并**显式指定结束时间**（时间线/周视图框选创建时间范围用）。
+ * 视图不应直接摸编辑器 DOM，故把「预填结束时间 + 重算时长」收在编辑器模块内。
+ * @param {string} start HH:MM
+ * @param {string} end HH:MM
+ * @param {string|null} date YYYY-MM-DD
+ * @param {string|null} [assignedDate]
+ */
+export function openEditorRange(start, end, date, assignedDate = undefined) {
+  openEditor(null, start, date, assignedDate);
+  if (editorEnd) editorEnd.value = end;
+  updateEditorDuration();
 }
 
 /** 编辑器持续时长显示（起止 → 时长 双向） */
@@ -209,17 +222,31 @@ export function onEditorStatusChange() {
 }
 
 const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
+const PRIORITY_PRESETS = ['high', 'medium', 'low'];
 
 /** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
 export function updateStatusSeg(value) {
   const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
   if (editorStatus) editorStatus.value = v;
-  const seg = document.getElementById('card-editor-status-seg');
-  if (seg) {
-    for (const b of seg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
+  if (editorStatusSeg) {
+    for (const b of editorStatusSeg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.status === v);
   }
   if (editorStatusCustom) {
     editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
+  }
+}
+
+/**
+ * 同步优先级分段 UI 到 hidden input（高/中/低）。
+ * 优先级是注册表里的内建可选字段（`behavior: 'priority'`），
+ * 卡片池按它渲染徽标；此处提供唯一的手动设置入口。
+ * @param {string} value
+ */
+export function updatePrioritySeg(value) {
+  const v = PRIORITY_PRESETS.includes(value) ? value : 'medium';
+  if (editorPriority) editorPriority.value = v;
+  if (editorPrioritySeg) {
+    for (const b of editorPrioritySeg.querySelectorAll('.seg')) b.classList.toggle('is-active', b.dataset.priority === v);
   }
 }
 
@@ -258,8 +285,7 @@ export function closeEditor() {
   editorContent.value = '';
   editorTags = [];
   renderEditorTags();
-  const tagInput = document.getElementById('card-editor-tag-input');
-  if (tagInput) tagInput.value = '';
+  if (editorTagInput) editorTagInput.value = '';
   if (editorDate) { editorDate.value = ''; editorDate.title = '未安排（保存在卡片池）'; }
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
@@ -267,6 +293,7 @@ export function closeEditor() {
   if (editorDurationMin) editorDurationMin.value = '';
   if (editorTitle) editorTitle.value = '';
   if (editorStatus) updateStatusSeg('none');
+  updatePrioritySeg('medium');
   if (editorProgress) { editorProgress.value = 0; }
   updateEditorProgressLabel();
   if (editorMetaEl) editorMetaEl.textContent = '';
@@ -280,7 +307,7 @@ export function closeEditor() {
 export async function saveEditor() {
   const content = editorContent.value.trim();
   const type = editorType.value;
-  const pendingTag = document.getElementById('card-editor-tag-input')?.value;
+  const pendingTag = editorTagInput?.value;
   if (pendingTag) addEditorTag(pendingTag);
   if (!content && !editingCardId) { closeEditor(); return; }
 
@@ -305,12 +332,13 @@ export async function saveEditor() {
 
     // 阶段 C：状态 / 进度 / 时长 / 标题 / 自定义属性
     const status = editorStatus?.value ?? 'none';
+    const priority = PRIORITY_PRESETS.includes(editorPriority?.value) ? editorPriority.value : 'medium';
     const progress = status === 'done' ? 100 : Number(editorProgress?.value || 0);
     const duration = (editorDurationMin?.value ?? '') !== '' ? Number(editorDurationMin.value) : null;
     const title = editorTitle?.value?.trim() ?? '';
     const props = editorProps;
     const basePatch = {
-      content, type, title, status, progress, duration: duration ?? undefined, props,
+      content, type, title, status, priority, progress, duration: duration ?? undefined, props,
       assignedDate, time: start, startTime: start, endTime: end,
       tags: editorTags, emoji: editorEmoji, provenance,
     };

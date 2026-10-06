@@ -22,6 +22,15 @@ export const actions = {
    */
   openEditor: () => {},
 
+  /**
+   * 打开编辑器并显式指定结束时间（组合根注入；时间线/周视图框选创建时间范围用）
+   * @param {string} start HH:MM
+   * @param {string} end HH:MM
+   * @param {string|null} date
+   * @param {string|null} [assignedDate]
+   */
+  openEditorRange: () => {},
+
   /** 重算卡片编辑器时长标签（组合根注入；周视图框选建卡后需要） */
   updateEditorDuration: () => {},
 };
@@ -33,5 +42,6 @@ export const actions = {
  * @typedef {object} AppActions
  * @property {() => void} refreshAll
  * @property {(card?: object|null, time?: string, date?: string|null, assignedDate?: string|null) => void} openEditor
+ * @property {(start: string, end: string, date: string|null, assignedDate?: string|null) => void} openEditorRange
  * @property {() => void} updateEditorDuration
  */

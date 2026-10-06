@@ -217,12 +217,7 @@ export function renderWeekGrid(container) {
 
     // 点击空白单格创建 + 拖动框选创建时间范围
     const onRange = (sMin, eMin) => {
-      actions.openEditor(null, minutesToTime(sMin), dayKey);
-      const endEl = document.getElementById('card-editor-end');
-      if (endEl) {
-        endEl.value = minutesToTime(eMin); // 覆盖默认 start+15，预填选区时长
-        actions.updateEditorDuration(); // 时长标签需随之重算，否则仍显示默认 15 分钟
-      }
+      actions.openEditorRange(minutesToTime(sMin), minutesToTime(eMin), dayKey);
     };
     bindRangeSelect(body, onRange);
     body.addEventListener('click', (e) => {

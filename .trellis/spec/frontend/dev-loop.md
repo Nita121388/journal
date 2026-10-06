@@ -16,8 +16,8 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 |---|---|
 | 必须用 Playwright **自带 Chromium**（`channel:'chromium'`） | Chrome/Edge 已移除 `--load-extension` 侧载开关 |
 | side panel 用**多宽度视口**模拟 | side panel 宽度无法程序化设置（issue #1011 已关闭） |
-| **热更新用页面级 `page.reload()`** | UI 改动（sidepanel.js/css/html）在页面上下文；实测 PASS |
-| 改 `background.js` 需**重启 browser context** | `chrome.runtime.reload()` 后无新 SW 事件、页面短暂 BLOCKED |
+| **热更新用页面级 `page.reload()`** | UI 改动（`entries/` `views/` `features/` `components/` 与 CSS/HTML）在页面上下文；实测 PASS |
+| 改 `platform/background.js` 需**重启 browser context** | `chrome.runtime.reload()` 后无新 SW 事件、页面短暂 BLOCKED |
 | 加载**测试构建**（扩展复制到临时目录 + 端口改写） | 产品扩展硬编码 host 端口；测试需端口/数据/存储全隔离 |
 | 现役 8765/8766 host **零影响** | harness 用临时端口 + 临时数据目录，现役不碰 |
 
@@ -27,6 +27,6 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 
 ## 与本项目的关系
 
-- 扩展源码在 `extension/`（见 Directory Structure）；dev-loop 只**读取**它做测试构建，绝不写入。
+- 扩展源码在 `extension/`（分层见 [Directory Structure](./directory-structure.md)）；dev-loop 只**读取**它做测试构建，绝不写入。
 - host 见 Backend 规范；dev-loop 以 `JOURNAL_PORT`/`JOURNAL_DATA_DIR` 环境变量起隔离 host。
 - UI 改造（第一轮及后续）后**必须**用 dev-loop 回归，作为质量门之一。

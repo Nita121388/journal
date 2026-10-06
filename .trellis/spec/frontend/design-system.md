@@ -122,7 +122,7 @@
 | 进度条 | 高 3–4px、`--r-full`；轨道 surface；值 accent；旁标百分比 |
 | 空状态 | 图标/emoji + 一句原因 + **一个行动按钮**（如「新建卡片」「清除筛选」） |
 | 骨架屏 | 卡片池/时间线各 3 行，>300ms 显示 |
-| 下拉框 Select | 自建组件（`extension/select.css` + `lib/select.js`，BoardUI 风格）：隐藏原生 select 作数据源 + 代理触发器 + **自绘非模态 popover**（portal 到 body、z 150）。触发器：1px 弱描边 + 大圆角（sm 8px / md 10-12px）+ 极弱投影 `--select-shadow` + 200ms 过渡 + SVG chevron 展开旋转 + ring-offset 焦点环（`--color-focus`）。键盘：↑↓ Home End Enter Esc Tab + 字符 typeahead；`aria-activedescendant` 焦点不离开触发器；multiple 触发器显示「已选 N 项」。样式走两页各自 `:root` 的 `--select-*` token，不写 hex |
+| 下拉框 Select | 自建组件（`extension/select.css` + `extension/features/select.js`，BoardUI 风格）：隐藏原生 select 作数据源 + 代理触发器 + **自绘非模态 popover**（portal 到 body、z 150）。触发器：1px 弱描边 + 大圆角（sm 8px / md 10-12px）+ 极弱投影 `--select-shadow` + 200ms 过渡 + SVG chevron 展开旋转 + ring-offset 焦点环（`--color-focus`）。键盘：↑↓ Home End Enter Esc Tab + 字符 typeahead；`aria-activedescendant` 焦点不离开触发器；multiple 触发器显示「已选 N 项」。样式走两页各自 `:root` 的 `--select-*` token，不写 hex |
 | Toast | 顶部/底部居中，停留 3–5s，可关闭，z-toast |
 | 行级浮层（右键菜单/图标选择器） | 构建器弹窗之上、属性编辑弹窗之下：构建器 overlay=120、行级浮层=130、属性定义弹窗=140（高于通用 overlay=100）。浮层定位贴右边界防溢出，`max-width: calc(100vw - 16px)` |
 | 日历格 | 32–36px；today=accent 底+高对比字；日志日=cell 色阶；hover 显示日期+计数 |

@@ -2023,6 +2023,13 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .status-seg .seg[data-status="doing"].is-active { background: #1e88e5; }
 .status-seg .seg[data-status="done"].is-active { background: #43a047; }
 
+/* 优先级分段：与状态分段同构（复用 .seg），仅 3 档 */
+.ce-prio-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.prio-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: 1; }
+.prio-seg .seg[data-priority="high"].is-active { background: #e53935; }
+.prio-seg .seg[data-priority="medium"].is-active { background: #f9a825; }
+.prio-seg .seg[data-priority="low"].is-active { background: #43a047; }
+
 /* 进度条 */
 .ce-progress-row { display: flex; align-items: center; gap: 10px; }
 .ce-progress-caption { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }

@@ -17,7 +17,7 @@ import { loadPoolViews } from '../views/named-view.js';
 import { loadSkillStatus } from '../views/skills.js';
 import { markViewMode, requestFocusScroll } from '../views/rightview.js';
 import { updateHeaderDate } from '../views/calendar.js';
-import { openEditor, updateEditorDuration } from '../features/card-editor.js';
+import { openEditor, openEditorRange, updateEditorDuration } from '../features/card-editor.js';
 import { bindShell } from './bind-shell.js';
 import { bindViews } from './bind-views.js';
 import { bindEditor } from './bind-editor.js';
@@ -27,6 +27,7 @@ export async function init() {
   // 组合根注入反向调用通道
   actions.refreshAll = refreshAll;
   actions.openEditor = openEditor;
+  actions.openEditorRange = openEditorRange;
   actions.updateEditorDuration = updateEditorDuration;
 
   await bindShell();
@@ -57,6 +58,6 @@ export async function init() {
   await loadPropLibrary();
   initFieldRegistry({ getUserFields: () => getPropLibrary() });
 
-  // 卡片池「新建卡片」入口（直接开空白编辑器，保存时才落库）
+  // 本机 AI Skill 状态（供「复制所有路径给 AI」）
   await loadSkillStatus();
 }

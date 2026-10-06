@@ -85,6 +85,15 @@ try {
   });
 
   const results = [];
+  /**
+   * `--host-mode off` 时前端对 host 的启动探测/拉取必然产生网络层报错
+   * （ERR_CONNECTION_REFUSED / Failed to fetch）。那是**被测行为本身**（应优雅降级、显示离线横幅），
+   * 不是缺陷 —— 该模式下不计入 error 门禁，但仍计入报告以便观察。
+   * @param {string} text
+   * @returns {boolean}
+   */
+  const isExpectedOfflineNoise = (text) =>
+    /ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch|NetworkError/i.test(text);
   for (const width of args.widths) {
     if (args.scenario === 'audit') {
       // One page reused across theme×mode combos for this width.
@@ -110,9 +119,15 @@ try {
       const { checks } = await run({ page, width, extId });
       const shot = join(outDir, `shot-${width}.png`);
       await page.screenshot({ path: shot, fullPage: true });
-      const errCount = console_.filter((c) => c.type === 'error').length + errors.length;
-      results.push({ width, settled, checks, errors: [...errors, ...console_.filter((c) => c.type === 'error').map((c) => `[console.error] ${c.text}`)], screenshots: [shot] });
-      log('info', `width ${width}: ${checks.filter((c) => c[1]).length}/${checks.length} checks passed, ${errCount} error(s), settled=${settled}`);
+      const rawErrors = [
+        ...errors,
+        ...console_.filter((c) => c.type === 'error').map((c) => `[console.error] ${c.text}`),
+      ];
+      const collected = args.hostMode === 'off'
+        ? rawErrors.filter((t) => !isExpectedOfflineNoise(t))
+        : rawErrors;
+      results.push({ width, settled, checks, errors: collected, screenshots: [shot], expectedOfflineErrors: rawErrors.length - collected.length });
+      log('info', `width ${width}: ${checks.filter((c) => c[1]).length}/${checks.length} checks passed, ${collected.length} error(s)${rawErrors.length > collected.length ? ` (+${rawErrors.length - collected.length} expected offline)`: ''}, settled=${settled}`);
       await page.close();
     }
   }

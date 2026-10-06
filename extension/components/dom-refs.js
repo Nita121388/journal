@@ -62,6 +62,11 @@ export const editorStatus = document.getElementById('card-editor-status');
 export const editorProgress = document.getElementById('card-editor-progress');
 export const editorProgressNumber = document.getElementById('card-editor-progress-number');
 export const editorStatusCustom = document.getElementById('card-editor-status-custom');
+export const editorStatusSeg = document.getElementById('card-editor-status-seg');
+export const editorPriority = document.getElementById('card-editor-priority');
+export const editorPrioritySeg = document.getElementById('card-editor-priority-seg');
+export const editorTagChips = document.getElementById('card-editor-tag-chips');
+export const btnEmojiTile = document.getElementById('btn-emoji-tile');
 export const editorDurationMin = document.getElementById('card-editor-duration-min');
 export const propsList = document.getElementById('card-editor-props-list');
 export const btnAddProp = document.getElementById('btn-add-prop');
@@ -84,3 +89,39 @@ export const projectSuggest = document.getElementById('project-suggest');
 export const emojiPreview = document.getElementById('emoji-preview');
 export const emojiPicker = document.getElementById('emoji-picker');
 export const emojiFreeInput = null; // 已移除自由输入框（图标选择由头部瓦片负责），保留占位兼容 setEditorEmoji
+
+// ── 模板构建器 / 属性定义弹窗（原 features/template-builder.js 内联查找）──
+// 之前这些元素在 template-builder.js 与 bind-editor.js 各查一遍；现集中于此。
+export const tplBuilderOverlay = document.getElementById('template-builder-overlay');
+export const tplBuilderTile = document.getElementById('tpl-builder-tile');
+export const tplBuilderName = document.getElementById('tpl-builder-name');
+export const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
+export const tplBuilderPicker = document.getElementById('tpl-builder-picker');
+export const tplBuilderClose = document.getElementById('tpl-builder-close');
+export const tplPropList = document.getElementById('tpl-prop-list');
+export const tplPrefill = document.getElementById('tpl-prefill');
+export const tplCancel = document.getElementById('tpl-cancel');
+export const tplSave = document.getElementById('tpl-save');
+export const tplPropOverlay = document.getElementById('tpl-prop-overlay');
+export const tplPropDialogTitle = document.getElementById('tpl-prop-dialog-title');
+export const tplPropClose = document.getElementById('tpl-prop-close');
+export const tplNpLabel = document.getElementById('tpl-np-label');
+export const tplNpIcon = document.getElementById('tpl-np-icon');
+export const tplNpIconTile = document.getElementById('tpl-np-icon-tile');
+export const tplNpIconPreview = document.getElementById('tpl-np-icon-preview');
+export const tplNpIconPicker = document.getElementById('tpl-np-icon-picker');
+export const tplNpType = document.getElementById('tpl-np-type');
+export const tplNpKey = document.getElementById('tpl-np-key');
+export const tplNpOptions = document.getElementById('tpl-np-options');
+export const tplNpOk = document.getElementById('tpl-np-ok');
+export const tplNpCancel = document.getElementById('tpl-np-cancel');
+
+/**
+ * 查一个由 JS 动态创建、尚未登记到本表的元素（如右键菜单 `#template-menu`）。
+ * 仅用于显式生命周期元素；新建静态元素请在上方登记。
+ * @param {string} id
+ * @returns {HTMLElement|null}
+ */
+export function dynamicEl(id) {
+  return document.getElementById(id);
+}

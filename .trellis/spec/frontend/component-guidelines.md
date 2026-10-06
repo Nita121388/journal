@@ -15,10 +15,10 @@ The extension uses a **side panel** as its main surface. There is **no component
 A reusable UI block is a plain function that takes state and returns a DOM node:
 
 ```js
-// lib/ui/heatmap.js
-export function renderHeatmap(container, entriesByDay) {
+// views/heatmap.js
+export function renderHeatmap(container, heatmap) {
   container.replaceChildren();
-  for (const [dayKey, count] of Object.entries(entriesByDay)) {
+  for (const [dayKey, count] of Object.entries(heatmap)) {
     const cell = document.createElement('div');
     cell.className = 'heatmap-cell';
     cell.dataset.day = dayKey;
@@ -99,6 +99,10 @@ renderTodoList(todos, onToggle);
 
 **处理模式（flush-before-switch）**：
 
+> 历史来源：该模式最初用于「每日日志」的 textarea 防抖保存（`sidepanel.js` 时期的 `switchToDate`）。
+> **该 UI 已在卡片化改版中移除**，但模式继续有效 —— 任何新引入「防抖异步写入 + 可切换上下文」的路径
+> （如未来的行内编辑、批量重命名）都必须沿用，否则会写出错目标或丢草稿。
+
 1. `debounce()` 包装函数暴露 `cancel()` 方法，切换前取消未执行的定时器。
 2. 切换函数先**立即落盘**当前内容（flush），再更新状态。
 3. 用**序列号**防止并发切换：只有最后一次切换能提交，过期异步加载不覆盖 textarea。
@@ -112,7 +116,7 @@ function debounce(fn, ms = 500) {
   return wrapped;
 }
 
-// 切换前先 flush（sidepanel.js switchToDate 模式）
+// 切换前先 flush（模式示意；`switchSeq` 现已归 state/view-state.js 的 vs.switchSeq）
 let switchSeq = 0;
 async function switchToDate(newDate) {
   if (newDate === selectedDate) return;
@@ -143,7 +147,7 @@ async function switchToDate(newDate) {
 
 ## Field Registry（字段注册表）
 
-所有卡片字段（内建必选 title/content/tags、内建可选 status/priority/progress/assignedDate/project/schedule、属性库自定义）**统一为一条 `FieldDef`**。真相源 = `extension/lib/field-registry.js`（纯函数模块，无 DOM/storage）。禁用 `BUILTIN_DEFS`/`findPropDef` 分叉；读取一律 `getFieldDef(key)`。
+所有卡片字段（内建必选 title/content/tags、内建可选 status/priority/progress/assignedDate/project/schedule、属性库自定义）**统一为一条 `FieldDef`**。真相源 = `extension/shared/field-registry.js`（纯逻辑模块，无 DOM/storage）。禁用 `BUILTIN_DEFS`/`findPropDef` 分叉；读取一律 `getFieldDef(key)`。
 
 ### 三维度解耦（各管一件事）
 | 维度 | 回答 | 消费者 |
@@ -216,7 +220,7 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 
 **场景**：模板构建器属性行要支持「双击属性名 → 原位变 input → 回车/失焦确认、Esc 取消」，且新建属性时按属性名自动推断 type/icon/options、key 取属性名。
 
-**行内编辑要点**（`openNameEditor` 模式，sidepanel.js）：
+**行内编辑要点**（`openNameEditor` 模式，`features/template-rows.js`）：
 1. **原位替换而非弹窗**：把 `<span>` 用 `replaceWith(input)` 换掉，`input.focus()+select()`；提交/取消后整块 `renderTemplateBuilder()` 重建。
 2. **Enter 提交 / blur 提交 / Esc 取消**：`keydown` 里 Enter→`finish(true)`、Esc→`finish(false)`；`blur`→`finish(true)`。`finish` 用局部 `done` 防重入（blur+Enter 连发）。
 3. **拒绝提交要能保持编辑态**：`onCommit` 返回 `false` 时（如保留字拦截），`finish` 把 `done` 复位、不重建列表、焦点留在 input —— 用户可继续改。这是「校验失败不吞输入」的关键。

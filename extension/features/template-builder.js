@@ -8,29 +8,30 @@
 
 import { getFieldDef, listFieldDefs } from '../shared/field-registry.js';
 import { PROP_TYPES } from '../shared/prop-infer.js';
+import {
+  tplBuilderOverlay, tplBuilderName, tplBuilderEmoji, tplBuilderPicker, tplPropList,
+  tplNpKey, tplNpLabel, tplNpIcon, tplNpType, tplNpOptions, tplNpOk,
+  tplNpIconTile, tplNpIconPreview, tplNpIconPicker,
+  tplPropOverlay, tplPropDialogTitle, tplPropClose,
+} from '../components/dom-refs.js';
 import { editorEmoji } from './card-editor.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { buildPropRow, buildAddRow, tplUserTouched } from './template-rows.js';
 import {
   closeFieldPicker, closePropRowMenu, closeRowIconPicker, defaultTplValue,
 } from './template-fields.js';
+
 export const REQUIRED_DEFS = listFieldDefs({ required: true });
 /** 是否内建字段（注册表 source==='builtin'） */
 export function isBuiltinKey(key) { return getFieldDef(key)?.source === 'builtin'; }
 
-export const tplBuilderName = document.getElementById('tpl-builder-name');
-export const tplBuilderEmoji = document.getElementById('tpl-builder-emoji');
-export const tplBuilderPicker = document.getElementById('tpl-builder-picker');
-export const tplPropList = document.getElementById('tpl-prop-list');
-export const tplNpKey = document.getElementById('tpl-np-key');
-export const tplNpLabel = document.getElementById('tpl-np-label');
-export const tplNpIcon = document.getElementById('tpl-np-icon');
-export const tplNpType = document.getElementById('tpl-np-type');
-export const tplNpOptions = document.getElementById('tpl-np-options');
-export const tplNpOk = document.getElementById('tpl-np-ok');
-const tplNpIconTile = document.getElementById('tpl-np-icon-tile');
-export const tplNpIconPreview = document.getElementById('tpl-np-icon-preview');
-const tplNpIconPicker = document.getElementById('tpl-np-icon-picker');
+// DOM 元素引用统一取自 components/dom-refs.js；此处 re-export 以保持既有调用方路径不变。
+export {
+  tplBuilderName, tplBuilderEmoji, tplBuilderPicker, tplPropList,
+  tplNpKey, tplNpLabel, tplNpIcon, tplNpType, tplNpOptions, tplNpOk,
+  tplNpIconTile, tplNpIconPreview, tplNpIconPicker,
+  tplPropOverlay,
+};
 
 // 模板构建器：属性图标 emoji 选择器（复用现有 picker）
 let tplNpIconCleanup = null;
@@ -51,8 +52,6 @@ function closeTplNpIconPicker() {
   tplNpIconCleanup = null;
 }
 tplNpIconTile?.addEventListener('click', openTplNpIconPicker);
-export const tplPropOverlay = document.getElementById('tpl-prop-overlay');
-const tplPropDialogTitle = document.getElementById('tpl-prop-dialog-title');
 
 /** 打开属性编辑弹窗（新建 / 编辑共用） */
 export function openTplPropDialog(title) {
@@ -69,7 +68,8 @@ export function closeTplPropDialog() {
 tplPropOverlay?.addEventListener('click', (e) => {
   if (e.target === tplPropOverlay) closeTplPropDialog();
 });
-document.getElementById('tpl-prop-close')?.addEventListener('click', closeTplPropDialog);
+// 元素引用已集中登记到 components/dom-refs.js。
+tplPropClose?.addEventListener('click', closeTplPropDialog);
 /** 构建器状态：extra 为有序可选属性 [{key, def}]，values 存默认值 */
 export let tplBuilderState = { name: '', emoji: '🗂️', extra: [], values: {}, reqOv: {} };
 export let tplBuilderCleanup = null;
@@ -135,12 +135,12 @@ export function openTemplateBuilder(existing = null) {
   if (tplBuilderName) tplBuilderName.value = tplBuilderState.name;
   if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
   renderTemplateBuilder();
-  document.getElementById('template-builder-overlay').classList.remove('hidden');
+  tplBuilderOverlay?.classList.remove('hidden');
   tplBuilderName?.focus();
   tplBuilderName?.select();
 }
 export function closeTemplateBuilder() {
-  document.getElementById('template-builder-overlay').classList.add('hidden');
+  tplBuilderOverlay?.classList.add('hidden');
   closePropRowMenu();
   closeRowIconPicker();
   closeTplPropDialog();

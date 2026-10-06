@@ -166,6 +166,7 @@
             <select id="card-editor-type" aria-label="类型">
               <option value="text">📝 文本</option>
               <option value="task">☑️ 任务</option>
+              <option value="idea">💡 想法</option>
             </select>
           </div>
         </div>
@@ -192,6 +193,16 @@
             <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
             <input type="number" id="card-editor-progress-number" min="0" max="100" class="ce-progress-number" aria-label="进度数值" />
             <span class="ce-progress-percent">%</span>
+          </div>
+          <!-- 优先级：与状态同属工作流维度，故置于状态区内（高/中/低） -->
+          <div class="ce-prio-row">
+            <span class="ce-progress-caption">优先级</span>
+            <div class="prio-seg" id="card-editor-priority-seg" role="radiogroup" aria-label="优先级">
+              <button type="button" class="seg" data-priority="high" title="高优先级">🔴 高</button>
+              <button type="button" class="seg is-active" data-priority="medium" title="中优先级">🟡 中</button>
+              <button type="button" class="seg" data-priority="low" title="低优先级">🟢 低</button>
+            </div>
+            <input type="hidden" id="card-editor-priority" value="medium" />
           </div>
         </section>
 

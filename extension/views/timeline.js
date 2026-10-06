@@ -13,9 +13,7 @@ import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
 import { renderTimelineCard } from './timeline-card.js';
 import { actions } from '../state/actions.js';
 
-export function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
+// escapeHtml / typeIcon 等纯展示工具已统一到 shared/format.js（唯一实现处）。
 
 /* ─── 渲染：时间线 ──────────────────────────────────────── */
 
@@ -167,11 +165,7 @@ export async function renderTimeline() {
     eSlot = Math.min(vs.viewEndMin, eSlot);
     if (eSlot - s < 15) s = Math.max(vs.viewStartMin, eSlot - 15);
 
-    const startTime = minutesToTime(s);
-    actions.openEditor(null, startTime, date);
-    // 编辑器预填结束时间（openEditor 自动算 end = start + 15，需覆盖为选区时长）
-    const endEl = document.getElementById('card-editor-end');
-    if (endEl) endEl.value = minutesToTime(eSlot);
+    actions.openEditorRange(minutesToTime(s), minutesToTime(eSlot), date);
   });
 
   // 框选后抑制一次 canvas click（mouseup 已触发编辑器，避免 click 再开一个）

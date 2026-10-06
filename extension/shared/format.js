@@ -32,14 +32,50 @@ export function shortDate(dayKey) {
 }
 
 /**
+ * HTML 转义（**唯一实现处**）。所有把文本拼进 HTML 字符串的地方都必须过它。
+ * 新代码优先用 DOM API（`textContent` / `createElement`），本函数用于确实需要拼字符串的场景。
+ * @param {unknown} s
+ * @returns {string}
+ */
+export function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 清洗用户提供的"自定义图标"。
+ *
+ * emoji 合法取值**永不需要** HTML 元字符，因此这里直接拒绝含 `< > & " ' \`` 的输入，
+ * 并限制长度（防用长字符串做注入/撑版）。经此过滤后，返回值可安全放进 HTML 文本位置。
+ *
+ * 注入来源不止手输：AI 建卡、导入、多端同步回来的卡片都可能带任意 emoji 字符串。
+ * @param {unknown} raw
+ * @returns {string} 安全图标（不合法则空串）
+ */
+export function sanitizeEmoji(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s || s.length > 8) return '';
+  if (/[<>&"'`]/.test(s)) return '';
+  return s;
+}
+
+/**
  * 类型图标：卡片有自定义 emoji 时优先用 emoji，否则用类型默认。
+ *
+ * 返回值**保证不含 HTML 元字符**（经 {@link sanitizeEmoji}），
+ * 因此可安全地拼进 `innerHTML`。
  * @param {string} type
  * @param {string} [emoji]
  * @returns {string}
  */
 export function typeIcon(type, emoji = '') {
-  if (emoji) return emoji;
-  return type === 'task' ? '☑️' : '📝'; // idea 并入文本显示
+  const safe = sanitizeEmoji(emoji);
+  if (safe) return safe;
+  return type === 'task' ? '☑️' : type === 'idea' ? '💡' : '📝';
 }
 
 const ORIGIN_LABEL = {

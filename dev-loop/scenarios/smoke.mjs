@@ -103,5 +103,35 @@ export async function runSmoke({ page, width }) {
   }).catch(() => null);
   add('打开时当前时刻垂直居中', nowC?.ok === true, nowC ? `Δ=${nowC.delta}px / ${nowC.h}px` : '不可测');
 
+  // 13) 卡片编辑器：类型齐全（含「想法」）+ 优先级可设（工作流维度完整）
+  await page.locator('#btn-quick-add').click();
+  await page.waitForTimeout(350);
+  const editorOpen = await page.locator('#card-editor-overlay').isVisible().catch(() => false);
+  add('快捷新建打开编辑器', editorOpen);
+
+  const typeOpts = await page.locator('#card-editor-type option')
+    .evaluateAll((o) => o.map((x) => x.value)).catch(() => []);
+  add('类型含 text/task/idea', ['text', 'task', 'idea'].every((v) => typeOpts.includes(v)), typeOpts.join(','));
+
+  const prioSegs = await page.locator('#card-editor-priority-seg .seg')
+    .evaluateAll((els) => els.map((e) => e.dataset.priority)).catch(() => []);
+  add('优先级分段含 high/medium/low', ['high', 'medium', 'low'].every((v) => prioSegs.includes(v)), prioSegs.join(','));
+
+  const prioDefault = await page.locator('#card-editor-priority').inputValue().catch(() => '');
+  add('优先级默认 medium', prioDefault === 'medium', prioDefault);
+
+  await page.locator('#card-editor-priority-seg .seg[data-priority="high"]').click().catch(() => {});
+  await page.waitForTimeout(120);
+  const prioAfter = await page.locator('#card-editor-priority').inputValue().catch(() => '');
+  add('点击「高」→ 值同步', prioAfter === 'high', prioAfter);
+
+  const prioActive = await page.locator('#card-editor-priority-seg .seg.is-active')
+    .getAttribute('data-priority').catch(() => null);
+  add('「高」胶囊高亮（单选语义）', prioActive === 'high', String(prioActive));
+
+  await page.locator('#card-editor-cancel').click();
+  await page.waitForTimeout(250);
+  add('编辑器可取消关闭', !(await page.locator('#card-editor-overlay').isVisible().catch(() => true)));
+
   return { checks };
 }

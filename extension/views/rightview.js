@@ -10,7 +10,8 @@ import { formatDateLabel, typeIcon } from '../shared/format.js';
 import { currentTime, getCardStartTime, getCardTypeCounts, getMonthMatrix, timeToMinutes, toDayKey, todayKey } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { monthOf, vs } from '../state/view-state.js';
-import { escapeHtml, renderTimeline, scheduleHeight } from './timeline.js';
+import { renderTimeline, scheduleHeight } from './timeline.js';
+import { CARD_TYPES } from '../shared/card-schema.js';
 
 import { renderWeekGrid } from './week.js';
 export function addDays(dayKey, n) {
@@ -176,14 +177,26 @@ function renderMonthGrid(container) {
 
 /** 卡片摘要（月历/周历共用）：时间 + 类型图标 + 内容截断，点击进编辑器 */
 function buildCalSummary(card) {
+  const type = CARD_TYPES.includes(card.type) ? card.type : 'text';
   const el = document.createElement('div');
-  el.className = `calview-summary type-${card.type || 'text'}` + (card.type === 'task' && card.done ? ' is-done' : '');
+  el.className = `calview-summary type-${type}` + (type === 'task' && card.done ? ' is-done' : '');
   const start = getCardStartTime(card);
-  const timeHtml = start ? `<span class="calview-summary-time">${start}</span>` : '';
-  el.innerHTML = `${timeHtml}<span class="card-type-icon">${typeIcon(card.type, card.emoji)}</span><span class="calview-summary-text">${escapeHtml(card.content || '(空卡片)')}</span>`;
+  el.append(...[
+    start ? spanEl('calview-summary-time', start) : null,
+    spanEl('card-type-icon', typeIcon(type, card.emoji)),
+    spanEl('calview-summary-text', card.content || '(空卡片)'),
+  ].filter(Boolean));
   el.addEventListener('click', (e) => {
     e.stopPropagation();
     actions.openEditor(card, start ?? currentTime(), card.assignedDate ?? vs.selectedDate);
   });
   return el;
+}
+
+/** 建一个带 class 与文本的 `<span>`（文本走 textContent，天然安全）。 */
+function spanEl(className, text) {
+  const s = document.createElement('span');
+  s.className = className;
+  s.textContent = text;
+  return s;
 }
