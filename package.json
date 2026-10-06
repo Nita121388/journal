@@ -1,0 +1,20 @@
+{
+  "name": "journal",
+  "private": true,
+  "type": "module",
+  "description": "Journal — 每日日志 / 热力图 / TODO / AI。Chrome 扩展 + 本地 host 服务 + 桌面壳。",
+  "//": "根 package.json 只做统一入口，不接管依赖安装：extension/ 自带 eslint+tailwind，host/ 自带 node:test。故这里不声明 workspaces，避免无谓的 node_modules 提升与重装。",
+  "scripts": {
+    "lint": "npm --prefix extension run lint",
+    "lint:fix": "npm --prefix extension run lint -- --fix",
+    "test": "npm --prefix host test",
+    "test:host": "npm --prefix host test",
+    "build:css": "npm --prefix extension run build:css",
+    "watch:css": "npm --prefix extension run watch:css",
+    "host": "npm --prefix host start",
+    "dev-loop": "node dev-loop/dev-loop.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
