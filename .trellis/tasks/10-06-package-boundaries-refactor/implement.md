@@ -31,7 +31,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 
 ## 2. 分步清单
 
-### S1 · baseline-cleanup（子任务 10-06-baseline-cleanup）
+### S1 · baseline-cleanup（子任务 10-06-baseline-cleanup）✅ 已完成（归档 2026-10）
 - [ ] 收敛当前 2 处未提交改动：提交 `extension/sidepanel.css` 按钮基类补丁
 - [ ] 归档 09-30-custom-select-component（implement.md 记 P1–P4 已完成）
 - [ ] 处置其余 11 个 in_progress 任务：归档已完成者，其余标注"重构期冻结"
@@ -39,7 +39,7 @@ baseline-cleanup ──▶ shared-package ──▶ platform-port ──▶ stat
 - [ ] 建 vitest / eslint 基线；跑通 dev-loop 基线截图并存档
 - [ ] **验证**：`git status` 干净；dev-loop 基线 20/20
 
-### S2 · shared-package
+### S2 · shared-package ✅ 已完成（归档 2026-10）
 - [ ] `git mv extension/lib/model.js packages/shared/model.js` 等（model/field-registry/prop-infer）
 - [ ] 抽 `packages/shared/card-schema.js`：与 `host/lib/storage.js` 的双份字段常量去重
 - [ ] 抽 `packages/shared/protocol.js`：HTTP 路由 + 消息类型 + API `@typedef`
