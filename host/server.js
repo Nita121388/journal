@@ -25,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // dev 目录专属 host：固定 8766（与扩展 host-sync.js / start-dev.bat 一致），
 // 避免与现役版本（E:\projects\journal\host，8765）抢占同一端口
-const DEFAULT_PORT = 8766;
+const DEFAULT_PORT = 8765;
 const DEFAULT_HOST = '127.0.0.1';
 
 // skills 物理目录：按候选列表探测（都从 homedir 推导，不把某个人的绝对路径写进源码）。

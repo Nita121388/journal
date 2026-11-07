@@ -9,7 +9,7 @@
  */
 
 /** host 监听地址（默认端口）。 */
-export const DEFAULT_HOST_PORT = 8766;
+export const DEFAULT_HOST_PORT = 8765;
 
 /** host 基址（UI 侧默认）。 */
 export const DEFAULT_HOST_BASE = `http://127.0.0.1:${DEFAULT_HOST_PORT}`;

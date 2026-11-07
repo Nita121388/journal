@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Journal (dev)",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmzjsmUQ0XjP2SwP+tfde+H3H2FI1V33HOFql+1TVzmeGsjh4LeurMJga3fWtBBm5UfcDI3j+vPkLrtTcocB/ZxgJR8LMOc+0rX8F5aS3E+LC9S6wbWXFTz/LQ2k5Cs8v0OaXmeE+wyD2feJMLnvI5YdZZuC1wkcv5jHNwPW3N4QSEiIWOJRx8J6QoEEGrSZcSGuAbktfa6EE4FuK7NojGPNGu3M5CBN/mmnACim1iSIO98fUI/Ss1E92sUIBztVr7ssnEtaoBGV5H0GZkLwrVTVXT98zZZnFeGRoFIo3o0LyTdiym+ErGvvhfVDM5dnIa5vhsRfvBOEsaH2Ip5V/WQIDAQAB",
+  "name": "Journal",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA02J69VnYV4V9AKyz7TjLWRqICME2SL/2uTxIP1E/0NKUKtoEofUHBOYGLSPCw46U7lxr1Da7xHB+RWmUse85zU2cn4QjRPONDcKzdV0i/VM+fIpWFhAT5VNZIwZbgSGaoFONaWv+Q0w7r4KSyDh1PccV8Wl/XFX3eSZx1sUU11ZcT071kZgMBLNx8oeA2Rbi+X4HjJAq592C5TJlhLdAdSi9tDz3GTJU5U8ibuteuAS3mx4x22wbIrJ2Bh26EElEXaqokDFltwAyZw4s//tx4iVsuS6VMml48rLR3L04vA2wOWdzJntm4fCMoy5D3CLa1h3PSm0KTR82931DAmdQRQIDAQAB",
   "version": "0.1.0",
   "description": "卡片式日程日志：时间线 / 待办 / 热力图打卡 / 到点提醒 / AI 增删改查",
   "permissions": ["storage", "sidePanel", "nativeMessaging", "alarms", "notifications"],
