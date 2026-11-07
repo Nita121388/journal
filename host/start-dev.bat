@@ -5,7 +5,7 @@ set "HOST_DIR=%~dp0"
 if "%HOST_DIR:~-1%"=="\" set "HOST_DIR=%HOST_DIR:~0,-1%"
 
 set JOURNAL_PORT=8766
-set JOURNAL_DATA_DIR=%HOST_DIR%\data
+set JOURNAL_DATA_DIR=E:\primary\data\journal-dev
 set JOURNAL_PROJECT_DIR=%HOST_DIR%\..
 cd /d "%HOST_DIR%"
 
