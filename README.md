@@ -74,6 +74,10 @@ host 是权威数据源（SQLite，`host/data/journal.db`），扩展侧 `chrome
 2. **Load unpacked** → 选 `extension/` 目录
 3. 点扩展图标打开侧边栏
 
+> **本机（chemclin）不是直接加载仓库里的 `extension/`**，
+> 而是加载 `D:\Apps\ChromeExtensions\journal\extension`（部署副本）。
+> 完整布局与发布流程见 [docs/local-dev-layout.md](docs/local-dev-layout.md)。
+
 host 可选（缺省时扩展仍可离线读写缓存，只是不落库）：
 
 ```bash
@@ -99,6 +103,9 @@ npm run test:coverage   # shared/ + state/ 覆盖率门禁（≥80% 行/语句�
 
 cd dev-loop && node dev-loop.mjs --width 320,360,400,500   # 真实 Chromium UI 回归
 ```
+
+> **本机布局**（单目录 + main/dev/local 双分支、部署在 D:、数据在 E:\primary\data）
+> 见 [docs/local-dev-layout.md](docs/local-dev-layout.md)。
 
 ### 目录结构
 
