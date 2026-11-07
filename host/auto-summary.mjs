@@ -258,7 +258,7 @@ async function main() {
   let existingCards = [];
   const listRes = await request('GET', '/api/cards');
   if (!listRes.ok && listRes.error?.code === 'HOST_OFFLINE') {
-    out({ ok: false, error: { code: 'HOST_OFFLINE', message: 'host 未运行，请先启动：node E:/projects/journal/host/server.js' } });
+    out({ ok: false, error: { code: 'HOST_OFFLINE', message: 'host 未运行，请先启动：node E:/primary/projects/journal/host/server.js' } });
     return;
   }
   if (listRes.ok) existingCards = Array.isArray(listRes.data) ? listRes.data : [];

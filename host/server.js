@@ -251,7 +251,7 @@ function scanSkills() {
 /* ─── journal skill 安装状态检测 ────────────────────────── */
 
 const SKILL_NAME = 'journal';
-const PROJECT_DIR = process.env.JOURNAL_PROJECT_DIR || 'E:\\projects\\journal';
+const PROJECT_DIR = process.env.JOURNAL_PROJECT_DIR || 'E:\\primary\\projects\\journal';
 const USER_SKILLS_DIRS = {
   Pi: 'C:\\Users\\chemclin\\.agents\\skills',
   Claude: 'C:\\Users\\chemclin\\.claude\\skills',

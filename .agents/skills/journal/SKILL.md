@@ -18,7 +18,7 @@ description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力
 
 ## 前置条件
 
-1. 本地 host 服务已启动：`node E:/projects/journal/host/server.js`（监听 `127.0.0.1:8765`）
+1. 本地 host 服务已启动：`node E:/primary/projects/journal/host/server.js`（监听 `127.0.0.1:8765`）
 2. 若 host 未启动，CLI 会返回 `HOST_OFFLINE`，需先启动它
 
 ## ⭐ 数据模型（务必先读，避免写错地方）
@@ -84,7 +84,7 @@ $CLI todo add "写周报" --origin agent-assisted --agent pi --model deepseek-v4
 curl -X POST http://127.0.0.1:8765/api/cards \
   -H "Content-Type: application/json" \
   -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-24","time":"14:00",
-       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/projects/journal"}}'
+       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/primary/projects/journal"}}'
 ```
 
 > `meta` 由 **host 封装**（补 device/at、保护 createdBy），调用方只传上下文。
@@ -93,7 +93,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 ## 快速开始
 
 ```bash
-CLI="node E:/projects/journal/host/cli.mjs"
+CLI="node E:/primary/projects/journal/host/cli.mjs"
 ```
 
 ## 常用命令
@@ -152,7 +152,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 - 想在界面时间线显示，务必给 `assignedDate` + 落在整/半点刻度的 `time`（如 09:00、14:30）
 - **⭐ 必须带 `tags`（项目标签）**：写卡片时一律带上项目标签，否则界面无法按项目筛选、导出到 Obsidian 后也归不了类。
   `"tags":["journal"]` —— 用项目名/仓库名（如 `journal`、`LiCASmart`、`tabshelf`）。
-  同时 `provenance.project` 给项目目录（如 `E:/projects/journal`）。
+  同时 `provenance.project` 给项目目录（如 `E:/primary/projects/journal`）。
 - **agent 调用时加 `provenance`**（让人知道是谁写的；不加则 host 默认标 `human`）：
   `"provenance":{"origin":"agent-assisted","agent":"pi","model":"$PI_MODEL","project":"工作目录"}`
   详见上文「来源元数据」章节。
@@ -162,7 +162,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 ```bash
 curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/json"   -d '{"content":"优化侧栏滚动","type":"text","tags":["journal"],
        "assignedDate":"2026-09-24","time":"09:30","startTime":"09:30","endTime":"10:00",
-       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/projects/journal"}}'
+       "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/primary/projects/journal"}}'
 ```
 
 **把一段日志转成多张卡片**（让界面能看到）：先 `$CLI read <day>` 拿到 journals 文本，再按段落拆开分别 `POST /api/cards`，每段一个时间。
@@ -214,7 +214,7 @@ curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/jso
 date: 2026-09-24
 weekday: 周三
 type: journal-day
-project: E:/projects/journal
+project: E:/primary/projects/journal
 device: DESKTOP-36AHUML
 tags: [journal]
 ---
@@ -281,16 +281,16 @@ $CLI sync config                # 查看当前同步配置（已脱敏）
 
 ```bash
 # 默认扫描 Pi 会话（最近主力），提取今天任务
-node E:/projects/journal/host/auto-summary.mjs
+node E:/primary/projects/journal/host/auto-summary.mjs
 
 # 指定天数
-node E:/projects/journal/host/auto-summary.mjs --day 2026-09-23
+node E:/primary/projects/journal/host/auto-summary.mjs --day 2026-09-23
 
 # 只扫 Codex 会话
-node E:/projects/journal/host/auto-summary.mjs --agent codex
+node E:/primary/projects/journal/host/auto-summary.mjs --agent codex
 
 # 预览不写入
-node E:/projects/journal/host/auto-summary.mjs --dry-run
+node E:/primary/projects/journal/host/auto-summary.mjs --dry-run
 ```
 
 **会话来源标记**（两层，各司其职）：
@@ -314,4 +314,4 @@ node E:/projects/journal/host/auto-summary.mjs --dry-run
   想在具体时刻显示 → 用 `POST /api/cards` 并明确给 `time`。
 - **追加日志**：先 `read` 再 `write` 覆盖，避免丢内容
 - 所有输出为 JSON，`ok:false` 时看 `error.code`（`HOST_OFFLINE` = 启动 host；`VALIDATION_ERROR` = 参数错误；`NOT_FOUND` = 目标不存在）
-- 数据文件：`E:/projects/journal/host/data/journal.db`（host SQLite 权威库；扩展是镜像缓存）
+- 数据文件：`E:/primary/projects/journal/host/data/journal.db`（host SQLite 权威库；扩展是镜像缓存）
