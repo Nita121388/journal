@@ -2,12 +2,21 @@
  * protocol.test.js — 前后端契约常量
  */
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_HOST_PORT, DEFAULT_HOST_BASE, ROUTES, routes, META_KINDS, MESSAGES } from './protocol.js';
+import { DEFAULT_HOST_PORT, DEFAULT_HOST_BASE, NATIVE_HOST_NAME, ROUTES, routes, META_KINDS, MESSAGES } from './protocol.js';
 
 describe('host 基址', () => {
-  it('端口与基址一致', () => {
-    expect(DEFAULT_HOST_PORT).toBe(8766);
+  it('端口属于已注册的两个变体之一', () => {
+    // prod(main)=8765 / dev(dev-local)=8766。
+    // 不要在这里写死单个值：main 分支的 protocol.js 是 8765，写死 8766 会让 main 的测试变红。
+    expect([8765, 8766]).toContain(DEFAULT_HOST_PORT);
     expect(DEFAULT_HOST_BASE).toBe(`http://127.0.0.1:${DEFAULT_HOST_PORT}`);
+  });
+
+  it('native host 名与端口同源分叉', () => {
+    // 端口和 host 名必须成对，否则 dev 扩展会去拉起 prod 的启动器（反之亦然）。
+    expect(NATIVE_HOST_NAME).toBe(
+      DEFAULT_HOST_PORT === 8766 ? 'com.journal.host.dev' : 'com.journal.host',
+    );
   });
 });
 

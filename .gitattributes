@@ -6,3 +6,6 @@ host/journal-host-launcher binary
 *.bak     binary
 # 打包产物：构建输出用什么换行就存什么，避免每次 build 都因 EOL 归一化产生 diff
 extension/dist/milkdown.bundle.js -text
+# Windows 批处理必须是 CRLF：LF 会让 `^` 续行失效，脚本静默“什么都不做”
+*.bat     text eol=crlf
+*.cmd     text eol=crlf

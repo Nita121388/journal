@@ -15,6 +15,7 @@ The **backend** is the `host/` directory: a **local Node.js process** that provi
 | Guide | Description | Status |
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | `host/` layout, `lib/` store, `sync/` engine | ✅ Filled |
+| [Deployment](./deployment.md) | prod/dev 两个变体、native messaging host 名、部署脚本护栏 | ✅ Filled |
 | [Database Guidelines](./database-guidelines.md) | SQLite store, tombstones, migration, sync | ✅ Filled |
 | [Error Handling](./error-handling.md) | Structured `{ ok, error: { code } }` responses, async handler wrapper | ✅ Filled |
 | [Logging Guidelines](./logging-guidelines.md) | `[host][level] component: msg`, no secrets logged | ✅ Filled |

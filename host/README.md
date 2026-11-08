@@ -60,7 +60,33 @@ JOURNAL_DATA_DIR=/tmp/x node host/server.js   # 隔离数据目录（测试/调�
 
 - 源码在 `launcher/`（`main.go` + 平台相关 `hide_*.go`），可随时重新构建。
 - 重新构建后请一并提交，保持二进制与源码同步。
-- `install-host.bat` 会把它们注册为 native messaging host。
+
+### 部署两个变体（prod / dev）
+
+关键事实：launcher 只做 `node server.js`，**cwd = 自己所在目录**，且
+**不注入任何 `JOURNAL_*` 环境变量**。所以默认端口由「部署目录里的 `server.js` 源码」决定，
+数据目录永远是 `<部署目录>/data`（junction）。同一个 exe 放进两个目录就是两个变体，
+不需要两套二进制、也不需要重编译。
+
+| 变体 | 目录 | host 名 | 端口 | 数据 | 分支 |
+|---|---|---|---|---|---|
+| prod | `D:\Apps\ChromeExtensions\journal\host` | `com.journal.host` | 8765 | `E:\primary\data\journal` | `main` |
+| dev | `D:\Apps\ChromeExtensions\journal-dev\host` | `com.journal.host.dev` | 8766 | `E:\primary\data\journal-dev` | `dev/local` |
+
+```cmd
+deploy-dev-host.bat                  :: 必须在 dev/local 分支跑
+host\deploy-prod-host.bat            :: 必须在 main 分支跑
+deploy-prod-host.bat -ManifestOnly   :: 只重建 manifest（不改源码、不重启）
+```
+
+脚本护栏：
+
+- 读 `server.js` 的 `DEFAULT_PORT` 与 `-Port` 对比，不符直接抛错
+  （拦住「把 dev 源码部署进 prod 目录」这类事故）。
+- `data` 已存在但不是 junction、或 junction 指向别的目录 → 抛错。
+- 只复制白名单文件，**不删除**目标目录任何东西。
+- dev 目录不部署 `install-host.bat`（它硬编码 prod 的 host 名）。
+
 
 ## 数据与迁移
 

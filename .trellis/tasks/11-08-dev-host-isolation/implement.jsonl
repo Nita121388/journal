@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "host/ 目录职责与分层边界"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "部署脚本的护栏与可验证性要求"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "extension platform/shared 分层（native host 名归 shared）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "host 名/端口在两个变体间的契约一致性"}

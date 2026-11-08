@@ -8,7 +8,7 @@
  * 经由 `sendMessage({type: MESSAGES.startHost})` 转发到这里。
  */
 
-import { MESSAGES, DEFAULT_HOST_BASE } from '../shared/protocol.js';
+import { MESSAGES, DEFAULT_HOST_BASE, NATIVE_HOST_NAME } from '../shared/protocol.js';
 import { REMINDED_KEY, pickDueCards, pruneReminded, reminderText } from '../shared/reminders.js';
 import { todayKey } from '../shared/model.js';
 
@@ -119,7 +119,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.type !== MESSAGES.startHost) return;
   try {
-    const port = chrome.runtime.connectNative('com.journal.host');
+    const port = chrome.runtime.connectNative(NATIVE_HOST_NAME);
     const finish = (payload) => {
       try { port.disconnect(); } catch { /* already closed */ }
       sendResponse(payload);

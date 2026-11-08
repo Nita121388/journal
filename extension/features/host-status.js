@@ -84,15 +84,15 @@ export async function startHost() {
   setHostStatus('starting');
   try {
     const result = await getPort().startHost();
-    if (!result?.ok) throw new Error(result?.error || 'Native Host 未注册，请先运行 host\\install-host.bat');
+    if (!result?.ok) throw new Error(result?.error || 'Native Host 未注册，请先运行 host\\deploy-host.ps1');
     const online = await waitForHost();
-    if (!online) throw new Error('启动超时，请确认已运行 host\\install-host.bat');
+    if (!online) throw new Error('启动超时，请确认已运行 host\\deploy-host.ps1（并检查端口未被占用）');
     await pullFromHost();
     await actions.refreshAll();
     showToast('Host 已启动', 'success');
   } catch (e) {
     setHostStatus('offline');
-    showToast(`启动失败：${e.message || '请先运行 host\\install-host.bat'}`, 'error');
+    showToast(`启动失败：${e.message || '请先运行 host\\deploy-host.ps1'}`, 'error');
   } finally {
     if (els.hostStatusBtn) els.hostStatusBtn.disabled = false;
   }

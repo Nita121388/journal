@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "变更后必须 lint + 单测全绿"}
+{"file": ".trellis/spec/backend/index.md", "reason": "host 侧改动检查清单"}

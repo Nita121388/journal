@@ -27,10 +27,11 @@ E:\primary\projects\journal          ← 唯一目录，git 仓库
 | `main` | **稳定版** | 8765 | prod | `E:\primary\data\journal` |
 | `dev/local` | **开发版** | 8766 | dev | `E:\primary\data\journal-dev` |
 
-两个分支的代码差异**只有 3 个文件 4 行**：
+两个分支的代码差异**只有 3 个文件 5 行**：
 
 ```
 extension/shared/protocol.js   DEFAULT_HOST_PORT  8765 / 8766
+                               NATIVE_HOST_NAME   com.journal.host / com.journal.host.dev
 host/server.js                 DEFAULT_PORT       8765 / 8766
 extension/manifest.json        name + key         Journal / Journal (dev)
 ```
@@ -108,6 +109,36 @@ dev host（可选，需要落库时起）：
 E:\primary\projects\journal\host\start-dev.bat     :: 8766，用 dev 数据
 ```
 
+或直接点 dev 扩展 header 的 🔴 按钮（走 native messaging，见下「两个 native host 名」）。
+
+### 两个 native host 名（重要）
+
+Chrome 只按 **host 名** 查 manifest。prod 与 dev 若共用一个名字，就只能指向
+同一个启动器、同一个端口 —— dev 永远点不起来。所以现在是两条独立链路：
+
+| 变体 | host 名 | 启动器 | 端口 | 数据 |
+|---|---|---|---|---|
+| prod | `com.journal.host` | `D:\Apps\ChromeExtensions\journal\host\journal-host-launcher.exe` | 8765 | `E:\primary\data\journal` |
+| dev | `com.journal.host.dev` | `D:\Apps\ChromeExtensions\journal-dev\host\journal-host-launcher.exe` | 8766 | `E:\primary\data\journal-dev` |
+
+**为什么不用改 launcher 二进制**：launcher 只做 `node server.js`，cwd = 自己所在目录，
+**不注入任何 `JOURNAL_*` 环境变量**。所以默认端口由「部署目录里的 server.js 源码」决定
+（main=8765，dev/local=8766），数据目录永远是 `<部署目录>\data`（junction）。
+同一个 exe 在两个目录里就是两个变体。
+
+部署 / 重新注册（脚本会自检「源码默认端口 == 目标端口」，不符直接报错）：
+
+```cmd
+:: dev（必须在 dev/local 分支执行）
+E:\primary\projects\journal\host\deploy-dev-host.bat
+
+:: prod（必须在 main 分支执行）
+E:\primary\projects\journal\host\deploy-prod-host.bat
+
+:: 只重建 manifest（收敛 allowed_origins，不动源码、不重启）
+E:\primary\projects\journal\host\deploy-prod-host.bat -ManifestOnly
+```
+
 ### 发布（dev → stable）
 
 ```bash
@@ -115,15 +146,15 @@ git checkout main
 git merge dev/local --no-ff
 
 # 重新应用 prod 配置（3 处）
-#   extension/shared/protocol.js : DEFAULT_HOST_PORT = 8765
+#   extension/shared/protocol.js : DEFAULT_HOST_PORT = 8765, NATIVE_HOST_NAME = 'com.journal.host'
 #   host/server.js               : DEFAULT_PORT = 8765
 #   extension/manifest.json      : name=Journal, key=<journal-prod.key.b64>
 
 git commit -am "release: <说明>"
 
-# 部署
+# 部署（用脚本，别手工 robocopy 注册表/manifest）
 robocopy extension → D:\Apps\ChromeExtensions\journal\extension
-robocopy host      → D:\Apps\ChromeExtensions\journal\host   (XD data)
+host\deploy-prod-host.bat          # 必须在 main 分支跑（会自检 8765）
 # 重启 prod host
 ```
 
@@ -135,9 +166,9 @@ robocopy host      → D:\Apps\ChromeExtensions\journal\host   (XD data)
    在仓库起 host 会用 `start-dev.bat`（dev 数据）或空目录。
 2. **`start-dev.bat` 显式指向 `E:\primary\data\journal-dev`**，
    不会误写 prod 数据。
-3. **两个扩展共用 native host 名 `com.journal.host`**，注册表只能指一个，
-   当前指向 prod（`D:\...\journal\host\com.journal.host.json`）。
-   dev 请用 `start-dev.bat` 手动启动。
+3. **native host 名已按变体分开**：prod `com.journal.host`（8765）、dev `com.journal.host.dev`（8766）。
+   prod 的 manifest `allowed_origins` 只含 prod 扩展 id；dev 扩展已无法借 prod 入口拉起 8765 实例。
+   注册用 `host\deploy-{dev,prod}-host.bat`，不要手写注册表。
 4. **`journal-data\backup.bat`** 备份的是 SQLite 三件套，
    不是已废弃的 `journal-data.json`。
 5. 该目录**禁用 `git clean -xdf`** —— 会删掉 `dev-loop/out`（历史报告）等未跟踪产物。
@@ -148,3 +179,4 @@ robocopy host      → D:\Apps\ChromeExtensions\journal\host   (XD data)
 
 - `E:\primary\_backup\journal-migration-2026-11-07\` — 路径迁移（项目/数据/部署三分）
 - `E:\primary\_backup\journal-upgrade-20261107\` — 旧版 → 新版架构升级 + 合并单目录
+- 2026-11-08 — dev host 独立部署 + native host 名分离（修复 dev「启动 host」必失败）

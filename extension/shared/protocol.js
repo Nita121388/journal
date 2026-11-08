@@ -15,6 +15,16 @@ export const DEFAULT_HOST_PORT = 8766;
 export const DEFAULT_HOST_BASE = `http://127.0.0.1:${DEFAULT_HOST_PORT}`;
 
 /**
+ * native messaging host 名（启动本机 host 的入口）。
+ *
+ * 必须与端口同步分叉：Chrome 只按「host 名」查 manifest，若 prod 与 dev
+ * 共用同一个名字，两侧就只能指向同一个启动器、同一个端口，dev 永远起不来。
+ *   prod（main 分支）: 'com.journal.host'      → 8765
+ *   dev（dev/local）:  'com.journal.host.dev'  → 8766
+ */
+export const NATIVE_HOST_NAME = 'com.journal.host.dev';
+
+/**
  * 静态路由。动态路由用 §builders 拼装。
  * @readonly
  */
