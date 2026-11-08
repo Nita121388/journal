@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件层规范：纯渲染函数、Field Registry、Esc 浮层竞争、行内编辑模式"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "语义 token 三层、反模式清单（禁硬编码 hex/内联 style/!important）、组件规范表"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "components/ 只可依赖 shared/；新增文件放哪的决策表"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint + vitest 覆盖率门禁 + dev-loop 验收要求"}

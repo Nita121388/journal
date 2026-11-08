@@ -5,6 +5,7 @@
  */
 
 import { propForm, propIcon, propKey, propOptions, propType, propsList } from '../components/dom-refs.js';
+import { createPropRow } from '../components/property-row.js';
 import { RESERVED_PROPS } from '../shared/model.js';
 import { getPropLibrary, removePropDef, savePropLibrary, upsertPropDef } from '../state/prop-library.js';
 import { pickDialog } from './dialog.js';
@@ -23,23 +24,26 @@ export function renderEditorProps() {
   }
   for (const [key, val] of Object.entries(editorProps)) {
     const def = getPropLibrary()[key];
-    const row = document.createElement('div');
-    row.className = 'prop-row';
-    row.dataset.key = key;
-    const label = document.createElement('span');
-    label.className = 'prop-label';
-    label.textContent = (def?.icon ? def.icon + ' ' : '') + (def?.label || key);
-    label.title = key;
+    // 与内建属性行同一结构（.prop-row > .prop-key + .prop-val），
+    // 只多出编辑/删除两个行尾动作 —— 视觉上两类属性不再割裂。
+    const { row, val: valEl } = createPropRow({
+      key,
+      label: def?.label || key,
+      icon: def?.icon && def.icon !== '•' ? def.icon : undefined,
+      hint: key,
+    });
     const ctrl = buildPropControl(key, def, val);
     const edit = document.createElement('button');
     edit.type = 'button'; edit.className = 'prop-edit'; edit.textContent = '✎';
     edit.title = '编辑属性定义（保存到属性库）';
+    edit.setAttribute('aria-label', `编辑属性 ${def?.label || key}`);
     edit.addEventListener('click', () => openPropForm(key));
     const del = document.createElement('button');
     del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
     del.title = '从当前卡片删除该属性（保留属性库定义）';
+    del.setAttribute('aria-label', `从当前卡片删除属性 ${def?.label || key}`);
     del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
-    row.append(label, ctrl, edit, del);
+    valEl.append(ctrl, edit, del);
     propsList.append(row);
   }
 }

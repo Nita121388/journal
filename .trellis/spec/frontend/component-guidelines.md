@@ -205,6 +205,32 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 
 **原则**：新增同域浮层时，三件事成套做——① 声明模块级 `xxxEl` 变量；② 全局 Esc handler 加一行 early-return；③ 重建宿主（`render*()`）时先 `closeXxx()`。
 
+## 组件层三件套（components/ 原子复用）
+
+编辑弹窗里曾有三类重复实现，已收口为 `components/` 下的原子。**新增同类 UI 必须复用，不得就地再写一份。**
+
+| 组件 | 导出 | 何时用 | 消掉的重复 |
+|---|---|---|---|
+| `seg.js` | `createSegGroup(container,{dataKey,onPick,initial})` / `syncSegValue` | 任何「多选一」分段胶囊（状态/优先级/筛选） | `updateStatusSeg` 与 `updatePrioritySeg` 两份逐行同构的遍历 |
+| `chip.js` | `createChip({label,onRemove,static,active,title})` | 任何标签 chip（可删/只读/筛选态） | `card-editor.js` 与 `views/timeline-card.js` 各手写一份 |
+| `property-row.js` | `createPropRow({key,label,icon,hint})` / `createPropDivider` | 任何「属性名 + 值」两列行 | 内建属性 `.ce-section` 卡片与自定义属性 `.prop-row` 两套结构 |
+
+### 使用约定
+
+- `createSegGroup` 用**容器级事件委托**（只注册一次），回调只上报值、不写业务状态 —— 状态归属仍在 `features/`。
+  同值点击会短路（不回调），因此「重复点当前项」不会产生副作用。
+- `createChip` 的 `×` 必须是独立 `.chip-x` 元素 + `aria-hidden`，**禁止** `textContent = name + ' ×'`：
+  后者会让读屏念出「乘号」，且整块点击即删除、无法只选中文本。
+- `createPropRow` 输出 `.prop-row > .prop-key + .prop-val`，`data-key` 落在行上供 CSS 分流；
+  `.prop-row` 在网格容器里是 `display: contents`，所以它既是语义容器又不破坏两列对齐。
+
+### Gotcha: `display: contents` 的行不能再当 flex 容器
+
+自定义属性区（`.props-list`）与内建属性区（`.ce-props`）都用两列网格，行是 `display: contents`。
+如果给 `.prop-row` 同时写 `display: flex`，两者互相覆盖，先出现的那条生效取决于书写顺序 ——
+曾出现「自定义属性行散成两列、编辑/删除按钮跑到新行」的视觉错位。
+**正解**：网格容器负责列宽，行只做 `display: contents`，行内子元素用 `.prop-val` 自己的 flex 排布。
+
 ## Unified Card Pool (统一卡片池，阶段 B)
 
 - **待办不是独立区块**：卡片池是唯一主视图，`status ∈ {todo,doing}` 即「待办」筛选（`statusMatches(c,'active')`），与其他筛选（标签/项目）AND 叠加。

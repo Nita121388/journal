@@ -123,6 +123,9 @@
 | 卡片 Card | 最小高 64px（内容自适应）；左边框色=状态；hover 抬升 `--sh-1` |
 | 时间线卡片 | 高度随内容；空槽显示弱「+ 在此添加」 |
 | 筛选 Chip | 高 24px、`--r-full`；默认≤5 个，多余进「筛选」弹层；active=accent 实心 |
+| 标签 chip（`components/chip.js`） | 小方角 `--r-sm`（非胶囊）、`--color-hover` 底 + 1px 边框；`×` 只在 hover/focus-visible 显示且必须是独立 `.chip-x` 元素（不得拼进文本，否则读屏念「乘号」）；只读态加 `is-static` |
+| 分段胶囊 `.seg`（`components/seg.js`） | **弱底语义**：常态透明底 + 透明边框；hover = `--color-hover`；选中 `is-active` = `--color-hover-strong` + 1px 边框 + 文字色（**不整块染高饱和色**）。彩色只能出现在 `.seg-dot`（8px 圆点，`--prio-*`）。DOM 契约：`button.seg` + `data-<key>` + `is-active`（dev-loop 依赖） |
+| 属性行 `.prop-row`（`components/property-row.js`） | Notion 式两列：`.ce-props { grid-template-columns: 76px minmax(0,1fr) }`，`.prop-row { display: contents }` 让 `.prop-key`/`.prop-val` 直接落进网格列。键列 muted 11.5px + 图标；值列正文色、`min-height:26px`、hover 弱底。内建属性与自定义属性**共用同一结构** |
 | 状态徽标 | 文字+色（不只色）；尺寸 11px |
 | 进度条 | 高 3–4px、`--r-full`；轨道 surface；值 accent；旁标百分比 |
 | 空状态 | 图标/emoji + 一句原因 + **一个行动按钮**（如「新建卡片」「清除筛选」） |
@@ -145,6 +148,8 @@
 ## 8. 反模式（Code Review 拦截项）
 
 - ❌ 硬编码 hex（必须语义 token）
+- ❌ 用高饱和实底胶囊编码状态/优先级（同色不同义、视觉噪音大）→ ✅ 弱底胶囊 + 8px 圆点承载颜色
+- ❌ 同一弹窗里两种属性行样式（内建卡片 vs 自定义 flex 行）→ ✅ 统一走 `components/property-row.js`
 - ❌ 内联 `style.*` 控制视觉（改 class/变量）
 - ❌ `!important`（除 reduced-motion 兜底）
 - ❌ emoji 当功能图标

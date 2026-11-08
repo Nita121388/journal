@@ -63,6 +63,15 @@
   --cc-gray-text: #4b5563;
   --cc-today: #e5484d;                     /* 今天标记（红底白字 4.63:1） */
   --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环（design-system §4） */
+  /* 弱底（Notion 式选中/hover）：对文字色取少量混色，亮暗两套自动跟随，
+   * 因此不需要在 [data-theme="dark"] 里重复定义。 */
+  --color-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
+  --color-hover-strong: color-mix(in srgb, var(--color-text) 10%, transparent);
+  /* 优先级圆点：只做 8px 图形（3:1 图形对比），文字永远是 --color-text，
+   * 因此不受 4.5:1 正文约束，也不再把整块胶囊染成高饱和实底。 */
+  --prio-high: #c62828;
+  --prio-medium: #b8860b;
+  --prio-low: #2e7d32;
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
@@ -100,4 +109,8 @@
   --cc-gray-border: #444;
   --cc-gray-text: #b9bec7;
   --cc-today: #e5484d;
+  /* 优先级圆点在暗底提亮，保证作为图形仍 ≥3:1 */
+  --prio-high: #ef5350;
+  --prio-medium: #e0a800;
+  --prio-low: #66bb6a;
 }

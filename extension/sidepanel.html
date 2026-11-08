@@ -172,7 +172,6 @@
   <!-- 模板构建器弹窗 -->
   <div id="template-builder-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="模板构建器">
     <div class="template-builder">
-      <div class="card-editor-accent"></div>
       <div class="tpl-builder-header">
         <div class="ce-tile-wrap">
           <button id="tpl-builder-tile" type="button" class="ce-emoji-tile" title="模板默认图标"><span id="tpl-builder-emoji" class="emoji-preview">🗂️</span></button>
@@ -198,8 +197,6 @@
   <!-- 卡片编辑弹窗 -->
   <div id="card-editor-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="卡片编辑器">
     <div class="card-editor">
-      <div class="card-editor-accent"></div>
-
       <div class="card-editor-header">
         <div class="ce-tile-wrap">
           <button id="btn-emoji-tile" type="button" class="ce-emoji-tile" title="点选图标">
@@ -210,7 +207,6 @@
         <div class="ce-head-fields">
           <input id="card-editor-title" type="text" class="card-editor-title" placeholder="标题…" aria-label="标题" autocomplete="off" />
           <div class="ce-head-subrow">
-            <input type="date" id="card-editor-date" class="card-editor-date" aria-label="日期" />
             <select id="card-editor-type" aria-label="类型">
               <option value="text">📝 文本</option>
               <option value="task">☑️ 任务</option>
@@ -222,74 +218,87 @@
       </div>
 
       <div class="card-editor-body">
-        <!-- 工作流：状态（分段）+ 进度 -->
-        <section class="ce-section">
-          <div class="ce-section-label">⚙️ 状态</div>
+        <!-- 属性区：Notion 式两列网格（左键右值），行结构由 components/property-row.js 定义 -->
+        <div class="ce-props" id="card-editor-props">
           <input type="hidden" id="card-editor-status" value="none" />
-          <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
-            <button type="button" class="seg is-active" role="radio" aria-checked="true" data-status="none">📝 纯记录</button>
-            <button type="button" class="seg" role="radio" aria-checked="false" data-status="todo">📌 未开始</button>
-            <button type="button" class="seg" role="radio" aria-checked="false" data-status="doing">🔥 进行中</button>
-            <button type="button" class="seg" role="radio" aria-checked="false" data-status="done">✅ 已完成</button>
-          </div>
-          <div class="ce-status-custom">
-            <span class="ce-status-custom-label">自定义状态</span>
-            <input id="card-editor-status-custom" type="text" maxlength="20" placeholder="如：等待反馈" aria-label="自定义状态" autocomplete="off" />
-          </div>
-          <div class="ce-progress-row">
-            <span class="ce-progress-caption">进度</span>
-            <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
-            <input type="number" id="card-editor-progress-number" min="0" max="100" class="ce-progress-number" aria-label="进度数值" />
-            <span class="ce-progress-percent">%</span>
-          </div>
-          <!-- 优先级：与状态同属工作流维度，故置于状态区内（高/中/低） -->
-          <div class="ce-prio-row">
-            <span class="ce-progress-caption">优先级</span>
-            <div class="prio-seg" id="card-editor-priority-seg" role="radiogroup" aria-label="优先级">
-              <button type="button" class="seg" role="radio" aria-checked="false" data-priority="high" title="高优先级">🔴 高</button>
-              <button type="button" class="seg is-active" role="radio" aria-checked="true" data-priority="medium" title="中优先级">🟡 中</button>
-              <button type="button" class="seg" role="radio" aria-checked="false" data-priority="low" title="低优先级">🟢 低</button>
+          <input type="hidden" id="card-editor-priority" value="medium" />
+
+          <div class="prop-row" data-key="status">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">⚙️</span><span class="prop-key-label">状态</span></div>
+            <div class="prop-val prop-val--stack">
+              <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
+                <button type="button" class="seg is-active" role="radio" aria-checked="true" data-status="none">📝 纯记录</button>
+                <button type="button" class="seg" role="radio" aria-checked="false" data-status="todo">📌 未开始</button>
+                <button type="button" class="seg" role="radio" aria-checked="false" data-status="doing">🔥 进行中</button>
+                <button type="button" class="seg" role="radio" aria-checked="false" data-status="done">✅ 已完成</button>
+              </div>
+              <input id="card-editor-status-custom" type="text" maxlength="20" placeholder="自定义状态，如：等待反馈" aria-label="自定义状态" autocomplete="off" />
             </div>
-            <input type="hidden" id="card-editor-priority" value="medium" />
           </div>
-        </section>
 
-        <!-- 排程：起止 + 时长 -->
-        <section class="ce-section">
-          <div class="ce-section-label">📅 排程</div>
-          <div class="card-editor-times">
-            <label>开始 <input type="time" id="card-editor-start" step="900" /></label>
-            <label>结束 <input type="time" id="card-editor-end" step="900" /></label>
-            <label>时长(分) <input type="number" id="card-editor-duration-min" min="0" class="card-editor-duration-input" /></label>
-            <span id="card-editor-duration" class="card-editor-duration"></span>
+          <div class="prop-row" data-key="progress">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📊</span><span class="prop-key-label">进度</span></div>
+            <div class="prop-val">
+              <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
+              <input type="number" id="card-editor-progress-number" min="0" max="100" class="ce-progress-number" aria-label="进度数值" />
+              <span class="ce-progress-percent">%</span>
+            </div>
           </div>
-        </section>
 
-        <!-- 内容 -->
-        <section class="ce-section">
-          <div class="ce-section-label">📝 内容</div>
-          <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4"></textarea>
-        </section>
-
-        <!-- 标签（图标选择已由头部瓦片负责） -->
-        <section class="ce-section">
-          <div class="ce-section-label"># 标签</div>
-          <div class="card-editor-tags">
-            <div id="card-editor-tag-chips" class="tag-chips"></div>
-            <input id="card-editor-tag-input" type="text" placeholder="标签，回车添加" aria-label="标签" />
+          <div class="prop-row" data-key="priority">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">🚩</span><span class="prop-key-label">优先级</span></div>
+            <div class="prop-val">
+              <div class="prio-seg" id="card-editor-priority-seg" role="radiogroup" aria-label="优先级">
+                <button type="button" class="seg" role="radio" aria-checked="false" data-priority="high" title="高优先级"><i class="seg-dot" aria-hidden="true"></i>高</button>
+                <button type="button" class="seg is-active" role="radio" aria-checked="true" data-priority="medium" title="中优先级"><i class="seg-dot" aria-hidden="true"></i>中</button>
+                <button type="button" class="seg" role="radio" aria-checked="false" data-priority="low" title="低优先级"><i class="seg-dot" aria-hidden="true"></i>低</button>
+              </div>
+            </div>
           </div>
-        </section>
 
-        <!-- 更多：项目 / 属性 / 模板 -->
-        <details class="ce-more">
-          <summary>📁 更多属性</summary>
-          <div class="card-editor-project">
-            <label class="field">项目目录
+          <div class="prop-row" data-key="date">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📅</span><span class="prop-key-label">日期</span></div>
+            <div class="prop-val">
+              <input type="date" id="card-editor-date" class="card-editor-date" aria-label="日期" />
+            </div>
+          </div>
+
+          <div class="prop-row" data-key="schedule">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">⏱️</span><span class="prop-key-label">排程</span></div>
+            <div class="prop-val card-editor-times">
+              <label class="ce-time-field"><span>开始</span><input type="time" id="card-editor-start" step="900" /></label>
+              <label class="ce-time-field"><span>结束</span><input type="time" id="card-editor-end" step="900" /></label>
+              <label class="ce-time-field ce-time-field--wide"><span>时长(分)</span><input type="number" id="card-editor-duration-min" min="0" class="card-editor-duration-input" /></label>
+              <span id="card-editor-duration" class="card-editor-duration"></span>
+            </div>
+          </div>
+
+          <div class="prop-row" data-key="tags">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">#</span><span class="prop-key-label">标签</span></div>
+            <div class="prop-val prop-val--wrap">
+              <div id="card-editor-tag-chips" class="tag-chips"></div>
+              <input id="card-editor-tag-input" type="text" placeholder="+ 添加标签" aria-label="标签" />
+            </div>
+          </div>
+
+          <div class="prop-row" data-key="project">
+            <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📁</span><span class="prop-key-label">项目</span></div>
+            <div class="prop-val">
               <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/primary/projects/journal" aria-label="项目目录" />
               <datalist id="project-suggest"></datalist>
-            </label>
-            <div id="card-editor-meta" class="card-editor-meta"></div>
+              <div id="card-editor-meta" class="card-editor-meta"></div>
+            </div>
           </div>
+        </div>
+
+        <hr class="prop-divider" />
+
+        <!-- 正文：Notion 里正文在属性区之下，不再套卡片 -->
+        <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4" aria-label="内容"></textarea>
+
+        <!-- 更多：自定义属性 -->
+        <details class="ce-more">
+          <summary>自定义属性</summary>
           <div class="card-editor-props">
             <div class="props-header">
               <span class="section-label">属性（自定义）</span>
@@ -323,13 +332,11 @@
             </div>
           </div>
         </details>
-
-        <div class="card-editor-tools">
-          <button id="card-editor-save-template" type="button" class="btn-secondary" title="把当前卡片保存为命名模板">🗂️ 保存为模板</button>
-        </div>
       </div>
 
       <div class="card-editor-footer">
+        <button id="card-editor-save-template" type="button" class="btn-secondary btn-quiet" title="把当前卡片保存为命名模板">🗂️ 保存为模板</button>
+        <span class="card-editor-footer-spacer"></span>
         <button id="card-editor-cancel" class="btn-secondary">取消</button>
         <button id="card-editor-save" class="btn-primary">保存</button>
       </div>

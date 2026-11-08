@@ -1729,21 +1729,6 @@ body.is-dragging .timeline-card.is-short {
 }
 .tag-chip.is-static { cursor: default; }
 .tag-chip.is-active { background: var(--color-accent-strong); color: #fff; border-color: transparent; }
-.card-editor-tags { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.card-editor-tags input {
-  width: 100%; box-sizing: border-box;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-surface);
-  color: var(--color-text);
-  outline: none;
-  transition: border-color 0.15s;
-}
-.card-editor-tags input:focus { border-color: var(--color-accent); }
-.card-editor-tags input::placeholder { color: var(--color-muted); opacity: 0.7; }
 .cardpool-tag-filters { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0 0 6px; padding: 0; }
 
 .card-footer-btn {
@@ -1803,28 +1788,12 @@ body.is-dragging .timeline-card.is-short {
   margin-bottom: 10px;
 }
 
-#card-editor-date {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 3px 6px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
 #card-editor-type {
   /* 曾经实测 width=16px（被 flex 压扁）→ 看不见当前值也点不准。
-     类型是核心字段，给一个不可再压的下限。 */
+     类型是核心字段，给一个不可再压的下限（dev-loop 断言 ≥90px）。
+     视觉走 Notion 式：常态无边框、hover 才出弱底。 */
   flex: 0 0 auto;
   min-width: 96px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-bg);
-  color: var(--color-text);
 }
 
 .card-editor-close-btn {
@@ -1839,34 +1808,6 @@ body.is-dragging .timeline-card.is-short {
 }
 .card-editor-close-btn:hover { background: var(--color-cell-empty); }
 
-.card-editor-times {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-.card-editor-times label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.card-editor-times input[type="time"] {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 3px 6px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-.card-editor-duration {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-accent);
-}
 
 /* 编辑器：emoji 图标选择行 */
 .card-editor-emoji {
@@ -2005,49 +1946,9 @@ body.is-dragging .timeline-card.is-short {
 .ep-emoji.selected { background: var(--color-accent-light); box-shadow: inset 0 0 0 2px var(--color-accent); }
 .ep-empty { font-size: 12px; color: var(--color-muted); padding: 16px; text-align: center; }
 
-#card-editor-content {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 14px;
-  font-family: var(--font);
-  line-height: 1.6;
-  resize: vertical;
-  background: var(--color-surface);
-  color: var(--color-text);
-  min-height: 80px;
-}
-#card-editor-content:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
-
-/* 编辑器：项目目录 + 来源展示 */
-.card-editor-project {
-  margin: 8px 0;
-}
-.card-editor-project .field {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--color-muted);
-}
-#card-editor-project {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 12px;
-  font-family: var(--font);
-  background: var(--color-surface);
-  color: var(--color-text);
-  outline: none;
-  transition: border-color 0.15s;
-}
-#card-editor-project:focus { border-color: var(--color-accent); }
+/* 编辑器正文 / 项目输入样式见 Notion 化段（#card-editor-content 与 .prop-val 内输入） */
 
 .card-editor-meta {
-  margin-top: 5px;
   font-size: 10px;
   line-height: 1.5;
   color: var(--color-muted);
@@ -2155,20 +2056,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* ─── 属性编辑器（阶段 C） ───────────────────────────── */
 
-.card-editor-title {
-  width: 100%;
-  box-sizing: border-box;
-  font-family: var(--font);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 6px 8px;
-  margin-bottom: 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-.card-editor-title:focus { outline: 2px solid var(--color-accent); outline-offset: -1px; }
+/* 标题输入样式见 Notion 化段（无边框，focus 才出下边框） */
 
 .card-editor-workflow {
   display: flex;
@@ -2182,30 +2070,35 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .card-editor-workflow input[type=range] { flex: 1; }
 .card-editor-progress-label { font-size: 12px; color: var(--color-accent); min-width: 34px; text-align: right; }
 
-.card-editor-duration-input { width: 64px; }
 
-/* 自定义属性 */
+/* 自定义属性：与内建属性共用 .ce-props 两列网格（.prop-row 为 display:contents），
+ * 因此列表容器也是同一个网格 —— 视觉上不再出现「第二种行样式」。 */
 .card-editor-props { margin-top: 6px; }
 .props-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .props-header .section-label { font-weight: 600; }
 .props-add-btn {
   font-family: var(--font); font-size: 11px;
-  padding: 1px 8px; border-radius: 10px;
-  border: 1px solid var(--color-border); background: var(--color-bg);
+  padding: 1px 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--color-border); background: transparent;
   color: var(--color-muted); cursor: pointer;
 }
 .props-add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
-.props-list { display: flex; flex-direction: column; gap: 4px; }
-.prop-row { display: flex; align-items: center; gap: 6px; }
-.prop-label { font-size: 12px; min-width: 64px; color: var(--color-text); }
-.prop-input {
-  flex: 1; font-family: var(--font); font-size: 12px;
-  border: 1px solid var(--color-border); border-radius: 4px;
-  padding: 2px 5px; background: var(--color-bg); color: var(--color-text);
+.props-list {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
 }
-.prop-del { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; }
-.prop-del:hover { color: #e53935; }
+.prop-input {
+  flex: 1; min-width: 0; font-family: var(--font); font-size: 12px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 3px 6px; background: transparent; color: var(--color-text);
+}
+.prop-input:hover { border-color: var(--color-border); }
+.prop-input:focus-visible { outline: none; border-color: var(--color-focus); box-shadow: 0 0 0 1px var(--color-focus); }
+.prop-del { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 2px; }
+.prop-del:hover { color: var(--color-danger); }
 
 .prop-form {
   margin-top: 6px; padding: 6px; border: 1px solid var(--color-border);
@@ -2248,7 +2141,6 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .prop-lib-check { font-size: 12px; color: var(--color-muted); display: flex; align-items: center; gap: 4px; margin-right: auto; }
 
 /* 保存为模板 */
-.card-editor-tools { margin-top: 8px; display: flex; justify-content: flex-end; }
 
 /* ─── 模板下拉（阶段 D） ─────────────────────────────── */
 
@@ -2319,36 +2211,30 @@ html.wide-mode .timeline-card { max-width: 300px; }
 }
 @keyframes ce-pop { from { transform: translateY(12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* 顶部渐变彩带 */
-.card-editor-accent {
-  height: 6px;
-  background: linear-gradient(90deg, #43a047, #26a69a 40%, #1e88e5 80%, #7e57c2);
-}
-
-/* 头部：图标瓦片 + 标题 + 日期/类型 */
+/* 头部：图标瓦片 + 标题 + 类型（Notion 式：无边框，只靠字号与留白分层） */
 .card-editor-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px 8px;
+  gap: 10px;
+  padding: 16px 16px 6px;
   margin: 0;
 }
 .ce-emoji-tile {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
-  border: none;
-  border-radius: 13px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: linear-gradient(135deg, var(--color-accent, #43a047), #26a69a);
-  box-shadow: 0 3px 8px rgba(67,160,71,.35);
-  transition: transform .12s, box-shadow .12s;
+  background: transparent;
+  transition: background .15s ease-out, border-color .15s ease-out;
   font-family: var(--font-emoji);
+  padding: 0;
 }
-.ce-emoji-tile:hover { transform: scale(1.06); box-shadow: 0 5px 12px rgba(67,160,71,.4); }
+.ce-emoji-tile:hover { background: var(--color-hover); border-color: var(--color-border); }
 .emoji-preview {
   border: none;
   background: transparent;
@@ -2356,177 +2242,315 @@ html.wide-mode .timeline-card { max-width: 300px; }
   width: auto;
   height: auto;
   font-family: var(--font-emoji);
-  text-shadow: 0 1px 2px rgba(0,0,0,.15);
 }
-.ce-head-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ce-head-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+/* 大标题：常态无边框，focus 才出现 1px 底边（Notion 页面标题行为） */
 .card-editor-title {
   width: 100%;
   box-sizing: border-box;
   font-family: var(--font);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--color-text);
-  padding: 6px 2px;
+  padding: 2px 0;
   margin: 0;
   border: none;
-  border-bottom: 2px solid var(--color-border);
+  border-bottom: 1px solid transparent;
   border-radius: 0;
   background: transparent;
-  transition: border-color .15s;
+  transition: border-color .15s ease-out;
 }
-.card-editor-title:focus { outline: none; border-bottom-color: var(--color-accent); }
-.card-editor-title::placeholder { color: var(--color-muted); opacity: .7; }
+.card-editor-title:focus { outline: none; border-bottom-color: var(--color-border); }
+.card-editor-title::placeholder { color: var(--color-muted); opacity: .75; font-weight: 500; }
 .ce-head-subrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.ce-head-subrow #card-editor-date,
 .ce-head-subrow #card-editor-type {
   font-family: var(--font);
   font-size: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
   padding: 3px 7px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
 }
+.ce-head-subrow #card-editor-type:hover { background: var(--color-hover); color: var(--color-text); }
 .card-editor-close-btn { margin-left: 0; }
 
 /* 主体滚动区 */
 .card-editor-body {
-  padding: 4px 16px 8px;
+  padding: 6px 16px 10px;
   max-height: calc(90vh - 120px);
   min-height: 0; /* flex 子项默认 min-height:auto 会阻止滚动，必须显式放开 */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-/* 分区卡片 */
-.ce-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 10px 12px; }
-.ce-section-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .4px;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
+/* ─── 属性区：Notion 式两列网格（左键右值，无卡片、无分区边框） ───────
+ * 键列固定宽 → 所有属性行左边缘对齐；值列 min-width:0 让内部控件可正常收缩。
+ * 行结构由 components/property-row.js 定义（.prop-row > .prop-key + .prop-val）。
+ * .prop-row 用 display:contents 让两个子元素直接落进网格列 —— 这样「一行属性」
+ * 既是一个语义容器（data-key 供 CSS 分流），又不破坏两列对齐。 */
+.ce-props {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  margin: 2px 0 4px;
+}
+.ce-props > input[type="hidden"] { display: none; }
+.prop-row { display: contents; }
+.prop-key {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+  padding: 4px 0;
+  min-width: 0;
 }
-.ce-section-label::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }
+.prop-key-icon { font-size: 11px; flex-shrink: 0; opacity: .85; }
+.prop-key-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-val {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 4px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--color-text);
+  transition: background .12s ease-out;
+}
+.prop-val:hover, .prop-val:focus-within { background: var(--color-hover); }
+/* 值列纵向堆叠（状态 = 分段 + 自定义输入） */
+.prop-val--stack { flex-direction: column; align-items: stretch; gap: 4px; }
+.prop-val--wrap { flex-wrap: wrap; }
+/* 渐进披露：进度只对「任务」有意义（纯记录/想法不展示，减少噪音） */
+.ce-props[data-type="text"] .prop-row[data-key="progress"],
+.ce-props[data-type="idea"] .prop-row[data-key="progress"] { display: none; }
+/* 属性区与正文之间的唯一分隔线 */
+.prop-divider {
+  border: none;
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 0 10px;
+}
 
-/* 状态分段胶囊 */
-.status-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 10px; }
-.seg {
+/* 属性值里的裸输入（项目 / 自定义状态 / 标签 / 时间）：常态无框，hover 才出细边 */
+.prop-val input[type="text"],
+.prop-val input[type="date"],
+.prop-val input[type="time"],
+.prop-val input[type="number"] {
   font-family: var(--font);
   font-size: 12px;
-  padding: 6px 2px;
-  border-radius: 9px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 3px 6px;
+  min-width: 0;
+}
+.prop-val input[type="text"]:hover,
+.prop-val input[type="date"]:hover,
+.prop-val input[type="time"]:hover,
+.prop-val input[type="number"]:hover { border-color: var(--color-border); }
+.prop-val input:focus-visible {
+  outline: none;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 1px var(--color-focus);
+}
+.prop-val input::placeholder { color: var(--color-muted); opacity: .7; }
+.prop-val #card-editor-project { flex: 1 1 100%; }
+.prop-val #card-editor-status-custom { width: 100%; }
+.prop-val #card-editor-tag-input { flex: 1 1 90px; }
+
+/* 状态四档：图标 + 文字在 76px 值列里必然挤，只保留图标 + 短词（纯记录/未开始/进行中/已完成），
+ * 用两行两列而不是四列一行 —— 四列时每档只有 ~55px，「纯记录」会被截成「纯记」。 */
+.status-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  width: 100%;
+}
+.prio-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; flex: 1; }
+.seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--font);
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 4px 3px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--color-muted);
   cursor: pointer;
-  transition: all .12s;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background .12s ease-out, color .12s ease-out;
 }
-.seg:hover { border-color: var(--color-accent); }
-.seg.is-active { color: #fff; border-color: transparent; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
-.status-seg .seg[data-status="none"].is-active { background: #455a64; }   /* 白字 7.24:1 */
-.status-seg .seg[data-status="todo"].is-active { background: #8d6e00; }   /* 4.81:1 */
-.status-seg .seg[data-status="doing"].is-active { background: #1565c0; }  /* 5.75:1 */
-.status-seg .seg[data-status="done"].is-active { background: #2e7d32; }   /* 5.13:1 */
-
-/* 优先级分段：与状态分段同构（复用 .seg），仅 3 档 */
-.ce-prio-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.prio-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: 1; }
-/* 对比度需 ≥4.5:1（白字）：原 #e53935/#f9a825/#43a047 分别只有 4.2/1.9/3.3 */
-.prio-seg .seg[data-priority="high"].is-active { background: #c62828; }
-.prio-seg .seg[data-priority="medium"].is-active { background: #8d6e00; }
-.prio-seg .seg[data-priority="low"].is-active { background: #2e7d32; }
+.seg:hover { background: var(--color-hover); color: var(--color-text); }
+.seg.is-active {
+  background: var(--color-hover-strong);
+  color: var(--color-text);
+  font-weight: 600;
+  border-color: var(--color-border);
+}
+/* 优先级圆点：颜色只出现在这里（8px 图形），文字保持正文色 */
+.seg-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-muted);
+  opacity: .55;
+}
+.seg[data-priority="high"] .seg-dot { background: var(--prio-high); }
+.seg[data-priority="medium"] .seg-dot { background: var(--prio-medium); }
+.seg[data-priority="low"] .seg-dot { background: var(--prio-low); }
+.seg.is-active .seg-dot { opacity: 1; }
 
 /* 进度条 */
-.ce-progress-row { display: flex; align-items: center; gap: 10px; }
-.ce-progress-caption { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }
-.ce-progress-row input[type=range] {
+.prop-val input[type=range] {
   flex: 1;
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  border-radius: 4px;
+  height: 4px;
+  border-radius: 999px;
   background: linear-gradient(to right, var(--color-accent) var(--ce-prog, 0%), var(--color-cell-empty) var(--ce-prog, 0%));
   outline: none;
+  min-width: 40px;
 }
-.ce-progress-row input[type=range]::-webkit-slider-thumb {
+.prop-val input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px; height: 16px;
+  width: 14px; height: 14px;
   border-radius: 50%;
   background: var(--color-accent);
-  border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
   cursor: pointer;
 }
-.ce-progress-row input[type=range]::-moz-range-thumb {
-  width: 14px; height: 14px; border-radius: 50%;
-  background: var(--color-accent); border: 2px solid #fff; cursor: pointer;
+.prop-val input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--color-accent); border: 2px solid var(--color-bg); cursor: pointer;
 }
-.card-editor-progress-label { font-size: 12px; font-weight: 700; color: var(--color-accent); min-width: 34px; text-align: right; }
+.prop-val input[type=range]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.ce-progress-number {
+  width: 44px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ce-progress-percent { font-size: 11px; color: var(--color-muted); flex-shrink: 0; }
 
-/* 排程时间行 */
-.card-editor-times { margin: 0; }
-.card-editor-times label { gap: 6px; }
-.card-editor-times input[type="time"] { border-radius: 7px; }
+/* 排程：开始/结束同一行，时长独占一行（两个字段一行放不下三个输入） */
+.card-editor-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 6px;
+  width: 100%;
+}
+.ce-time-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-muted);
+  min-width: 0;
+}
+.ce-time-field input[type="time"] { flex: 1 1 auto; min-width: 0; }
+.ce-time-field--wide { grid-column: 1 / -1; }
+.ce-time-field--wide > span { white-space: nowrap; flex-shrink: 0; }
+/* 时长输入：空值时完全透明就看不见（截图实测），给它一条常驻下划线当可编辑提示 */
+.card-editor-duration-input {
+  width: 64px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+}
+.card-editor-duration { grid-column: 1 / -1; font-size: 11px; color: var(--color-warn); }
+/* 来源展示（创建/修改）：占满整行，不挤在项目输入后面 */
+.card-editor-meta { flex: 1 1 100%; margin-top: 2px; }
 
-/* 内容 textarea */
+/* 正文：单块无边输入，靠分隔线与属性区分层 */
 #card-editor-content {
   box-sizing: border-box;
   width: 100%;
   font-family: var(--font);
   font-size: 13px;
-  line-height: 1.5;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  line-height: 1.6;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
   color: var(--color-text);
   resize: vertical;
-  transition: border-color .15s, box-shadow .15s;
+  min-height: 88px;
+  transition: background .12s ease-out, border-color .12s ease-out;
 }
-#card-editor-content:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-light, rgba(76,175,80,.15)); }
+#card-editor-content:hover { background: var(--color-hover); }
+#card-editor-content:focus-visible { outline: none; border-color: var(--color-focus); }
+#card-editor-content::placeholder { color: var(--color-muted); opacity: .75; }
+/* 标签 chip：Notion 式小方角（非胶囊），hover 才露出 ×
+ * 作用域限定在编辑器内 —— 卡片池的只读标签（.card-tags）沿用既有胶囊样式，
+ * 不受此改造影响。 */
+.tag-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#card-editor-tag-chips .chip-atom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-hover);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background .12s ease-out;
+}
+#card-editor-tag-chips .chip-atom:hover { background: var(--color-hover-strong); }
+#card-editor-tag-chips .chip-atom .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#card-editor-tag-chips .chip-atom .chip-x { display: none; color: var(--color-muted); }
+#card-editor-tag-chips .chip-atom:hover .chip-x,
+#card-editor-tag-chips .chip-atom:focus-visible .chip-x { display: inline; }
 
-/* 图标 + 标签 */
-.card-editor-emoji { position: relative; margin-bottom: 8px; }
-.emoji-pick-btn, .emoji-free-input, .emoji-clear-btn { border-radius: 7px; }
-
-/* 更多（折叠） */
-/* overflow 不可用 hidden：折叠态下 details 会被压成 2px 高，summary 溢出被裁，
-   命中测试落到 .card-editor 背景 → 「更多属性」与「＋ 添加属性」点不开（实测）。 */
-.ce-more { border: 1px solid var(--color-border); border-radius: 12px; background: transparent; }
+/* 更多（折叠）：只有一条细边，不抢正文注意力 */
+.ce-more { border: none; border-radius: var(--r-md); background: transparent; }
 .ce-more summary {
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
   color: var(--color-muted);
-  padding: 8px 12px;
+  padding: 6px 4px;
   list-style: none;
   user-select: none;
-  transition: color .12s;
+  border-radius: var(--r-sm);
+  transition: color .12s ease-out, background .12s ease-out;
 }
-.ce-more summary:hover { color: var(--color-accent); }
+.ce-more summary:hover { color: var(--color-text); background: var(--color-hover); }
+.ce-more summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
 .ce-more summary::-webkit-details-marker { display: none; }
-.ce-more summary::after { content: '▾'; float: right; transition: transform .15s; color: var(--color-muted); }
+.ce-more summary::after { content: '▾'; float: right; transition: transform .15s ease-out; }
 .ce-more[open] summary::after { transform: rotate(180deg); }
-.ce-more > div { border-top: 1px dashed var(--color-border); padding: 10px 12px; }
+.ce-more > div { border-top: 1px solid var(--color-border); padding: 10px 4px; margin-top: 4px; }
 
-/* 底部工具栏 + 按钮 */
-.card-editor-tools { display: flex; justify-content: flex-end; }
+/* 底部工具栏 + 按钮：模板入口左置（不与「保存」争同一视觉锚点） */
 .card-editor-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   padding: 10px 16px 14px;
   background: var(--color-bg);
   border-top: 1px solid var(--color-border);
 }
+.card-editor-footer-spacer { flex: 1; }
 .card-editor-footer .btn-primary {
   min-width: 84px;
   font-family: var(--font);
@@ -2534,26 +2558,33 @@ html.wide-mode .timeline-card { max-width: 300px; }
   font-weight: 600;
   padding: 8px 16px;
   border: none;
-  border-radius: 9px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--color-accent, #43a047), #26a69a);
-  box-shadow: 0 3px 8px rgba(67,160,71,.3);
+  border-radius: var(--r-sm);
+  color: var(--color-on-accent);
+  background: var(--color-accent-strong);
   cursor: pointer;
-  transition: transform .12s, box-shadow .12s, filter .12s;
+  transition: filter .12s ease-out;
 }
-.card-editor-footer .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 5px 14px rgba(67,160,71,.35); }
+.card-editor-footer .btn-primary:hover { filter: brightness(1.08); }
 .card-editor-footer .btn-secondary {
   font-family: var(--font);
   font-size: 13px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border: 1px solid var(--color-border);
-  border-radius: 9px;
-  background: var(--color-surface);
+  border-radius: var(--r-sm);
+  background: transparent;
   color: var(--color-text);
   cursor: pointer;
-  transition: border-color .12s, color .12s;
+  transition: background .12s ease-out, border-color .12s ease-out;
 }
-.card-editor-footer .btn-secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.card-editor-footer .btn-secondary:hover { background: var(--color-hover); }
+/* 安静的次要动作（保存为模板）：默认弱化，不喧宾夺主 */
+.card-editor-footer .btn-quiet {
+  border-color: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.card-editor-footer .btn-quiet:hover { color: var(--color-text); background: var(--color-hover); }
 
 /* 图标瓦片容器：让 emoji 选择器定位在其正下方 */
 .ce-tile-wrap { position: relative; flex-shrink: 0; }
@@ -2625,39 +2656,6 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .card-editor-footer { flex-shrink: 0; }
 .tpl-builder-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
-/* 去渐变：纯色 */
-.card-editor-accent { background: var(--color-accent); }
-.ce-emoji-tile { background: var(--color-accent); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-.card-editor-footer .btn-primary { background: var(--color-accent-strong); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
-.card-editor-footer .btn-primary:hover { box-shadow: 0 4px 10px rgba(0,0,0,.18); filter: brightness(1.04); }
-
-/* 自定义状态 */
-.ce-status-custom { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-.ce-status-custom-label { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }
-#card-editor-status-custom {
-  flex: 1;
-  font-family: var(--font);
-  font-size: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  padding: 4px 8px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-#card-editor-status-custom:focus { outline: none; border-color: var(--color-accent); }
-
-/* 进度：滑块 + 手输数值 */
-.ce-progress-number {
-  width: 56px;
-  font-family: var(--font);
-  font-size: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 7px;
-  padding: 3px 6px;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-.ce-progress-percent { font-size: 12px; color: var(--color-muted); flex-shrink: 0; }
 
 /* 属性定义编辑按钮 */
 .prop-edit { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 2px; }
@@ -2682,7 +2680,6 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .template-builder { border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.24), 0 2px 12px rgba(0,0,0,.12); }
 
 /* 去掉模板构建器顶部绿色彩带（卡片编辑器仍保留） */
-.template-builder > .card-editor-accent { display: none; }
 
 .tpl-builder-header {
   padding: 16px 18px 12px;
@@ -2908,22 +2905,24 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .app-dialog button:focus-visible,
 .app-dialog input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
-/* 键盘焦点环 */
+/* 键盘焦点环：标题除外（它用下边框表达焦点，叠加整框环会变成「绿框里的绿框」） */
 .template-builder button:focus-visible,
 .template-builder input:focus-visible,
 .template-builder select:focus-visible,
 .template-builder textarea:focus-visible,
 .card-editor button:focus-visible,
-.card-editor input:focus-visible,
 .card-editor select:focus-visible,
 .card-editor textarea:focus-visible,
-.card-editor-title:focus-visible {
+.card-editor input:not(.card-editor-title):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* 标题输入框（卡片/模板）：焦点已由下划线指示，不再叠加彩色焦点环 */
+/* 标题输入框（卡片/模板）：焦点已由下边框指示，不再叠加彩色焦点环。
+ * 必须同时覆盖 :focus 与 :focus-visible —— 打开弹窗时是程序 focus()，
+ * 只匹配 :focus 不匹配 :focus-visible 的写法会留下一条残留绿框（实测截图确认）。 */
+.card-editor-title:focus,
 .card-editor-title:focus-visible { outline: none; }
 
 /* 拖拽排序反馈 */
@@ -2987,10 +2986,7 @@ body.tpl-dragging { user-select: none; }
 /* 空状态提示 */
 .props-empty { font-size: 12px; color: var(--color-muted); padding: 6px 8px; }
 
-/* 分区/属性行聚焦强调 */
-.ce-section:focus-within { border-color: var(--color-accent); }
 .tpl-prop-row:focus-within { background: var(--color-cell-empty); }
-.prop-row:focus-within { background: var(--color-cell-empty); }
 
 /* ═══════════════════════════════════════════════════════
    模板构建器 · 扁平 Notion 式属性行
@@ -3464,14 +3460,30 @@ body.tpl-dragging { user-select: none; }
    实测 320px 下 #card-editor-duration-min 右边缘到 351、时长标签到 372（视口只有 320）。
    「结束 / 时长」是常用字段，被挤出屏幕等于改不了时长。 */
 @media (max-width: 380px) {
-  .card-editor-times { flex-wrap: wrap; }
-  .card-editor-times > label { flex: 1 1 calc(50% - 6px); min-width: 0; }
-  .card-editor-times > .card-editor-duration { flex: 1 1 100%; }
-  .card-editor-times input { min-width: 0; max-width: 100%; }
-  /* 头部子行：日期 + 类型在 320px 下放不下一行，换行而不是把类型挤出面板。
-     类型选择器保底 96px（见 #card-editor-type）—— 那是核心字段，不能再被压。 */
+  /* 320px 下两列网格（键列 64px + 值列）根本不够：
+   * 时间输入被压到只剩「18」、按钮文字换行、键列标签被裁。
+   * 改为单列堆叠 —— 键在上、值在下，值列拿到整宽。 */
+  .ce-props, .props-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .ce-props .prop-key, .props-list .prop-key {
+    padding: 6px 0 1px;
+    font-size: 11px;
+  }
+  .ce-props .prop-val, .props-list .prop-val { padding: 1px 4px 4px; }
+  /* 时间字段回到单行可换行布局，每个字段保底能显示 HH:MM */
+  .card-editor-times { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .card-editor-times .ce-time-field { flex-wrap: wrap; }
+  .card-editor-times input[type="time"] { min-width: 92px; }
+  /* 底部按钮：三个按钮一行放不下时，次要动作（保存为模板）独占一行 */
+  .card-editor-footer { flex-wrap: wrap; row-gap: 6px; }
+  .card-editor-footer .btn-primary,
+  .card-editor-footer .btn-secondary { white-space: nowrap; }
+  .card-editor-footer .btn-quiet { font-size: 11px; }
+  .card-editor-footer-spacer { flex: 1 1 100%; height: 0; }
+  /* 头部子行：类型选择器保底 96px（见 #card-editor-type）—— 核心字段，不能再被压。 */
   .ce-head-subrow { flex-wrap: wrap; }
-  .ce-head-subrow #card-editor-date { flex: 1 1 100%; min-width: 0; }
 }
 
 /* 主 CTA「＋ 新卡片」在暗色下曾是 2.78:1（白底绿字反了）。统一走 accent-strong。 */

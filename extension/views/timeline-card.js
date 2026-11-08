@@ -4,6 +4,7 @@
 单张时间线卡片（含拖拽/缩放交互）与卡片底部操作区。
  */
 
+import { createChip } from '../components/chip.js';
 import { cardPrimaryText, formatProvenance, typeIcon } from '../shared/format.js';
 import { addMinutes, currentTime, getCardDuration, getCardEndTime, getCardStartTime, minutesToTime, timeToMinutes } from '../shared/model.js';
 import { actions } from '../state/actions.js';
@@ -283,10 +284,8 @@ export function buildCardFooter(card) {
     const chips = document.createElement('span');
     chips.className = 'card-tags';
     for (const name of card.tags) {
-      const chip = document.createElement('span');
-      chip.className = 'tag-chip is-static';
-      chip.textContent = name;
-      chips.append(chip);
+      // 只读展示：createChip 的 static 分支输出 span（不产生无动作的 Tab 停靠点）
+      chips.append(createChip({ label: name, static: true }));
     }
     footer.append(chips);
   }

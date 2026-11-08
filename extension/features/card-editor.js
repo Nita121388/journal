@@ -7,6 +7,8 @@
  */
 
 import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { createChip } from '../components/chip.js';
+import { createSegGroup } from '../components/seg.js';
 import { confirmDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
@@ -52,7 +54,18 @@ function closeEmojiPicker() {
 editorType?.addEventListener('change', () => {
   // 未设置自定义 emoji 时，预览跟随类型默认图标
   if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
+  syncTypeVisibility();
 });
+
+/**
+ * 按类型做渐进披露：进度只对「任务」有意义。
+ * 用 `.ce-props` 上的 data-type 而非内联 style（design-system 反模式：禁内联 style）。
+ * 数据不受影响 —— 纯记录卡也能存 progress，只是不展示控件。
+ */
+function syncTypeVisibility() {
+  const props = document.getElementById('card-editor-props');
+  if (props) props.dataset.type = editorType?.value ?? 'text';
+}
 // 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
 // 后被点击元素脱离文档导致 closest() 失效、误关 picker）
 editorOverlay?.addEventListener('click', (e) => {
@@ -77,15 +90,13 @@ function renderEditorTags() {
   if (!editorTagChips) return;
   editorTagChips.replaceChildren();
   for (const name of editorTags) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'tag-chip';
-    chip.textContent = name + ' ×';
-    chip.addEventListener('click', () => {
-      editorTags = editorTags.filter(t => t !== name);
-      renderEditorTags();
-    });
-    editorTagChips.append(chip);
+    editorTagChips.append(createChip({
+      label: name,
+      onRemove: () => {
+        editorTags = editorTags.filter(t => t !== name);
+        renderEditorTags();
+      },
+    }));
   }
 }
 
@@ -145,6 +156,7 @@ export function openEditor(card, time, date, assignedDate = undefined) {
     editorDate.title = d ? '' : '未安排（保存在卡片池）';
   }
   editorType.value = card?.type ?? 'text';
+  syncTypeVisibility();
   editorContent.value = card?.content ?? '';
   // 阶段 C：标题 / 状态 / 进度 / 优先级 / 时长 / 自定义属性
   if (editorTitle) editorTitle.value = card?.title ?? '';
@@ -172,7 +184,9 @@ export function openEditor(card, time, date, assignedDate = undefined) {
   }
 
   editorOverlay.classList.remove('hidden');
-  editorContent.focus();
+  // 初始焦点：标题是新建卡片时第一个要填的字段（Notion 也是标题优先）。
+  // 曾经聚焦正文 → 打开就出现正文焦点环，且标题要多点一次才能输入。
+  (editorTitle || editorContent)?.focus();
   editorSnapshot = formSnapshot();
 }
 
@@ -257,7 +271,9 @@ export function updateEditorDuration() {
     return;
   }
   const dur = Math.max(0, timeToMinutes(e) - timeToMinutes(s));
-  if (editorDuration) editorDuration.textContent = dur > 0 ? `${dur} 分钟` : '结束须晚于开始';
+  // 时长与「时长(分)」输入框是同一个值的两种呈现：
+  // 输入框已显示数字时不再重复写「N 分钟」文字，否则一行里出现两次时长（实测截图确认）。
+  if (editorDuration) editorDuration.textContent = dur > 0 ? '' : '结束须晚于开始';
   if (editorDurationMin) editorDurationMin.value = dur > 0 ? dur : '';
 }
 
@@ -267,7 +283,7 @@ export function onEditorDurationInput() {
   const dur = Number(editorDurationMin?.value || 0);
   if (s && editorEnd && Number.isFinite(dur) && dur >= 0) {
     editorEnd.value = addMinutes(s, dur);
-    if (editorDuration) editorDuration.textContent = `${dur} 分钟`;
+    if (editorDuration) editorDuration.textContent = '';
   }
 }
 
@@ -282,17 +298,38 @@ export function onEditorStatusChange() {
 const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
 const PRIORITY_PRESETS = ['high', 'medium', 'low'];
 
+/**
+ * 两组分段胶囊的控制器（状态 / 优先级）。
+ * 逻辑同构（只差 dataset 键与回调），统一由 components/seg.js 实现。
+ * 惰性创建：DOM 引用在模块加载时已就绪，但回调需引用本模块函数，故首次使用时装配。
+ * @type {{status: {setValue(v:string):void,getValue():string}|null, priority: {setValue(v:string):void,getValue():string}|null}}
+ */
+const segGroups = { status: null, priority: null };
+
+function ensureSegGroups() {
+  if (!segGroups.status && editorStatusSeg) {
+    segGroups.status = createSegGroup(editorStatusSeg, {
+      dataKey: 'status',
+      initial: editorStatus?.value ?? 'none',
+      onPick: (v) => onStatusClicked(v),
+    });
+  }
+  if (!segGroups.priority && editorPrioritySeg) {
+    segGroups.priority = createSegGroup(editorPrioritySeg, {
+      dataKey: 'priority',
+      initial: editorPriority?.value ?? 'medium',
+      onPick: (v) => updatePrioritySeg(v),
+    });
+  }
+}
+
 /** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
 export function updateStatusSeg(value) {
   const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
   if (editorStatus) editorStatus.value = v;
-  if (editorStatusSeg) {
-    for (const b of editorStatusSeg.querySelectorAll('.seg')) {
-      const on = b.dataset.status === v;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-checked', String(on));
-    }
-  }
+  ensureSegGroups();
+  // 自定义状态不在 4 个预设内时，全部胶囊取消高亮（保持既有语义）
+  segGroups.status?.setValue(v);
   if (editorStatusCustom) {
     editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
   }
@@ -307,13 +344,8 @@ export function updateStatusSeg(value) {
 export function updatePrioritySeg(value) {
   const v = PRIORITY_PRESETS.includes(value) ? value : 'medium';
   if (editorPriority) editorPriority.value = v;
-  if (editorPrioritySeg) {
-    for (const b of editorPrioritySeg.querySelectorAll('.seg')) {
-      const on = b.dataset.priority === v;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-checked', String(on));
-    }
-  }
+  ensureSegGroups();
+  segGroups.priority?.setValue(v);
 }
 
 /** 点击分段胶囊：设状态 + 进度联动 */

@@ -11,6 +11,9 @@ import { defineConfig } from 'vitest/config';
  *   行/函数/语句 ≥ 80%，分支 ≥ 70%。
  * `views/` `features/` 仍以 dev-loop 端到端回归为准，**不**拿它们的行数去稀释这个数字。
  *
+ * `components/` 已纳入测试范围（纯 DOM 原子，jsdom 环境），但不计入覆盖率分母
+ * （其正确性主要由 dev-loop 的真实布局断言保证）。
+ *
  * 排除说明：
  *   - `shared/emoji-data.js` 为纯数据表（1686 行），非逻辑，纳入会稀释覆盖率；
  *   - 测试文件自身不计入。
@@ -18,7 +21,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['{shared,state,views,features}/**/*.test.js', 'eslint-boundaries.test.js'],
+    include: ['{shared,state,views,features,components}/**/*.test.js', 'eslint-boundaries.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],

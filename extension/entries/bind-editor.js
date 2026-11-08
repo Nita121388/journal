@@ -7,7 +7,7 @@
 
 import {
   editorOverlay, editorStart, editorEnd, editorDurationMin, editorStatus,
-  editorStatusCustom, editorStatusSeg, editorPrioritySeg, editorProgress, editorProgressNumber,
+  editorStatusCustom, editorProgress, editorProgressNumber,
   btnAddProp, btnPropLib, btnEmojiTile, propFormOk, propFormCancel, propType, propOptions,
   saveTemplateBtn, editorSave, editorCancel, editorClose,
   tplBuilderOverlay, tplBuilderClose, tplCancel, tplSave, tplPrefill, tplBuilderTile,
@@ -15,7 +15,7 @@ import {
 } from '../components/dom-refs.js';
 import {
   openEmojiPicker, saveEditor, updateEditorDuration, onEditorDurationInput,
-  onEditorStatusChange, onStatusClicked, onEditorProgressChange, updateStatusSeg, updatePrioritySeg,
+  onEditorStatusChange, onEditorProgressChange, updateStatusSeg,
   requestCloseEditor,
 } from '../features/card-editor.js';
 import { openPropForm, closePropForm, onPropFormOk, openPropLibrary } from '../features/editor-props.js';
@@ -69,16 +69,8 @@ export function bindEditor() {
   editorEnd?.addEventListener('change', updateEditorDuration);
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
   editorStatus?.addEventListener('change', onEditorStatusChange);
-  // 分段状态胶囊
-  editorStatusSeg?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg');
-    if (btn?.dataset.status) onStatusClicked(btn.dataset.status);
-  });
-  // 分段优先级胶囊（高/中/低）
-  editorPrioritySeg?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.seg');
-    if (btn?.dataset.priority) updatePrioritySeg(btn.dataset.priority);
-  });
+  // 分段胶囊（状态 / 优先级）的点击委托由 components/seg.js 在首次渲染时注册，
+  // 此处不再重复绑定 —— 否则同一次点击会触发两遍（曾因此出现状态跳回）。
   // 自定义状态：输入即设为自定义状态，清空回退纯记录
   editorStatusCustom?.addEventListener('input', (e) => {
     const v = e.target.value.trim();
