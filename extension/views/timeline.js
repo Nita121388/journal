@@ -12,6 +12,9 @@ import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
 import { bindRangeSelect } from './range-select.js';
 import { renderCardBlock } from './calendar-card.js';
 import { actions } from '../state/actions.js';
+import { icon } from '../components/icon.js';
+import { button } from '../components/button.js';
+import { createNowMarker, nowLabel } from './now-marker.js';
 
 // escapeHtml / typeIcon 等纯展示工具已统一到 shared/format.js（唯一实现处）。
 
@@ -48,16 +51,20 @@ export async function renderTimeline() {
   canvas.style.height = `${scheduleHeight(vs.viewEndMin)}px`;
   container.append(canvas);
 
-  // 当天无卡片：空态引导（点击画布仍可新建）
+  // 卡片车道：从小时刻度尺右侧开始，避免卡片压住 09:00 这列标签。
+  // 网格线仍画在 canvas 全宽上（左端与标签对齐），卡片百分比宽度改为相对车道计算。
+  const lanesLayer = document.createElement('div');
+  lanesLayer.className = 'schedule-lanes';
+  canvas.append(lanesLayer);
+
+  // 当天无卡片：空态引导（挂在画布内居中，`pointer-events:none` 不挡点击建卡）
   if (!dayCards.length) {
-    const hint = document.createElement('div');
-    hint.className = 'timeline-empty-hint';
-    const b = document.createElement('b');
-    b.textContent = '今天还没有安排';
-    const sub = document.createElement('span');
-    sub.textContent = '点击空白处新建卡片';
-    hint.append(b, sub);
-    container.append(hint);
+    const empty = buildTimelineEmptyState(date);
+    // 高度取「容器可视高 - 画布上边距」：空态整块必须落在一屏内，
+    // 否则它会被居中到 870px 画布的 435px 处、底部溢出滚动容器（dev-loop smoke 实测）
+    const visibleH = container.clientHeight - 8;
+    if (visibleH > 0) empty.style.height = `${visibleH}px`;
+    canvas.append(empty);
   }
 
   // 背景网格线（每 15 分钟，整点加粗并显示标签）
@@ -80,9 +87,9 @@ export async function renderTimeline() {
   }
 
   // 点击画布空白区域：根据 Y 坐标计算时间，打开新建编辑器
-  // 卡片/marker 内部冒泡上来的点击直接忽略，否则会覆盖已打开的编辑态
+  // 卡片/marker/空态行动按钮内部冒泡上来的点击直接忽略，否则会覆盖已打开的编辑态
   canvas.addEventListener('click', (e) => {
-    if (e.target.closest('.timeline-card, .timeline-now-marker')) return;
+    if (e.target.closest('.timeline-card, .timeline-now-marker, .timeline-empty-hint')) return;
     const rect = canvas.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const mins = vs.viewStartMin + (y / SLOT_HEIGHT) * 15;
@@ -139,7 +146,7 @@ export async function renderTimeline() {
   for (const card of timedCards) {
     const laneInfo = lanes.get(card.id);
     const cardEl = renderCardBlock(card, laneInfo);
-    canvas.append(cardEl);
+    lanesLayer.append(cardEl);
 
     // 最右侧卡片：hover 时在右侧滑入"同一时间新建"按钮
     // 按钮直接放在 canvas 上（避免 overflow 裁剪），通过 JS 鼠标联动控制显示
@@ -156,7 +163,7 @@ export async function renderTimeline() {
         addBtn.textContent = '＋';
         addBtn.style.top = `${scheduleHeight(midMin)}px`;
         addBtn.style.left = `calc(${((laneInfo.lane + 1) / laneCount) * 100}% - 29px)`;
-        canvas.append(addBtn);
+        lanesLayer.append(addBtn);
 
         const showAdd = () => {
           cardEl.classList.add('is-hover-add');
@@ -196,6 +203,55 @@ export async function renderTimeline() {
   }
 }
 
+/**
+ * 空态：线稿图标 + 一句原因 + 一个行动按钮（design.md §6「空状态」）。
+ *
+ * 容器 `pointer-events:none`（空白处点击仍落到画布→按 Y 新建），只有按钮恢复
+ * `pointer-events:auto`。不再用「一段绝对定位文字盖住画布」。
+ *
+ * @param {string} date 目标日期
+ * @returns {HTMLElement}
+ */
+function buildTimelineEmptyState(date) {
+  const wrap = document.createElement('div');
+  // 类名保留 `.timeline-empty-hint`：dev-loop smoke 依赖它判断空日引导是否可见
+  wrap.className = 'timeline-empty-hint';
+
+  const iconWrap = document.createElement('span');
+  iconWrap.className = 'timeline-empty-icon';
+  iconWrap.append(icon('calendar', { size: 24 }));
+
+  const title = document.createElement('b');
+  title.className = 'timeline-empty-title';
+  title.textContent = '今天还没有安排';
+
+  const sub = document.createElement('span');
+  sub.className = 'timeline-empty-sub';
+  sub.textContent = '点击空白处，或从这里新建一张卡片';
+
+  const cta = button({
+    label: '新建卡片',
+    icon: 'plus',
+    variant: 'solid',
+    size: 'sm',
+    onClick: (e) => {
+      // 阻止冒泡：否则画布的 click 会再按 Y 坐标开一个空编辑器
+      e.stopPropagation();
+      actions.openEditor(null, emptyStateDefaultTime(), date);
+    },
+  });
+
+  wrap.append(iconWrap, title, sub, cta);
+  return wrap;
+}
+
+/** 空态「新建卡片」的默认时间：当下对齐 15 分钟且在视图范围内，否则落在视图起点。 */
+function emptyStateDefaultTime() {
+  const nowMin = timeToMinutes(currentTime());
+  const inRange = nowMin >= vs.viewStartMin && nowMin <= vs.viewEndMin - 15;
+  return inRange ? snapUpToQuarter(currentTime()) : minutesToTime(vs.viewStartMin);
+}
+
 /** 当前视图范围见 state/view-state.js 的 vs.vs.viewStartMin / vs.vs.viewEndMin */
 /** 15 分钟一格的高度（px） */
 export const SLOT_HEIGHT = 30;
@@ -231,35 +287,16 @@ export function renderCurrentTimeMarker() {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const clamped = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin, nowMin));
-  const nowLabel =
-    String(now.getHours()).padStart(2, '0') + ':' +
-    String(now.getMinutes()).padStart(2, '0');
+  // marker 高 18px、`translateY(-50%)` —— 贴到画布上下边时胶囊会被 overflow:hidden 切一半，
+  // 所以把 top 夹在 [10, 画布高-10]（视图范围外的时间本来就被钳制到边界）
+  const canvasH = scheduleHeight(vs.viewEndMin);
+  const top = Math.max(10, Math.min(canvasH - 10, scheduleHeight(clamped)));
 
-  const marker = document.createElement('div');
-  marker.className = 'timeline-now-marker';
-  marker.style.top = `${scheduleHeight(clamped)}px`;
-  const tag = document.createElement('span');
-  tag.className = 'timeline-now-tag';
-  tag.textContent = `● 现在 ${nowLabel}`;
-  marker.append(tag);
-  const line = document.createElement('span');
-  line.className = 'timeline-now-line';
-  marker.append(line);
-  marker.title = '点击在当前时间新建卡片';
-  marker.setAttribute('role', 'button');
-  marker.tabIndex = 0;
-  const createAtNow = () => actions.openEditor(null, snapUpToQuarter(currentTime()), vs.selectedDate);
-  marker.addEventListener('click', (e) => {
-    e.stopPropagation();
-    createAtNow();
-  });
-  marker.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      createAtNow();
-    }
-  });
-  canvas.append(marker);
+  canvas.append(createNowMarker({
+    dayKey: vs.selectedDate,
+    top,
+    label: nowLabel(now),
+  }));
 }
 
 /** 每分钟更新今日当前时间 marker（不影响已有时间槽/卡片） */

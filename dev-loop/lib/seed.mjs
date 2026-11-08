@@ -5,7 +5,10 @@
 
 /** Build a representative set of sample cards (today). */
 export function sampleCards(today = new Date()) {
-  const d = (x) => x.toISOString().slice(0, 10);
+  // 必须用**本地**日期：`toISOString()` 是 UTC，本地 +08:00 的凌晨会落到「昨天」，
+  // 于是面板（按本地 todayKey 取数据）里一张卡都看不到，dev-loop 假红。
+  const d = (x) =>
+    `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
   const todayStr = d(today);
   return [
     { content: '完成 dev-loop 闭环脚本', type: 'task', status: '进行中', progress: 60, title: '闭环脚本', emoji: '🛠️', tags: ['dev'], startTime: '09:00', endTime: '10:30', duration: 90, assignedDate: todayStr },

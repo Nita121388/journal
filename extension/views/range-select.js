@@ -17,7 +17,7 @@ import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
 
 /** 默认忽略的选择器（在其上按下不开始框选） */
-const DEFAULT_IGNORE = '.timeline-card, .timeline-now-marker, .schedule-grid-label, .card-add-btn';
+const DEFAULT_IGNORE = '.timeline-card, .timeline-now-marker, .schedule-grid-label, .card-add-btn, .timeline-empty-hint';
 
 /** 拖动位移小于此像素数时视为单击 */
 const DRAG_THRESHOLD_PX = 3;

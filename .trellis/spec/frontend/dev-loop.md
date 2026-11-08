@@ -46,6 +46,7 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 | `tailwind-migrated` | 迁移到 `@layer components` 的组件 computed-style + 暗色跟随 |
 | `select` / `tpl` / `llm` / `options` | 下拉框、模板构建器、LLM 设置、设置页 |
 | `calendar-visual` | 日历公共组件同源、色系 token 生效、今天标记、Milkdown 展开态、无横向溢出 |
+| `week-readable` | 周视图窄栏可读性：无横向溢出、标题不被压成逐字竖排、同列卡不重叠（叠放需有 `+N` 说明）、卡片底色不透明、`+N` 字号 ≥9px |
 
 `calendar-visual` 的用法（需要数据才有卡可展开）：
 
@@ -55,3 +56,12 @@ cd dev-loop && node dev-loop.mjs --scenario calendar-visual --seed --width 320,3
 
 它额外产出 `cal-month-<w>.png` / `cal-week-<w>.png` / `cal-timeline-<w>.png` / `cal-detail-<w>.png`，
 便于人工核对视觉方向（scenario 通过 `outDir` 参数自行截图）。
+
+`week-readable` 自带播种：它需要**同列重叠**的卡片才测得出「叠放 + `+N`」，
+所以场景内部会 POST 4 张卡到隔离 host（只播一次）再 `page.reload()`。
+因此它必须拿到 host 端口 —— dev-loop 把 `hostPort` 一并传给场景；
+`--host-mode off` 下拿不到端口，场景会退化成「无卡可断言」。
+
+```bash
+cd dev-loop && node dev-loop.mjs --scenario week-readable --width 320,360,400
+```

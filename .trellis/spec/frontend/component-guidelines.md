@@ -296,6 +296,35 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 **原则**：窄容器里的「图标/时间/标题」三者不可能都保住时，按信息价值排序取舍，
 并保证完整的语义仍可从 `title` / `aria-label` 取到。
 
+## Gotcha: 周视图 7 列里的三个“挤压源”
+
+320px 侧栏扣掉刻度尺后每列只有 **~33px**，卡片可用宽度 ≈ 28px。历史上用「min-width:520px
++ 横向滚动」保列宽，代价是「今天」列被滚出视口、卡片标题被压成 1 字宽（逐字竖排）。
+正解是**不横滚**，并用下面三条把宽度榨到卡片内容上：
+
+1. **`white-space: pre-wrap` + `word-break: break-word` 是逐字竖排的直接原因。**
+   `.card-body` 的这两条是为日视图长文本准备的；周列里必须改回 `nowrap` + `normal`，
+   否则每行只能塞 1–2 个字，看起来像竖排。
+2. **`.is-short .card-header { flex-shrink: 0 }` 会撑出列宽。**
+   短卡片（≤30min）是行内 flex，header 不收缩 + 标题 `nowrap` → 宽度 = 文字 max-content
+   （实测 24 字标题算出 238px，直接盖住邻列）。周列里要显式 `flex: 1 1 auto; min-width: 0`。
+3. **分道阈值要按实测列宽算，且在**入 DOM 之后**算。**
+   `layoutScheduleLanes()` 只给「道号/道数」，不给宽度；2 道 = 每道 ~16px 必被压成竖排。
+   做法：先建列壳入 DOM → 读 `body.clientWidth` → `colW / laneCount < 26` 就不分道、
+   改为叠放（z-index 递增）+ 列顶 `+N`。这也是唯一能同时满足「不同列卡不重叠」
+   与「标题可读」的组合。
+
+**原则**：窄列里的宽度是硬约束，任何 `flex-shrink: 0` / `nowrap` / `min-width` 都可能把内容推出列外；
+凡是需要「按实际可用宽度决定布局」的地方，都要走「先布局、再测量、再摆子元素」的二段式。
+
+## Gotcha: 空态铺满滚动容器会溢出视口
+
+时间线画布高度 = 视图时段（08:00–22:30 ≈ 1740px），而滚动容器只有 ~555px。
+把空态写成 `position:absolute; inset:0; place-items:center` 会让整块居中到画布中点（~870px），
+底部直接落在视口外（dev-loop `smoke` 的「空日引导在视口内可见」会红）。
+**正解**：容器仍 `absolute; top:0; left:0; right:0`，高度由 JS 写成 `container.clientHeight`（运行时计算型），
+再 `place-content: center`；同时 `pointer-events: none` + 按钮 `auto`，保证点空白仍能按 Y 坐标新建卡片。
+
 ## Gotcha: sticky 表头被 `overflow:hidden` 与父容器高度废掉
 
 **场景**：周视图的日期头原本放在每天列（`.calview-week-col`）内部，`position: sticky; top: 0`。

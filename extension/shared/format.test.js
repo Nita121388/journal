@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel, cardColorKey, CARD_COLOR_KEYS } from './format.js';
-import { todayKey } from './model.js';
+import { todayKey, toDayKey } from './model.js';
 
 describe('formatDateLabel', () => {
   it('形如「YYYY年M月D日星期X」', () => {
@@ -15,7 +15,9 @@ describe('shortDate', () => {
   it('今天/昨天/具体日期', () => {
     expect(shortDate(todayKey())).toBe('今天');
     const y = new Date(); y.setDate(y.getDate() - 1);
-    expect(shortDate(y.toISOString().slice(0, 10))).toBe('昨天');
+    // 必须用 toDayKey（本地字段）：`toISOString()` 在 UTC+8 的 00:00–08:00
+    // 会算成前一天，本测试于是在凌晨到早上整段时间假红（与被测实现的修法一致）。
+    expect(shortDate(toDayKey(y))).toBe('昨天');
     expect(shortDate('2000-01-01')).toBe('2000-01-01');
   });
 });

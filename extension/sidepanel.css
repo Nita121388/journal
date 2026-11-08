@@ -119,7 +119,9 @@ header#header {
 .card-header .card-primary {
   flex: 1;
   min-width: 0;
+  font-size: var(--fs-12-5);
   font-weight: 600;
+  letter-spacing: -0.1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,13 +129,22 @@ header#header {
 .card-body .card-timerow {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  font-size: 10px;
+  gap: 6px;
+  font-size: var(--fs-10-5);
   line-height: 1.3;
-  color: var(--color-muted);
+  color: var(--ink-weak);
   font-variant-numeric: tabular-nums;
 }
-.card-body .card-secondary { font-size: 11px; color: var(--color-muted); margin-top: 2px; }
+.card-body .card-secondary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: var(--fs-11-5);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
 
 /* 侧边栏最窄 320px：只收 padding，header 高度固定 44px */
 @media (max-width: 420px) {
@@ -901,24 +912,27 @@ body.panels-open #board::before {
 
 /* ─── 周历视图 ─────────────────────────────── */
 /* ─── 周视图：垂直占满 + 时间刻度尺 ──────────────────── */
-/* 窄侧栏下 7 列可横向滚动（列宽不足时不被压成竖排文字） */
-.calview-week-wrap { overflow-x: auto; overflow-y: auto; }
+/* 320px 侧栏里 7 列每列只有 ~36px —— 早期靠 min-width:520px + 横向滚动「保列宽」，
+ * 结果「今天」列被滚出视口，卡片也因宽度被压到 1 字而逐字竖排（prd R6）。
+ * 现在：列宽 minmax(0,1fr) 等分、不横滚；拥挤时靠「叠放 + +N」保标题可读（R7）。 */
+.calview-week-wrap { overflow-x: clip; overflow-y: auto; }
+/* 周视图把左右内距从 14px 收到 6px：省下的 16px 全部摊进 7 列（id > class，必须写全） */
+#timeline-container.calview-week-wrap { padding: 0 6px; }
 .calview-week-grid {
   display: grid;
   /* 3 行：日期头（sticky）/ 全天行 / 时间画布；列 = 刻度尺 + 7 天 */
-  grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
+  grid-template-columns: 40px repeat(7, minmax(0, 1fr));
   grid-template-rows: var(--calview-head-h) auto auto;
-  min-width: 520px;
   gap: 0;
   margin-top: 8px;
   align-items: stretch;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   /* 用 clip 而不是 hidden：hidden 会让 grid 自身成为 sticky 的滚动容器，
    * 表头于是完全无法吸附（滚动到当前时刻后直接消失）。
    * clip 不建立滚动容器，圆角依旧生效。 */
   overflow: clip;
-  background: var(--color-bg);
+  background: var(--surface);
   --calview-head-h: 34px;
 }
 
@@ -944,7 +958,8 @@ body.panels-open #board::before {
   transition: background var(--dur-1, 150ms) ease-out;
 }
 .calview-week-head:hover { background: var(--color-cell-empty); }
-.calview-week-head.is-today { background: var(--color-accent-light); }
+/* 今天：不用整列/整行染色（那是「叠影」观感的来源），只在日期头加 accent 底标 */
+.calview-week-head.is-today { background: var(--surface); box-shadow: inset 0 -2px 0 var(--accent); }
 .calview-week-head.is-selected { box-shadow: inset 0 -2px 0 var(--color-accent); }
 .calview-week-ruler-head {
   border-bottom: 1px solid var(--color-border);
@@ -975,7 +990,8 @@ body.panels-open #board::before {
   position: sticky;
   top: var(--calview-head-h);
   z-index: 3;
-  background: var(--color-bg);
+  /* 与网格同面（--surface）：用 --color-bg 会在白网格里出现一条浅灰带 */
+  background: var(--surface);
 }
 .calview-week-allday {
   display: flex;
@@ -990,34 +1006,40 @@ body.panels-open #board::before {
   border-right: 1px solid var(--color-border);
   overflow: hidden;
 }
-.calview-week-allday.is-today { background: var(--color-accent-light); }
+.calview-week-allday.is-today { background: var(--surface); }
 .calview-week-allday .timeline-card.is-allday {
   flex: 0 0 auto;
   min-width: 0;
   width: 100%;
   font-size: 10px;
   line-height: 1.25;
-  padding: 1px 3px;
+  padding: 1px 3px 1px 5px;
   border-radius: 4px;
 }
 .calview-week-allday .timeline-card .card-body { font-size: 10px; line-height: 1.15; }
 .calview-week-allday .timeline-card .card-timerow,
 .calview-week-allday .timeline-card .card-footer,
 .calview-week-allday .timeline-card .card-expand-btn { display: none; }
+/* 全天行只有 26px 高、列宽 30–60px：只留标题（图标/来源角标/正文全让位），
+ * 否则 40px 列的卡上只能看到「👤 💡」两个图标，标题一个字都看不见。 */
+.calview-week-allday .timeline-card .card-origin,
+.calview-week-allday .timeline-card .card-type-icon,
+.calview-week-allday .timeline-card .card-body { display: none; }
+.calview-week-allday .timeline-card .card-header { min-width: 0; }
 
 /* 左侧刻度尺 */
 .calview-week-ruler-body {
   position: relative;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-right: 1px solid var(--line);
+  background: var(--surface);
 }
 .calview-week-ruler-label {
   position: absolute;
   right: 5px;
   transform: translateY(-50%);
-  font-size: 10px;
+  font-size: var(--fs-10-5);
   line-height: 1;
-  color: var(--color-muted);
+  color: var(--ink-weak);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
@@ -1026,50 +1048,116 @@ body.panels-open #board::before {
 .calview-week-body {
   position: relative;
   min-width: 0;
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--line);
+  /* 不再整列染色（prd R8「今日只是标记，不是整格染色」）——
+   * 半透明列底 + 卡片叠加正是「叠影」的观感来源。 */
 }
-.calview-week-body.is-today { background: color-mix(in srgb, var(--color-accent-light) 45%, transparent); }
+/* 15 分钟线不可见，只保留整点 1px 实线（prd R1 同日视图口径） */
 .calview-week-gridline {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px solid var(--color-border);
-  opacity: 0.55;
+  border-top: 0;
   pointer-events: none;
 }
-.calview-week-gridline.is-hour { border-top-color: var(--color-muted); opacity: 0.4; }
+.calview-week-gridline.is-hour { border-top: 1px solid var(--line); }
 
-/* 周列内卡片：占满列宽、不受日视图 min-width/max-width 约束（7 列时列宽远小于 120px） */
+/* 周列内卡片：占满列宽（-2px），任何一层都不允许把宽度压成逐字竖排 */
 .calview-week-body .timeline-card {
   min-width: 0;
   max-width: none;
   width: auto;
   left: 1px;
   right: 1px;
-  padding: 2px 4px 5px;
-  border-radius: 4px;
+  padding: 2px 3px 4px 6px;
+  border-radius: var(--r-chip);
+  /* 不透明底：半透明卡在重叠时叠影（prd R6） */
+  background: var(--surface);
+  opacity: 1;
 }
-.calview-week-body .timeline-card .card-header { gap: 2px; padding: 0; }
+.calview-week-body .timeline-card::before { width: 2px; }
+.calview-week-body .timeline-card .card-header { gap: 2px; padding: 0; min-width: 0; flex-wrap: nowrap; }
 .calview-week-body .timeline-card .card-footer { display: none; }
-/* 窄列（~65px）信息取舍：来源角标与「N 分钟」让位给标题与时间段 */
+/* 窄列（~36–48px）信息取舍：来源角标 / 「N 分钟」让位给标题与时间 */
 .calview-week-body .timeline-card .card-origin,
 .calview-week-body .timeline-card .card-meta { display: none; }
 .calview-week-body .timeline-card .card-timerow {
-  font-size: 9px;
-  gap: 0;
+  font-size: 9.5px;
+  gap: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.calview-week-body .timeline-card .card-primary { font-size: 10px; }
+.calview-week-body .timeline-card .card-primary {
+  font-size: 10px;
+  line-height: 1.35;
+  /* 三件套缺一不可：nowrap 防逐字换行、min-width:0 允许被压缩、ellipsis 交代截断。
+   * 只写 nowrap 而不 min-width 时，flex 子项仍按 max-content 撑开，标题会被邻卡压成 2 行。 */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 逐字换行的元凶：.card-body 的 `white-space:pre-wrap` + `word-break:break-word`。
+ * 窄列里必须改回 nowrap，否则每行只能塞 1–2 个字（dev-loop 截图实测）。 */
+.calview-week-body .timeline-card .card-body {
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow: hidden;
+}
+/* 列宽装不下正文：完整内容在 title / aria-label 与展开态里 */
+.calview-week-body .timeline-card .card-secondary { display: none; }
 .calview-week-body .timeline-card .card-resize-handle { height: 5px; }
+
+/* 短卡片（≤30min）是**行内** flex：`.is-short .card-header { flex-shrink: 0 }`
+ * 会让 nowrap 标题按 max-content 撑出列宽（实测 24 字标题撑到 238px，直接盖住邻列）。
+ * 周列宽是硬约束 —— 这里的 header 必须可收，标题才能 ellipsis。 */
+.calview-week-body .timeline-card.is-short .card-header { flex: 1 1 auto; min-width: 0; }
+.calview-week-body .timeline-card.is-short .card-primary { flex: 1 1 auto; min-width: 0; }
+.calview-week-body.is-narrow .timeline-card.is-short .card-body { display: none; }
+
+/* 列宽 < 56px（320–500 侧栏常态）：连类型图标与时间行都退场，只留标题。
+ * 与月格 pill 同一套取舍原则（component-guidelines「窄侧栏日历信息取舍」）。
+ * 用 JS 加 .is-narrow 而不是 @container：列宽本来就只在二段式布局里实测得到。 */
+.calview-week-body.is-narrow .timeline-card .card-type-icon,
+.calview-week-body.is-narrow .timeline-card .card-expand-btn,
+.calview-week-body.is-narrow .timeline-card .card-timerow { display: none; }
+/* 窄列再挤一次内距：列宽仅 30–33px，左右内距每省 1px = 多半个字 */
+.calview-week-body.is-narrow .timeline-card { padding: 2px 2px 3px 4px; }
+
+/* 当前时间线在窄列里只留线与圆点（胶囊文案装不下） */
+.calview-week-body .timeline-now-tag { display: none; }
+.calview-week-body .timeline-now-marker { padding: 0 3px; gap: 3px; }
+
+/* 列顶「+N」：本列被叠放覆盖的卡片张数（position:sticky 让它常驻表头下方） */
+.calview-more {
+  position: sticky;
+  /* 表头 34 + 全天行 27 + 3px 间隙 —— 压在全天行下边就不算「列顶」了 */
+  top: calc(var(--calview-head-h, 34px) + 30px);
+  z-index: 8;
+  display: block;
+  width: max-content;
+  margin-left: auto;
+  margin-right: 2px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--sunken);
+  color: var(--ink-soft);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 
 /* 窄栏：压缩刻度与表头 */
 @media (max-width: 420px) {
-  .calview-week-grid { grid-template-columns: 34px repeat(7, 1fr); }
-  .calview-week-ruler-label { font-size: 9px; right: 3px; }
+  .calview-week-grid { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); }
+  .calview-week-ruler-label { font-size: 10px; right: 3px; }
   .calview-week-head { font-size: 10px; padding: 2px 3px; }
-  .calview-week-body .timeline-card { left: 1px; right: 1px; }
 }
 
 /* ─── 日历公共卡片组件（views/calendar-card.js） ───────────────
@@ -1090,15 +1178,18 @@ body.panels-open #board::before {
   gap: 2px;
   width: 100%;
   min-width: 0;
+  /* 固定规格（prd R8）：14px 高 / 10.5px 字 / 单行省略 ——
+   * 规格固定后 6 行月格的高度才可预测（aspect-ratio 1/.92）。 */
+  height: 14px;
   font: inherit;
-  font-size: 10px;
-  line-height: 1.3;
+  font-size: var(--fs-10-5);
+  line-height: 12px;
   text-align: left;
   /* 窄侧栏（320–500px）月格只有 ~44–60px：内边距与图标都压到最小，
    * 把省下的宽度全部让给标题（实测能多显示 1–2 个字）。 */
-  padding: 1px 3px;
+  padding: 0 3px;
   border: 1px solid var(--cc-border, var(--color-border));
-  border-radius: 5px;
+  border-radius: 4px;
   background: var(--cc-bg, var(--color-cell-empty));
   color: var(--cc-fg, var(--color-text));
   cursor: pointer;
@@ -1148,8 +1239,9 @@ body.panels-open #board::before {
 .cc-month-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  /* 固定行高：卡片多的日子不再把整行撑高（参考图行高一致，表格感更强） */
-  grid-auto-rows: 92px;
+  /* 格高按宽高等比（prd R8）。320–500px 侧栏里等比高只有 35–60px，
+   * 装不下「日号 + 3 条 pill」，所以用 min-height 兜底（见 .cc-day）。 */
+  grid-auto-rows: auto;
   gap: 4px;
 }
 .cc-day {
@@ -1157,23 +1249,30 @@ body.panels-open #board::before {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  height: 100%;
+  /* 宽高比 + 内容兜底：等比高 < 内容高时以 min-height 为准，
+   * 否则第 2/3 条 pill 会被 overflow:hidden 在中间裁一半（比不显示更难看）。 */
+  aspect-ratio: 1 / 0.92;
+  min-height: 70px;
+  height: auto;
   padding: 3px 4px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
   cursor: pointer;
   overflow: hidden;
   transition: border-color var(--dur-1, 150ms) ease-out;
 }
 @media (min-width: 620px) {
-  .cc-month-grid { grid-auto-rows: 120px; }
+  .cc-month-grid { grid-auto-rows: auto; }
 }
 .cc-day:hover { border-color: var(--color-accent); }
 .cc-day.is-out-month { opacity: 0.35; }
-.cc-day.is-selected { border-color: var(--color-accent); background: var(--color-accent-light); }
-.cc-day.is-today { background: color-mix(in srgb, var(--cc-bg, #fff) 70%, var(--cc-today) 6%); }
-.cc-day.is-today.is-selected { background: var(--color-accent-light); }
+/* 选中：只用 accent 描边 + 日期号变色（不再整格铺 -- accent-light）。
+ * 因为 selectedDate 默认就是今天 —— 整格染色会让「今天」看着像被染色（prd R8 禁区）。 */
+.cc-day.is-selected { border-color: var(--color-accent); }
+/* 今日：不整格染色（prd R8）——只用 accent 内描边 + 日期头里的实心圆角标 */
+.cc-day.is-today { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 36%, transparent); }
+.cc-day.is-today.is-selected { box-shadow: inset 0 0 0 1px var(--accent); }
 
 .cc-dayheader {
   display: flex;
@@ -1185,7 +1284,7 @@ body.panels-open #board::before {
   overflow: hidden;
 }
 .cc-dayheader-num {
-  font-size: 13px;
+  font-size: var(--fs-11-5);
   font-weight: 600;
   line-height: 1.1;
   color: var(--color-text);
@@ -1234,25 +1333,11 @@ body.panels-open #board::before {
   text-align: center;
 }
 
-/* ── 时间网格块（周/日视图）：同一套色系，标题在前、时间在后 ──
- * 参考图里块内是「图标 + 标题」首行、`09:00–10:00` 次行，故用 flex order
- * 把 body（标题/内容）提到 header（时间）之前，不改 DOM 结构、不影响拖拽逻辑。
- * 选择器写成 `.timeline-card.cc-block`（0,2,0）以覆盖下方 .timeline-card 的白色底。 */
-.timeline-card.cc-block {
-  background: var(--cc-bg, var(--color-card-bg));
-  border-color: var(--cc-border, var(--color-card-border));
-  border-left-color: var(--cc-border, var(--color-accent));
-  color: var(--cc-fg, var(--color-text));
-}
-.timeline-card.cc-block .card-time,
-.timeline-card.cc-block .card-meta,
-.timeline-card.cc-block .card-timerow { color: var(--cc-fg, var(--color-muted)); opacity: 0.85; }
-.timeline-card.cc-block .card-primary {
-  font-weight: 600;
-  color: var(--cc-fg, var(--color-text));
-}
-.timeline-card.cc-block .card-secondary { color: var(--cc-fg, var(--color-text)); opacity: 0.8; }
-.timeline-card.cc-block.is-dragging { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
+/* ── 时间网格块（周/日视图）：白卡 + 左色条 ──
+ * 不再整块 `--cc-bg` 染色：色系只由左侧色条（`.timeline-card::before` 读 `--cc-border`）
+ * 与月格 pill 承担。整块染色 + 半透明卡重叠 = 早期周视图的「叠影」（prd R6）。
+ * 色系映射仍在上面的 `.cc-color-*` 五条规则，这里不再重定颜色。 */
+.timeline-card.cc-block.is-dragging { box-shadow: var(--shadow-3); }
 
 /* ── 周视图表头（星期字 + 公共日期头） ──
  * 7 列在 320–500px 侧栏里每列只有 ~45–65px，一行放不下「周三 8 今天 5」，
@@ -1393,36 +1478,58 @@ body.panels-open #board::before {
   background: var(--surface); /* 与 #timeline-section 同面，避免「面板里再套一层暗底」 */
 }
 
-/* 日程画布（15 分钟网格 + 绝对定位卡片） */
+/* 日程画布（15 分钟热区 + 绝对定位卡片）：直接坐在面板 surface 上（prd R1）——
+ * 无边框 / 无底色 / 无圆角，不再「盒中盒」 */
 .schedule-canvas {
   position: relative;
   margin: 8px 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg);
   overflow: hidden;
 }
+/* 车道层：让出左侧 44px 小时刻度尺。绝对定位子项的百分比宽度相对本层计算，
+ * 于是「卡片压住 09:00 标签」这个问题从布局上消失（此前卡片 left 从 3px 起）。 */
+.schedule-lanes {
+  position: absolute;
+  inset: 0 0 0 44px;
+  pointer-events: none;          /* 空白处点击穿透到 canvas（新建/框选） */
+}
+.schedule-lanes > * { pointer-events: auto; }
 
+/* 15 分钟线不可见，只当点击/吸附热区：
+ * 元素高 12px、margin-top -6px，使 top 仍然精确落在 0/15/30 分钟像素行上；
+ * 点击后走 snapToQuarter()，吸附结果与按 Y 坐标算完全一致（语义不变）。 */
 .schedule-grid-line {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 1px dashed var(--color-card-border);
+  height: 12px;
+  margin-top: -6px;
+  border: 0;
   cursor: pointer;
   z-index: 1;
 }
-.schedule-grid-line.is-hour {
-  border-top: 1px solid var(--color-border);
+/* 整点线：1px 实线（不再是虚线草稿纸感），用 ::before 画在线正中间，
+ * 且优先于子元素绘制 —— 小时标签的 surface 底色才能把线「断开」（prd R2） */
+.schedule-grid-line.is-hour::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 1px;
+  background: var(--line);
 }
-.schedule-grid-line:hover {
-  background: var(--color-accent-light);
-}
+.schedule-grid-line:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .schedule-grid-label {
   position: absolute;
   left: 6px;
-  top: 2px;
-  font-size: 10px;
-  color: var(--color-muted);
+  /* 压在整点线上方（元素盒子中点即整点位置） */
+  bottom: calc(50% + 3px);
+  padding: 0 4px 0 0;
+  font-size: var(--fs-10-5);
+  line-height: 1;
+  color: var(--ink-weak);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
   user-select: none;
 }
 
@@ -1484,7 +1591,7 @@ body.panels-open #board::before {
   min-height: 12px;
 }
 
-/* 今日当前时间 marker（画布上的绿色绝对定位线） */
+/* 今日当前时间 marker：accent 2px 线 + 8px 圆点 + 「现在 HH:mm」胶囊（prd R3） */
 .timeline-now-marker {
   position: absolute;
   left: 0;
@@ -1500,25 +1607,37 @@ body.panels-open #board::before {
   z-index: 6;
   pointer-events: auto;
 }
+.timeline-now-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
 .timeline-now-tag {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-on-accent);
-  background: var(--color-accent);
-  border-radius: 999px;
-  padding: 1px 8px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 5px;
+  font-size: var(--fs-10-5);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-accent);
+  background: var(--accent);
   box-shadow: var(--shadow-1);
 }
 .timeline-now-line {
   flex: 1;
   height: 2px;
-  border-radius: 999px;
-  background: var(--color-accent);
-  opacity: 0.85;
+  border-radius: var(--r-full);
+  background: var(--accent);
 }
 .timeline-now-marker:hover .timeline-now-tag,
 .timeline-now-marker:focus-visible .timeline-now-tag {
-  filter: brightness(0.92);
+  background: var(--accent-hover);
 }
 .timeline-now-marker:focus-visible {
   outline: 2px solid var(--color-accent);
@@ -1533,7 +1652,7 @@ body.panels-open #board::before {
   padding-left: 8px;
 }
 
-/* 单张卡片 */
+/* 单张卡片：白卡 + 内描边（不占布局宽度）+ 一档极弱投影 + 左 3px 色条（prd R4） */
 .timeline-card {
   position: absolute;
   display: flex;
@@ -1541,15 +1660,26 @@ body.panels-open #board::before {
   min-width: 120px;
   max-width: 260px;
   width: var(--lane-w, 100%);
-  border: 1px solid var(--color-card-border);
-  border-left: 3px solid var(--color-accent);
-  border-radius: 8px;
-  background: var(--color-card-bg);
-  padding: 6px 8px 16px;
+  border: 0;
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
+  padding: 7px 10px 8px 11px;
   cursor: pointer;
   overflow: hidden;
   z-index: 2;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: box-shadow var(--dur-1) var(--ease-out);
+}
+/* 数据色只出现在这 3px：`--cc-border` 由 .cc-color-* 提供，未着色时退回首题蓝。
+ * 用伪元素而不是 border-left：内描边环才能完整包住四边（150 就不必外描边占宽度）。 */
+.timeline-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--cc-border, var(--accent));
 }
 .timeline-card.is-allday {
   position: static;
@@ -1559,16 +1689,17 @@ body.panels-open #board::before {
 }
 
 .schedule-allday {
-  border: 1px dashed var(--color-border);
-  border-radius: 8px;
-  padding: 8px;
+  /* 虚线框是「草稿纸感」的残留：改成 sunken 凹面托底，白卡在上面自然立住 */
+  border: 0;
+  border-radius: var(--r-card);
+  padding: 8px 10px;
   margin: 0 0 12px;
-  background: var(--color-surface);
+  background: var(--sunken);
 }
 .schedule-allday-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-muted);
+  font-size: var(--fs-10-5);
+  font-weight: 600;
+  color: var(--ink-weak);
   margin-bottom: 6px;
 }
 .schedule-allday-cards {
@@ -1585,7 +1716,7 @@ body.panels-open #board::before {
   height: 10px;
   cursor: ns-resize;
   touch-action: none;
-  background: linear-gradient(transparent, rgba(76, 175, 80, 0.18));
+  background: linear-gradient(transparent, color-mix(in srgb, var(--accent) 12%, transparent));
 }
 .card-resize-handle::after {
   content: "";
@@ -1594,29 +1725,30 @@ body.panels-open #board::before {
   right: 30%;
   bottom: 3px;
   height: 3px;
-  border-radius: 999px;
-  background: var(--color-accent);
-  opacity: 0.8;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  opacity: 0.7;
 }
 /* 拖拽卡片池卡片到时间线时的画布高亮 */
 .schedule-canvas.drag-over {
-  outline: 2px dashed var(--color-accent);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
-  background: var(--color-accent-light);
+  border-radius: var(--r-chip);
+  background: var(--accent-soft);
 }
 
 body.is-resizing,
 body.is-dragging {
   user-select: none;
 }
+/* hover：升一档投影 + 内描边转 --line-2，**不位移**（卡片绝对定位，位移会让拖拽坐标抖） */
 .timeline-card:hover {
-  border-color: var(--color-accent);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-2);
 }
 /* 放在 :hover 之后，避免拖动时被 hover 阴影覆盖 */
 .timeline-card.is-dragging {
   opacity: 0.85;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  box-shadow: inset 0 0 0 1px var(--accent), var(--shadow-3);
   z-index: 100;
   transition: none;
   touch-action: none;
@@ -1646,7 +1778,7 @@ body.is-dragging {
   pointer-events: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
   z-index: 7;
-  box-shadow: 0 1px 4px rgba(76, 175, 80, 0.4);
+  box-shadow: var(--shadow-2);
 }
 .card-add-btn.is-visible {
   opacity: 1;
@@ -2038,7 +2170,8 @@ html.wide-mode main { max-width: none; }
 /* 月历/周历格子随宽变大 */
 html.wide-mode .cc-day { min-height: 110px; }
 html.wide-mode .calview-week-body { min-height: 480px; }
-html.wide-mode .cc-pill { font-size: 11px; padding: 3px 5px; }
+/* 宽屏下 pill 只放大字与内距，高度跟着抬（固定 14px 会把字裁掉） */
+html.wide-mode .cc-pill { height: 17px; font-size: 11px; padding: 0 5px; }
 
 /* 时间线卡片摘要随宽显示更多文字（现有 ellipsis 继续生效） */
 html.wide-mode .timeline-card { max-width: 300px; }
@@ -3283,23 +3416,46 @@ body.tpl-dragging { user-select: none; }
 }
 .todo-empty .empty-action:hover { background: var(--color-accent-light, var(--color-cell-empty)); }
 
-/* 时间线空态：当天无卡片时引导新建 */
+/* 时间线空态：图标 + 一句原因 + 一个行动按钮（design.md §6）。
+ * 容器铺满**容器可视高**（高度由 renderTimeline 按 clientHeight 写入）：
+ * 画布本身高 ~870px，若居中到画布中点（~435px）底部会超出 ~555px 的滚动容器。
+ * `pointer-events:none`：点空白仍落到画布按 Y 新建（prd R5），只有按钮恢复可点。 */
 .timeline-empty-hint {
   position: absolute;
-  top: 96px;
+  top: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  place-content: center;
+  justify-items: center;
   gap: 6px;
-  color: var(--color-muted);
-  font-size: 12px;
+  padding: 24px;
+  color: var(--ink-weak);
+  font-size: var(--fs-11-5);
   text-align: center;
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
 }
-.timeline-empty-hint b { color: var(--color-text); font-weight: 600; }
+.timeline-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 2px;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0; /* 覆盖旧 emoji 尺寸规则，图标箱由 SVG 自身的 24px 决定 */
+}
+.timeline-empty-title {
+  color: var(--ink);
+  font-size: var(--fs-12-5);
+  font-weight: 600;
+}
+.timeline-empty-hint .btn {
+  margin-top: 2px;
+  pointer-events: auto;
+}
 
 /* 快捷新建按钮
  * 尺寸/颜色全部交给 .view-wide-btn 基元（P2）；这里曾经写死 font-size:15px，
