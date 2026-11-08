@@ -2,35 +2,155 @@
  * tokens.css — 侧栏（主界面）设计 token 唯一定义处
  *
  * 只放 :root 变量与暗色覆盖；不写组件样式。
- * 顺序要求：在 dist/sidepanel.css、select.css、sidepanel.css 之前引入（见 sidepanel.html）。
+ * 顺序要求：必须**晚于** dist/sidepanel.css 与 select.css、**早于** sidepanel.css
+ * （见 styles/README.md 的 Gotcha：产物里有 `--color-accent: var(--color-accent)` 自引用，
+ *   本文件必须靠级联覆盖它，否则一批 var() 会变成无效值 → 组件透明）。
  * Tailwind 的 @theme inline 只做 var() 引用，不再重复定义值。
+ *
+ * ── 2026-11 P1「Quiet Desk」基线 ──────────────────────────────────────────
+ * 本文件重构为两层：
+ *   ① 新语义 token（canvas / surface / sunken / ink / line / accent / 尺寸标尺）
+ *   ② 旧变量名别名（--color-* / --cc-* / --prio-* / --r-sm|md|lg / --select-* …）
+ *      全部指向新 token，保证 sidepanel.css、select.css、dist 产物**零改动**仍能工作。
+ *
+ * 约束：
+ *   - 本文件是**全项目唯一允许出现 hex 的地方**。
+ *   - 暗色只用 [data-theme="dark"]（JS 已按 data-theme 控制），不要改成 media query。
+ *   - 数值依据：.trellis/tasks/11-08-visual-redesign-quiet-desk/design.md §1 / §2。
  */
 
 :root {
-  /* 圆角（design-system §1.1 基础层）：Tailwind @theme 以 --radius-* 别名声引 */
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
-  --color-bg: #ffffff;
-  --color-text: #1f2328;
-  --color-muted: #6b7280;                   /* 次要文字：白底 4.83:1（原 #9e9e9e 仅 2.68:1，不达 WCAG AA） */
-  --color-border: #e5e7eb;
-  --color-accent: #4caf50;                  /* 装饰性填充（热力图/进度条）——不做文字底 */
-  --color-accent-strong: #2e7d32;           /* 文字底/徐标底：白字 5.13:1 */
-  --color-accent-light: #e8f5e9;
-  --color-cell-empty: #ebedf0;
-  --color-cell-filled: #4caf50;
-  --color-cell-mid: #9ccc65;
-  --color-surface: #f8f9fa;
-  --color-card-bg: #ffffff;
-  --color-card-border: #e8e8e8;
-  --color-timeline: #d0d5dd;
-  --color-scroll-thumb: #cfd3da;
-  --color-scrim: rgba(0, 0, 0, 0.28);      /* 抽屉遮罩 */
-  --color-on-accent-ink: #10240f;          /* 暗色下 today 单元格：提亮底上的深字 */
-  --color-danger: #d32f2f;                 /* 危险（Toast error）：白字 4.98:1 */
-  --color-warn: #bf360c;                   /* 警告（Toast warn）：白字 5.60:1（原 #ef6c00 仅 3.08:1） */
-  --color-on-accent: #fff;                 /* 主色底上的前景色（按钮/成功 Toast） */
+  /* ══════════════════════════════════════════════════════════════════════
+   * 1. 表面（三层）：canvas=页面底 / surface=卡片与面板 / sunken=输入与轨道
+   * ══════════════════════════════════════════════════════════════════════ */
+  --canvas: #fbfbfc;
+  --surface: #ffffff;
+  --sunken: #f1f3f6;
+
+  /* 2. 文字（实测对比度见 design.md §1.1） */
+  --ink: #14161a;                           /* 17.5:1 / 17.5:1 / 16.3:1 */
+  --ink-soft: #5a616d;                      /* 5.9:1 */
+  --ink-weak: #696f7c;                      /* 4.87 / 5.04 / 4.54 —— 最差 4.54，达标 */
+
+  /* 3. 描边 */
+  --line: #e9eaef;                          /* 发丝分隔 */
+  --line-2: #dcdfe6;                        /* 控件/卡片描边 */
+
+  /* 4. 主色（唯一；只出现在主操作/选中/焦点环/当前时间） */
+  --accent: #2563eb;                        /* 白字 5.17:1 */
+  --accent-hover: #1d4ed8;                  /* 白字 6.5:1 */
+  --accent-soft: #eff4ff;                   /* accent 字 6.08:1 */
+  --on-accent: #ffffff;
+
+  /* 5. 语义色 */
+  --danger: #dc2626;
+  --warn: #b45309;
+  --success: #12805c;
+
+  /* 5.1 数据色阶（热力图 / 日历数量底色）：只用主色单色阶，绿色退出 UI 语义。
+   * 全部指向主色 token，所以亮暗两套自动跟随，无需在 [data-theme="dark"] 再写一遍。
+   * --heat-4 / --heat-5 必须配 --color-on-accent 文字：
+   * 亮色 白字 5.17:1 / 6.5:1；暗色 深字 5.97:1 / 7.6:1。 */
+  --heat-0: var(--sunken);
+  --heat-1: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --heat-2: color-mix(in srgb, var(--accent) 32%, var(--surface));
+  --heat-3: color-mix(in srgb, var(--accent) 50%, var(--surface));
+  --heat-4: var(--accent);
+  --heat-5: var(--accent-hover);
+
+  /* 6. 尺寸标尺（design.md §2）：间距只有 6 档 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* 字号：10.5 只给时间轨数字，正文最小 11.5 */
+  --fs-10-5: 10.5px;
+  --fs-11-5: 11.5px;
+  --fs-12-5: 12.5px;
+  --fs-14: 14px;
+  --fs-17: 17px;
+
+  /* 控件高：24=dense（工具条/日历）/ 28=默认 / 32=弹窗主操作 */
+  --h-ctl-sm: 24px;
+  --h-ctl: 28px;
+  --h-ctl-lg: 32px;
+
+  /* 7. 圆角（圆角 ≈ 0.3 × 控件高；卡片/面板单独两档） */
+  --r-chip: 6px;                            /* chip / badge */
+  --r-ctl: 7px;                             /* 24 高控件 */
+  --r-ctl-md: 8px;                          /* 28 高控件 / 输入框 */
+  --r-ctl-lg: 10px;                         /* 32 高控件 / select 触发器 */
+  --r-card: 12px;                           /* 卡片 / 时间线块 */
+  --r-pane: 14px;                           /* 面板 / 弹窗 / 抽屉 */
+  --r-full: 999px;                          /* 胶囊 */
+
+  /* 8. 投影：只有三档；卡片常态近乎无影，靠描边立住 */
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-2: 0 8px 24px rgba(16, 24, 40, 0.08);
+  --shadow-3: 0 16px 40px rgba(16, 24, 40, 0.16);
+  /* 按下内阴影（design.md §3.2 active 态）：不是投影，不参与三档阴影体系 */
+  --shadow-press: inset 0 1px 2px rgba(16, 24, 40, 0.12);
+
+  /* 9. 动效：120 微反馈 / 180 浮层 / 240 视图切换 */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ══════════════════════════════════════════════════════════════════════
+   * 10. 旧变量别名 —— 一律指向新 token，保证既有 CSS 零改动仍解析
+   * ══════════════════════════════════════════════════════════════════════ */
+
+  /* 表面 / 文字 / 描边 */
+  --color-bg: var(--canvas);
+  --color-surface: var(--surface);
+  --color-text: var(--ink);
+  --color-muted: var(--ink-weak);
+  --color-border: var(--line);
+  --color-card-bg: var(--surface);
+  --color-card-border: var(--line);
+  --color-timeline: var(--line);
+  --color-scroll-thumb: var(--line-2);
+
+  /* 主色 */
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-hover);
+  --color-accent-light: var(--accent-soft);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-focus: var(--accent);
+
+  /* 热力图 / 进度条：单色阶（绿色退出 UI 语义） */
+  --color-cell-empty: var(--sunken);
+  --color-cell-filled: var(--accent);
+  --color-cell-mid: color-mix(in srgb, var(--accent) 55%, var(--surface));
+
+  /* 语义 */
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-scrim: rgba(0, 0, 0, 0.28);       /* 抽屉遮罩 */
+  /* 兼容别名：现有 CSS 已不再消费它（暗色 today 改用 --ink，见 sidepanel.css 末段），
+   * 仅保留变量名供第三方/后续样式引用。 */
+  --color-on-accent-ink: var(--ink);
+
+  /* 弱底（Notion 式选中/hover）：对文字色取少量混色，亮暗两套自动跟随 */
+  --color-hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --color-hover-strong: color-mix(in srgb, var(--ink) 10%, transparent);
+
+  /* 优先级圆点：只做 8px 图形（3:1 图形对比），文字永远是 --color-text */
+  --prio-high: #c62828;
+  --prio-medium: #b8860b;
+  --prio-low: #2e7d32;
+
+  /* 圆角别名：Tailwind @theme 以 --radius-* 引用这三个名字，勿改名。
+   * 值一律指向新圆角档，避免两处各自定义漂移。 */
+  --r-sm: var(--r-chip);                  /* 6px  */
+  --r-md: var(--r-ctl-md);                /* 8px  */
+  --r-lg: var(--r-card);                  /* 12px */
+
   /* 自建下拉框（select.css）：BoardUI 风格令牌。
    * 侧栏控件密度小（11px 字号 / 24px 高），故圆角取 10px 而非 BoardUI 的 2lg(~12-14px)，
    * 否则 24px 高的控件会呈胶囊状。 */
@@ -43,72 +163,86 @@
   --select-hover-border: var(--color-muted);
   --select-dur: 200ms;
   --select-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
   /* 日历卡片色系（月/周/日视图共用，见 views/calendar-card.js 的 cardColorKey）
-   * 参考 Obsidian「达达清单」的粉/绿/蓝/紫四系：底色极浅、描边中等、文字加深。
-   * 对比度：文字色对各自 bg 均 ≥ 4.5:1（dev-loop 断言）。 */
+   * 冷调低饱和五色系：底色极浅、描边中等、文字加深。
+   * 实测文字对各自 bg：亮色 5.91–7.07 / 暗色 7.52–8.35（dev-loop calendar-visual 断言）。 */
   --cc-red-bg: #fdecec;
-  --cc-red-border: #f3b8b8;
-  --cc-red-text: #a4282c;
-  --cc-green-bg: #e9f6ec;
-  --cc-green-border: #b3ddbd;
-  --cc-green-text: #1f6b36;
-  --cc-blue-bg: #e9f1fb;
-  --cc-blue-border: #b6cdec;
-  --cc-blue-text: #1c4f8c;
-  --cc-purple-bg: #f1ecfb;
-  --cc-purple-border: #c9b9ec;
-  --cc-purple-text: #553087;
-  --cc-gray-bg: #f0f1f3;
-  --cc-gray-border: #d5d8dd;
+  --cc-red-border: #f5c2c2;
+  --cc-red-text: #a32b2b;
+  --cc-green-bg: #e9f7ef;
+  --cc-green-border: #b7e4c9;
+  --cc-green-text: #186b41;
+  --cc-blue-bg: #eaf1fe;
+  --cc-blue-border: #bfd3f8;
+  --cc-blue-text: #1d4ed8;
+  --cc-purple-bg: #f1edfd;
+  --cc-purple-border: #d2c4f7;
+  --cc-purple-text: #5b33b5;
+  --cc-gray-bg: #f1f3f6;
+  --cc-gray-border: #dde1e8;
   --cc-gray-text: #4b5563;
-  --cc-today: #e5484d;                     /* 今天标记（红底白字 4.63:1） */
-  --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环（design-system §4） */
-  /* 弱底（Notion 式选中/hover）：对文字色取少量混色，亮暗两套自动跟随，
-   * 因此不需要在 [data-theme="dark"] 里重复定义。 */
-  --color-hover: color-mix(in srgb, var(--color-text) 6%, transparent);
-  --color-hover-strong: color-mix(in srgb, var(--color-text) 10%, transparent);
-  /* 优先级圆点：只做 8px 图形（3:1 图形对比），文字永远是 --color-text，
-   * 因此不受 4.5:1 正文约束，也不再把整块胶囊染成高饱和实底。 */
-  --prio-high: #c62828;
-  --prio-medium: #b8860b;
-  --prio-low: #2e7d32;
+  /* 今天标记：走主色（红退出 UI 语义）。--color-on-accent 压 --accent 实测 5.17:1 */
+  --cc-today: var(--accent);
+
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  --font: -apple-system, "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   /* emoji 字体栈：保证 U+1F5C2 等符号型 emoji 在 Windows 上不走 Segoe UI Symbol（会渲染成方块） */
   --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+ * 暗色（深石板，非纯黑）：只覆盖新语义 token，别名自动跟随
+ * 对比度：ink 16.4/15.1/13.7 · ink-soft 7.9/7.3/6.6 · ink-weak 6.1/5.6/5.1
+ * ════════════════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --color-bg: #1e1e1e;
-  --color-text: #e0e0e0;
-  --color-muted: #a0a0a0;                   /* 暗底 6.38:1（原 #757575 仅 3.62:1） */
-  --color-border: #3a3a3a;
-  --color-cell-empty: #2d2d2d;
-  --color-cell-filled: #4caf50;
-  --color-cell-mid: #689f38;
-  --color-surface: #252525;
-  --color-card-bg: #2a2a2a;
-  --color-card-border: #3a3a3a;
-  --color-timeline: #444;
-  --color-scroll-thumb: #4a4a4a;
+  --canvas: #0f1115;
+  --surface: #171a20;
+  --sunken: #1f232a;
+
+  --ink: #edeff3;
+  --ink-soft: #a2a8b4;
+  --ink-weak: #8b93a1;
+
+  --line: #262a32;
+  --line-2: #333945;
+
+  --accent: #5b8dff;
+  --accent-hover: #7fa8ff;
+  --accent-soft: #1b2740;
+  --on-accent: #0b1220;                     /* 深字压亮蓝 5.97:1 */
+
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --success: #4ade80;
+
+  /* 阴影在暗色以 --line 描边替代，不叠黑影 */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.62);
+
+  /* 同上：保留名字，无活跃消费者 */
+  --color-on-accent-ink: var(--on-accent);
+
   /* 日历卡片色系（暗色）：底色压到低饱和深色，文字提亮保证 ≥4.5:1 */
-  --cc-red-bg: #3a2426;
-  --cc-red-border: #6d3a3d;
-  --cc-red-text: #ff9ea2;
-  --cc-green-bg: #1f3226;
-  --cc-green-border: #3c5f47;
-  --cc-green-text: #8fe0a4;
-  --cc-blue-bg: #1e2c3d;
-  --cc-blue-border: #37536f;
-  --cc-blue-text: #96c4f5;
-  --cc-purple-bg: #2b2440;
-  --cc-purple-border: #4b3f6b;
+  --cc-red-bg: #3a2225;
+  --cc-red-border: #6b3a3e;
+  --cc-red-text: #ffa3a3;
+  --cc-green-bg: #17322a;
+  --cc-green-border: #2f5a46;
+  --cc-green-text: #7fdcac;
+  --cc-blue-bg: #1b2740;
+  --cc-blue-border: #33507f;
+  --cc-blue-text: #9dc0ff;
+  --cc-purple-bg: #2a2440;
+  --cc-purple-border: #4a3f73;
   --cc-purple-text: #c4aef5;
-  --cc-gray-bg: #2d2d2d;
-  --cc-gray-border: #444;
+  --cc-gray-bg: #22262e;
+  --cc-gray-border: #3a404a;
   --cc-gray-text: #b9bec7;
-  --cc-today: #e5484d;
+  --cc-today: var(--accent);               /* 暗色 accent 是亮蓝，文字必须用 --color-on-accent 深字 */
+
   /* 优先级圆点在暗底提亮，保证作为图形仍 ≥3:1 */
   --prio-high: #ef5350;
   --prio-medium: #e0a800;

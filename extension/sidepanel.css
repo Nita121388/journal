@@ -273,7 +273,7 @@ body.panels-open #board::before {
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-card); /* 卡片档 12px（design.md §1.4） */
   background: var(--color-bg);
   border: 1px solid var(--color-card-border);
   cursor: pointer;
@@ -415,20 +415,20 @@ body.panels-open #board::before {
 .cal-day.is-today { outline: 2px solid var(--color-accent); outline-offset: -1px; }
 .cal-day.is-selected {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
   font-weight: 600;
 }
 .cal-day:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
-/* 卡片数量背景色（日历） */
+/* 卡片数量背景色（日历）：主色单色阶（--heat-*），绿色已退出 UI 语义 */
 .cal-day.count-0 { background: var(--color-bg); }
-.cal-day.count-1 { background: #e8f5e9 !important; color: var(--color-text) !important; }
-.cal-day.count-2 { background: #c8e6c9 !important; color: var(--color-text) !important; }
-.cal-day.count-3 { background: #a5d6a7 !important; color: var(--color-text) !important; }
-.cal-day.count-4 { background: #81c784 !important; color: #fff !important; }
-.cal-day.count-5 { background: var(--color-accent) !important; color: #fff !important; font-weight: 600; }
-.cal-day.count-4 .cal-count, .cal-day.count-5 .cal-count { color: #fff !important; opacity: 1; }
+.cal-day.count-1 { background: var(--heat-1) !important; color: var(--ink) !important; }
+.cal-day.count-2 { background: var(--heat-2) !important; color: var(--ink) !important; }
+.cal-day.count-3 { background: var(--heat-3) !important; color: var(--ink) !important; }
+.cal-day.count-4 { background: var(--heat-4) !important; color: var(--color-on-accent) !important; }
+.cal-day.count-5 { background: var(--heat-5) !important; color: var(--color-on-accent) !important; font-weight: 600; }
+.cal-day.count-4 .cal-count, .cal-day.count-5 .cal-count { color: var(--color-on-accent) !important; opacity: 1; }
 
 /* 日历格子内的卡片数指示器 */
 .cal-count {
@@ -437,7 +437,7 @@ body.panels-open #board::before {
   color: var(--color-muted);
   opacity: 1;
 }
-.cal-day.is-selected .cal-count { color: #fff !important; opacity: 1; }
+.cal-day.is-selected .cal-count { color: var(--color-on-accent) !important; opacity: 1; }
 
 /* ─── 热力图 ─────────────────────────────────────── */
 
@@ -470,13 +470,13 @@ body.panels-open #board::before {
 }
 .heatmap-cell:hover { outline: 1px solid var(--color-accent); outline-offset: 1px; }
 
-/* 热力图 6 档着色 */
-.heatmap-cell.level-0 { background: var(--color-cell-empty); }
-.heatmap-cell.level-1 { background: #c6e48b; }
-.heatmap-cell.level-2 { background: #7bc96f; }
-.heatmap-cell.level-3 { background: #239a3b; }
-.heatmap-cell.level-4 { background: #196127; }
-.heatmap-cell.level-5 { background: #0e4429; }
+/* 热力图 6 档着色：主色单色阶（与日历数量底色同一套 --heat-*） */
+.heatmap-cell.level-0 { background: var(--heat-0); }
+.heatmap-cell.level-1 { background: var(--heat-1); }
+.heatmap-cell.level-2 { background: var(--heat-2); }
+.heatmap-cell.level-3 { background: var(--heat-3); }
+.heatmap-cell.level-4 { background: var(--heat-4); }
+.heatmap-cell.level-5 { background: var(--heat-5); }
 
 .heatmap-cell.is-today { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
@@ -541,7 +541,7 @@ body.panels-open #board::before {
 .todo-filter.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
 }
 
 #todo-list {
@@ -657,7 +657,7 @@ body.panels-open #board::before {
   padding: 5px 0; font-size: 11px; font-family: var(--font);
   cursor: pointer;
 }
-.skills-copyall-btn:hover { background: var(--color-accent); color: #fff; }
+.skills-copyall-btn:hover { background: var(--color-accent); color: var(--color-on-accent); }
 
 /* ─── 右侧时间线 ─────────────────────────────── */
 
@@ -1144,7 +1144,8 @@ body.panels-open #board::before {
   white-space: nowrap;
   border-radius: var(--r-full, 999px);
   background: var(--cc-today);
-  color: #fff;
+  /* cc-today 现在等于 --accent：亮色白字 5.17:1，暗色 accent 是亮蓝 → 必须走 on-accent 的深字 */
+  color: var(--color-on-accent);
 }
 .cc-dayheader-count {
   margin-left: auto;
@@ -1438,11 +1439,11 @@ body.panels-open #board::before {
 .timeline-now-tag {
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-on-accent);
   background: var(--color-accent);
   border-radius: 999px;
   padding: 1px 8px;
-  box-shadow: 0 1px 4px rgba(76, 175, 80, 0.36);
+  box-shadow: var(--shadow-1);
 }
 .timeline-now-line {
   flex: 1;
@@ -1570,7 +1571,7 @@ body.is-dragging {
   border-radius: 50%;
   border: none;
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-size: 14px;
   line-height: 1;
   display: flex;
@@ -1728,7 +1729,7 @@ body.is-dragging .timeline-card.is-short {
   cursor: pointer;
 }
 .tag-chip.is-static { cursor: default; }
-.tag-chip.is-active { background: var(--color-accent-strong); color: #fff; border-color: transparent; }
+.tag-chip.is-active { background: var(--color-accent); color: var(--color-on-accent); border-color: transparent; }
 .cardpool-tag-filters { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0 0 6px; padding: 0; }
 
 .card-footer-btn {
@@ -2666,7 +2667,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-create { color: var(--color-accent); }
 .tpl-create:hover { color: var(--color-accent); background: var(--color-accent-light, var(--color-cell-empty)); }
 .tpl-create-cta {
-  color: #fff;
+  color: var(--color-on-accent);
   background: var(--color-accent);
   justify-content: center;
   font-weight: 600;
@@ -2674,7 +2675,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   padding: 8px;
   box-shadow: 0 2px 6px rgba(0,0,0,.14);
 }
-.tpl-create-cta:hover { color: #fff; background: var(--color-accent); filter: brightness(1.05); }
+.tpl-create-cta:hover { color: var(--color-on-accent); background: var(--color-accent); filter: brightness(1.05); }
 
 /* ── 模板构建器美化 ── */
 .template-builder { border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.24), 0 2px 12px rgba(0,0,0,.12); }
@@ -2959,12 +2960,12 @@ body.tpl-dragging { user-select: none; }
   border-style: solid;
   border-color: var(--color-accent);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0,0,0,.12);
   transition: filter .12s, box-shadow .12s, transform .1s;
 }
-#btn-new-card:hover { border-color: var(--color-accent); color: #fff; filter: brightness(1.06); box-shadow: 0 4px 10px rgba(0,0,0,.16); }
+#btn-new-card:hover { border-color: var(--color-accent); color: var(--color-on-accent); filter: brightness(1.06); box-shadow: var(--shadow-2); }
 #btn-new-card:active { transform: scale(.98); }
 #btn-template { background: var(--color-bg); border: 1px dashed var(--color-border); color: var(--color-muted); }
 #btn-template:hover { border-color: var(--color-accent); color: var(--color-accent); }
@@ -3231,8 +3232,9 @@ body.tpl-dragging { user-select: none; }
 .timeline-card .card-body { flex: 1 1 auto; }
 .timeline-card .card-footer { margin-top: auto; }
 
-/* 暗色 today 单元格对比度：提亮底色 + 深色字 */
-[data-theme="dark"] .cal-day.is-today { color: var(--color-on-accent-ink); font-weight: 700; }
+/* 暗色 today 单元格：底色是 canvas(--color-bg)，文字必须用 --ink。
+ * 不能用 --color-on-accent-ink：它暗色下等于 #0b1220，压在 #0f1115 上仅 1.05:1。 */
+[data-theme="dark"] .cal-day.is-today { color: var(--ink); font-weight: 700; }
 
 /* 可访问性：动效降级（审计 E-1） */
 @media (prefers-reduced-motion: reduce) {
@@ -3268,8 +3270,8 @@ body.tpl-dragging { user-select: none; }
   min-width: 72px;
   border: none;
   border-radius: var(--r-sm);
-  color: #fff;
-  background: var(--color-accent-strong);
+  color: var(--color-on-accent);
+  background: var(--color-accent);
   box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
   cursor: pointer;
   transition: transform .12s, box-shadow .12s, filter .12s;
@@ -3281,7 +3283,7 @@ body.tpl-dragging { user-select: none; }
   padding: 8px 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--r-sm);
-  background: var(--color-bg);
+  background: var(--surface);
   color: var(--color-text);
   cursor: pointer;
   transition: border-color .12s, color .12s, background .12s;
@@ -3486,15 +3488,13 @@ body.tpl-dragging { user-select: none; }
   .ce-head-subrow { flex-wrap: wrap; }
 }
 
-/* 主 CTA「＋ 新卡片」在暗色下曾是 2.78:1（白底绿字反了）。统一走 accent-strong。 */
+/* 主 CTA「＋ 新卡片」在暗色下曾是 2.78:1（白底绿字反了）。统一走 accent + on-accent：
+ * 新 palette 下 accent 实底 + on-accent 前景在亮/暗两套都 ≥5:1，因此无需再单独压一层暗色覆盖。 */
 [data-theme="dark"] .cardpool-add-btn {
   background: var(--color-accent-strong);
   border-color: var(--color-accent-strong);
-  color: #fff;
+  color: var(--color-on-accent);
 }
-
-/* 「现在 HH:MM」标签 10px 白字压 accent 只有 2.78:1 */
-.timeline-now-tag { background: #1b5e20; color: #fff; }
 
 /* 月/周摘要里的「+N」与日期数字对比度不足 */
 .cc-daylist-more { color: var(--color-text); font-weight: 600; }

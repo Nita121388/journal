@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方向 B · Quiet Desk</title>
+<style>
+  /* ── B. Quiet Desk ────────────────────────────────────────────
+   * 立场：字面复刻 BoardUI——纯白面板、蓝主色、大圆角、极弱投影。
+   * 参考：BoardUI（结构/间距/卡片三段式）+ HeroUI（状态矩阵）。
+   */
+  :root{
+    --bg:#FBFBFC; --surface:#FFFFFF; --sunken:#F2F3F6;
+    --ink:#14161A; --soft:#5F6672; --weak:#8A919E;
+    --line:#E9EAEF; --line2:#DCDFE6;
+    --accent:#2563EB; --accent-soft:#EFF4FF; --on-accent:#fff;
+    --purple:#7C4DDB; --blue:#2563EB; --green:#1E9E63;
+    --shadow-1:0 1px 2px rgba(16,24,40,.05);
+    --shadow-2:0 8px 24px rgba(16,24,40,.08);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --dur:150ms;
+  }
+  [data-theme="dark"]{
+    --bg:#0F1115; --surface:#171A20; --sunken:#1F232A;
+    --ink:#EDEFF3; --soft:#A2A8B4; --weak:#7D8593;
+    --line:#262A32; --line2:#333945;
+    --accent:#5B8DFF; --accent-soft:#1B2740; --on-accent:#0B1220;
+    --purple:#B79BFF; --blue:#7FA8FF; --green:#5FD3A0;
+    --shadow-1:0 1px 2px rgba(0,0,0,.4);
+    --shadow-2:0 8px 24px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font); font-size:12.5px; line-height:1.45; -webkit-font-smoothing:antialiased}
+  .app{height:100vh; display:flex; flex-direction:column}
+
+  .ib{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; padding:0; border:0; border-radius:8px;
+    background:transparent; color:var(--soft); cursor:pointer;
+    transition:background var(--dur), color var(--dur);
+  }
+  .ib:hover{background:var(--sunken); color:var(--ink)}
+  .ib:active{transform:scale(.96)}
+  .ib:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .ib.xs{width:24px; height:24px; border-radius:7px}
+  .btn{
+    display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 11px;
+    border-radius:8px; font:inherit; font-size:11.5px; font-weight:500; cursor:pointer;
+    transition:background var(--dur), border-color var(--dur), box-shadow var(--dur);
+  }
+  .btn.xs{height:24px; padding:0 9px; font-size:11px; border-radius:7px}
+  .btn.solid{background:var(--accent); color:var(--on-accent); border:1px solid var(--accent); box-shadow:var(--shadow-1)}
+  .btn.solid:hover{filter:brightness(1.06)}
+  .btn.outline{background:var(--surface); color:var(--ink); border:1px solid var(--line2); box-shadow:var(--shadow-1)}
+  .btn.outline:hover{background:var(--sunken)}
+  .btn.quiet{background:transparent; color:var(--soft); border:1px solid transparent}
+  .btn.quiet:hover{background:var(--sunken); color:var(--ink)}
+  .btn:active{transform:scale(.985)}
+
+  .hdr{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    height:44px; padding:0 12px; background:var(--surface); border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  .brand{display:flex; align-items:center; gap:8px; min-width:0}
+  .mark{
+    width:20px; height:20px; border-radius:6px; flex:0 0 auto;
+    background:linear-gradient(150deg,#4F8BFF,var(--accent)); color:#fff;
+    display:grid; place-items:center; font-size:11px; font-weight:700;
+    box-shadow:0 1px 2px rgba(37,99,235,.35);
+  }
+  .name{font-size:13px; font-weight:600; letter-spacing:-.1px}
+  .date{font-size:11.5px; color:var(--weak); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hdr-actions{display:flex; align-items:center; gap:2px; flex:0 0 auto}
+  .is-live{color:var(--green)}
+
+  .vhead{padding:8px 12px 8px; flex:0 0 auto; background:var(--bg)}
+  .vrow{display:flex; align-items:center; gap:4px}
+  .vrow + .vrow{margin-top:6px}
+  .vtitle{font-size:12.5px; font-weight:600; margin-right:auto; padding-left:2px; letter-spacing:-.1px}
+  .vtitle em{font-style:normal; font-weight:400; font-size:11px; color:var(--weak); margin-left:5px}
+
+  .tl{flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; position:relative}
+  .track{position:relative; height:900px; padding-bottom:16px; margin-top:10px}
+  .hour{position:absolute; left:0; right:0; height:1px; background:var(--line)}
+  .hour::after{content:""; position:absolute; left:48px; right:12px; top:0; height:1px; background:var(--line)}
+  .hour span{
+    position:absolute; left:-2px; top:-7px; width:44px; text-align:right; padding-right:6px;
+    font-size:10px; color:var(--weak); font-variant-numeric:tabular-nums; background:var(--bg);
+  }
+
+  .card{
+    position:absolute; left:54px; right:12px;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:8px 10px 9px; box-shadow:var(--shadow-1); overflow:hidden;
+    transition:box-shadow var(--dur), border-color var(--dur), transform var(--dur);
+  }
+  .card:hover{box-shadow:var(--shadow-2); border-color:var(--line2)}
+  .card .badge{
+    display:inline-flex; align-items:center; gap:4px; height:16px; padding:0 6px;
+    border-radius:5px; font-size:10px; font-weight:600; letter-spacing:.2px;
+    background:var(--accent-soft); color:var(--accent); margin-bottom:4px;
+  }
+  .card .badge::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor}
+  .card .ttl{font-size:12.5px; font-weight:600; letter-spacing:-.1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .card .meta{margin-top:2px; font-size:10.5px; color:var(--weak); font-variant-numeric:tabular-nums; display:flex; gap:6px}
+  .card .note{
+    margin-top:4px; font-size:11px; color:var(--soft);
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .card.c-purple{--tint:var(--purple)} .card.c-blue{--tint:var(--blue)}
+  .card.c-purple .badge,.card.c-blue .badge{background:color-mix(in srgb,var(--tint) 10%, transparent); color:var(--tint)}
+
+  .now{position:absolute; left:48px; right:12px; height:2px; background:var(--accent); z-index:2; border-radius:2px}
+  .now::before{content:""; position:absolute; left:-5px; top:-3px; width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%, transparent)}
+  .now .pill{
+    position:absolute; left:8px; top:-9px; height:18px; padding:0 7px; border-radius:5px;
+    background:var(--accent); color:var(--on-accent); font-size:10px; font-weight:600;
+    display:inline-flex; align-items:center; font-variant-numeric:tabular-nums; box-shadow:var(--shadow-1);
+  }
+
+  .dock{
+    flex:0 0 auto; display:flex; gap:2px; align-items:center;
+    margin:0 10px 10px; padding:3px; height:44px;
+    background:var(--sunken); border:1px solid var(--line); border-radius:999px;
+  }
+  .dock button{
+    flex:1 1 0; min-width:0; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    height:36px; border:0; border-radius:999px; background:transparent;
+    font:inherit; font-size:11px; color:var(--soft); cursor:pointer; transition:background var(--dur), color var(--dur);
+  }
+  .dock button.on{background:var(--surface); color:var(--accent); font-weight:600; box-shadow:var(--shadow-1)}
+  .dock button:not(.on):hover{color:var(--ink)}
+  @media (max-width:300px){ .dock button span{display:none} }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hdr">
+    <div class="brand">
+      <span class="mark">J</span>
+      <span class="name">Journal</span>
+      <span class="date">2026年11月8日 周日</span>
+    </div>
+    <div class="hdr-actions">
+      <button class="ib" aria-label="面板"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button class="ib is-live" aria-label="本机服务已连接"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="8.5" opacity=".3"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg></button>
+      <button class="ib" aria-label="设置"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg></button>
+    </div>
+  </header>
+
+  <div class="vhead">
+    <div class="vrow">
+      <button class="ib xs" aria-label="上一页"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="vtitle">11月8日 周日<em>· 1 条记录</em></span>
+      <button class="ib xs" aria-label="下一页"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="btn outline xs">今天</button>
+    </div>
+    <div class="vrow">
+      <button class="btn solid">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        新建
+      </button>
+      <button class="btn quiet">08–22</button>
+      <button class="ib" aria-label="宽屏模式" style="margin-left:auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M8 3H6a3 3 0 0 0-3 3v2M16 3h2a3 3 0 0 1 3 3v2M8 21H6a3 3 0 0 1-3-3v-2M16 21h2a3 3 0 0 0 3-3v-2"/></svg></button>
+    </div>
+  </div>
+
+  <main class="tl">
+    <div class="track">
+      <div class="hour" style="top:0px"><span>08:00</span></div>
+      <div class="hour" style="top:64px"><span>09:00</span></div>
+      <div class="hour" style="top:128px"><span>10:00</span></div>
+      <div class="hour" style="top:192px"><span>11:00</span></div>
+      <div class="hour" style="top:256px"><span>12:00</span></div>
+      <div class="hour" style="top:320px"><span>13:00</span></div>
+      <div class="hour" style="top:384px"><span>14:00</span></div>
+      <div class="hour" style="top:448px"><span>15:00</span></div>
+      <div class="hour" style="top:512px"><span>16:00</span></div>
+      <div class="hour" style="top:576px"><span>17:00</span></div>
+      <div class="hour" style="top:640px"><span>18:00</span></div>
+      <div class="hour" style="top:704px"><span>19:00</span></div>
+
+      <article class="card" style="top:70px;height:104px">
+        <div class="badge">dev-loop</div>
+        <div class="ttl">闭环脚本</div>
+        <div class="meta"><span>09:00–10:30</span></div>
+        <div class="note">验证扩展在真实数据下的渲染与断言</div>
+      </article>
+
+      <article class="card c-purple" style="top:172px;height:104px">
+        <div class="badge">产品</div>
+        <div class="ttl">灵感产品感：把打卡和日历合并成一条时间线</div>
+        <div class="meta"><span>10:30–12:00</span></div>
+        <div class="note">一个视图看完全天，减少抽屉层级</div>
+      </article>
+
+      <article class="card c-blue" style="top:392px;height:96px">
+        <div class="badge">界面</div>
+        <div class="ttl">卡片编辑器 Notion 化</div>
+        <div class="meta"><span>14:00–15:00</span></div>
+        <div class="note">属性行两列网格 + 原子组件复用</div>
+      </article>
+
+      <div class="now" style="top:571px"><span class="pill">现在 16:55</span></div>
+    </div>
+  </main>
+
+  <nav class="dock" aria-label="视图切换">
+    <button class="on" aria-pressed="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h13M4 12h16M4 17h8"/></svg><span>日程</span>
+    </button>
+    <button aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>周视图</span>
+    </button>
+    <button aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h.01M12 14h.01M17 14h.01"/></svg><span>月视图</span>
+    </button>
+  </nav>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark') {
+    document.documentElement.dataset.theme = 'dark';
+  }
+</script>
+</body>
+</html>

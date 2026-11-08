@@ -47,11 +47,31 @@ export async function runTailwindMigrated({ page }) {
         font: s.fontFamily, position: s.position, zIndex: s.zIndex,
       };
     }
+    // 期望值一律从 token 自身取（`var(--x)` 计算后的 rgb），不再硬编码 hex：
+    // 配色换代（P1 Quiet Desk）不该让「token 桥接是否生效」这条断言变红。
+    const resolve = (expr) => {
+      const d = document.createElement('div');
+      d.style.background = expr;
+      host.appendChild(d);
+      const v = getComputedStyle(d).backgroundColor;
+      d.remove();
+      return v;
+    };
+    out.tokens = {
+      surface: resolve('var(--surface)'),
+      cellEmpty: resolve('var(--color-cell-empty)'),
+    };
     wrap.remove();
     return out;
   });
 
   if (probe.error) return { checks: [['probe injection', false, probe.error]] };
+
+  // token 真的解析出值了（而非透明/空）—— 守住 styles/tokens.css 与 dist 产物的级联顺序：
+  // 若 token 文件跑到 dist/sidepanel.css 之前，自引用会生效，var() 全部解析失败。
+  add('token 可解析（--surface / --color-cell-empty）',
+    probe.tokens.surface !== 'rgba(0, 0, 0, 0)' && probe.tokens.cellEmpty !== 'rgba(0, 0, 0, 0)',
+    `${probe.tokens.surface} / ${probe.tokens.cellEmpty}`);
 
   // 正文阈值 4.5:1（WCAG AA）。断言语义从「比对 hex」改为「算对比度」——
   // 改色不再是红灯，只有真的降到不可读才失败。
@@ -66,12 +86,13 @@ export async function runTailwindMigrated({ page }) {
   add('btn-primary 圆角=6px', probe.primary.radius === '6px', probe.primary.radius);
   add('btn-primary 边框=none', probe.primary.border === 'none', probe.primary.border);
 
-  // btn-secondary: canvas bg + 1px line border
-  add('btn-secondary 背景=canvas', probe.secondary.bg === 'rgb(255, 255, 255)', probe.secondary.bg);
+  // btn-secondary: surface 底 + 1px line-2 border + shadow-1（design.md §3.2 outline 变体）。
+  // 期望值从 `--surface` token 取，而非写死 rgb —— 换配色不应让门禁变红。
+  add('btn-secondary 背景=surface', probe.secondary.bg === probe.tokens.surface, probe.secondary.bg);
   add('btn-secondary 边框=solid', probe.secondary.border === 'solid', probe.secondary.border);
 
-  // section-badge: cell-empty bg + muted text
-  add('section-badge 背景=cell-empty', probe.badge.bg === 'rgb(235, 237, 240)', probe.badge.bg); // #ebedf0
+  // section-badge: cell-empty(=sunken) bg + weak text
+  add('section-badge 背景=cell-empty', probe.badge.bg === probe.tokens.cellEmpty, probe.badge.bg);
 
   // empty-state: dashed border + muted text
   add('empty-state 边框=dashed', probe.empty.border === 'dashed', probe.empty.border);
@@ -112,7 +133,7 @@ export async function runTailwindMigrated({ page }) {
     document.documentElement.removeAttribute('data-theme');
     return out;
   });
-  add('暗色主题跟随 token（badge 变暗底）', darkProbe.badgeBg !== 'rgb(235, 237, 240)', darkProbe.badgeBg);
+  add('暗色主题跟随 token（badge 变暗底）', darkProbe.badgeBg !== probe.badge.bg, darkProbe.badgeBg);
   addContrast('暗色 badge 文字对比度 ≥4.5', darkProbe.badgeColor, darkProbe.badgeBg);
   addContrast('暗色 btn-primary 对比度 ≥4.5', darkProbe.primaryColor, darkProbe.primaryBg);
 

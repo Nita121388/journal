@@ -1,14 +1,17 @@
 # Journal 设计系统
 
 > 定位：Journal Chrome MV3 侧边栏（真实宽度 320–500px）的设计 token 与组件规范。
-> 状态：v0.1（第一轮）。与现有 `sidepanel.css` 29 个 CSS 变量**增量映射**，不推倒重来。
-> 依据：UX 审计（`../research/ux-audit.md`）+ WCAG 2.2 AA。
+> 状态：v0.2（2026-11-08 方向定稿 Quiet Desk）。**权威取值以
+> `.trellis/tasks/11-08-visual-redesign-quiet-desk/design.md` 为准**，P6 收口时升到 v1.0。
+> 依据：UX 审计（`../research/ux-audit.md`）+ WCAG 2.2 AA + P0 三方向样张实测
+> （`docs/design/directions/`，用户选定 B）。
 
 ## 0. 设计原则
 
 1. **今日优先**：首屏必须能看到「今天」的主工作区（日程/日志）。次要面板让位。
 2. **窄栏优先**：320px 起可用；功能图标化替代文字堆叠；渐进披露。
-3. **克制**：单主色（成长绿），其余靠层级与留白；不做多色编码状态。
+3. **克制**：单主色（蓝 `#2563EB` / 暗 `#5B8DFF`），且**只允许**出现在「主操作 / 选中 / 焦点环 / 当前时间」四处；
+   绿不再是 UI 语义色（只保留为月历数据色系之一）。层级靠三层表面 + 发丝描边表达。
 4. **可降级**：一切动效支持 `prefers-reduced-motion`；主题支持系统偏好。
 5. **可访问**：对比度、焦点可见、键盘可达为验收硬门。
 
@@ -17,13 +20,20 @@
 ### 1.1 基础层（primitive）—— 原始值，不直接用于组件
 ```css
 :root {
-  /* 色板 */
-  --green-50:#e8f5e9; --green-100:#c8e6c9; --green-300:#9ccc65;
-  --green-500:#4caf50; --green-600:#3d8b41; --green-700:#2e6b31;
-  --gray-0:#ffffff; --gray-50:#f8f9fa; --gray-100:#f1f3f5; --gray-200:#e5e7eb;
-  --gray-300:#cfd3da; --gray-400:#9e9e9e; --gray-600:#5b6470; --gray-800:#1f2328;
+  /* 表面（三层） */
+  --canvas:#fbfbfc; --surface:#ffffff; --sunken:#f1f3f6;
+  /* 墨（文字） */
+  --ink:#14161a; --ink-soft:#5a616d; --ink-weak:#696f7c;
+  /* 描边 */
+  --line:#e9eaef; --line-2:#dcdfe6;
+  /* 主色（唯一） */
+  --accent:#2563eb; --accent-hover:#1d4ed8; --accent-soft:#eff4ff; --on-accent:#fff;
+  /* 语义（状态用，不做品牌色） */
+  --danger:#dc2626; --warn:#b45309; --success:#12805c;
   /* 暗色基线 */
-  --dark-0:#1e1e1e; --dark-50:#252525; --dark-100:#2d2d2d; --dark-200:#3a3a3a; --dark-800:#e0e0e0;
+  [data-theme="dark"]: canvas:#0f1115; surface:#171a20; sunken:#1f232a;
+    ink:#edeff3; ink-soft:#a2a8b4; ink-weak:#8b93a1; line:#262a32; line-2:#333945;
+    accent:#5b8dff; on-accent:#0b1220;
   /* 排版 */
   --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   --fs-11:11px; --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px;
@@ -44,18 +54,23 @@
 ### 1.2 语义层（semantic）—— 组件只允许用这层
 ```css
 :root {
-  --color-bg:var(--gray-0);
-  --color-surface:var(--gray-50);
-  --color-text:var(--gray-800);
-  --color-muted:var(--gray-400);
-  --color-border:var(--gray-200);
-  --color-accent:var(--green-500);
-  --color-accent-strong:var(--green-600);
-  --color-accent-soft:var(--green-50);
-  --color-on-accent:#fff;
+  /* ⚠️ 2026-11 起这些旧名只是**别名**：真值在 extension/styles/tokens.css，
+     全部指向新 token（--canvas/--surface/--ink/--ink-weak/--line/--accent…）。 */
+  --color-bg:var(--canvas);
+  --color-surface:var(--surface);
+  --color-text:var(--ink);
+  --color-muted:var(--ink-weak);
+  --color-border:var(--line);
+  --color-accent:var(--accent);
+  --color-accent-strong:var(--accent-hover);
+  --color-accent-soft:var(--accent-soft);
+  --color-on-accent:var(--on-accent);
   --color-danger:#c62828; --color-warn:#ef6c00;
   --color-card-bg:var(--gray-0); --color-card-border:var(--gray-200);
-  --color-cell-empty:var(--gray-100); --color-cell-mid:var(--green-300); --color-cell-filled:var(--green-500);
+  /* 热力阶：单色（蓝）阶梯，绿色已退出 UI 语义 */
+  --color-cell-empty:var(--sunken); --color-cell-mid:var(--heat-3); --color-cell-filled:var(--accent);
+  --heat-0:var(--sunken); --heat-1..5: accent 16%/32%/50%/accent/accent-hover
+    （真值见 tokens.css；count-1..3 用 --ink 字，count-4/5 用 --on-accent 字）
   --color-focus:color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环 */
 }
 /* 暗色：CSS 兜底 + JS 显式覆盖 */
@@ -110,7 +125,9 @@
 
 ## 5. 图标规范
 
-- **功能图标 = SVG**：统一 24×24 viewBox、stroke 1.5–2px、currentColor；尺寸档 16/20/24；提供 hover/focus/active/disabled 四态。
+- **功能图标 = SVG**：统一 24×24 viewBox、stroke **1.75**、currentColor；尺寸档 16/20；提供 hover/focus/active/disabled 四态。
+  唯一实现：`extension/components/icon.js` 的 `icon(name, {size, stroke})`（`createElementNS` 构建，禁 `innerHTML`，全部 `aria-hidden`）。
+  按钮：`extension/components/button.js` 的 `button()` / `iconButton()`（4 变体 × 3 尺寸，样式由 `.btn[data-variant][data-size]` 承担）。
 - **内容 emoji = emoji**：卡片 emoji、氛围装饰保留（Twitter 系质感，契合产品调性）。
 - 禁止把 emoji 用于：设置、视图切换、布局切换、保存/加载等**功能**入口。
 
@@ -118,7 +135,7 @@
 
 | 组件 | 要点 |
 |---|---|
-| 顶栏 Header | 高 48px；标题+今日日期+设置；固定 `z-header` |
+| 顶栏 Header | 高 **44px**；标题 13/600 + 今日日期 11.5/weak + 三个 **SVG 图标按钮**（menu/status/settings）；固定 `z-header` |
 | 面板 Section | 圆角 `--r-lg`、1px border、surface 底；标题 11px 大写 letter-spacing .5（沿用现状） |
 | 卡片 Card | 最小高 64px（内容自适应）；左边框色=状态；hover 抬升 `--sh-1` |
 | 时间线卡片 | 高度随内容；空槽显示弱「+ 在此添加」 |

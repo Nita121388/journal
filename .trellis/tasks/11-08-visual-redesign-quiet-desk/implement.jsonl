@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/prd.md", "reason": "需求集、参考源取舍、整体验收标准"}
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/design.md", "reason": "色板/尺寸标尺/组件基元/视图规格/性能约束，实施时的唯一技术依据"}
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/implement.md", "reason": "阶段顺序与每阶段门禁命令"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "现有设计系统 v0.1：token 分层、反模式清单、Tailwind/Milkdown 构建约束"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "components/ 原子复用规范与 DOM 契约"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "目录职责边界：styles/components/views/features 各自能改什么"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "质量门禁：lint/test/对比度/键盘可达"}

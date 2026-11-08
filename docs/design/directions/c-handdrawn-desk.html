@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方向 C · Hand-drawn Desk</title>
+<style>
+  /* ── C. Hand-drawn Desk ──────────────────────────────────────
+   * 立场：整页一张奶油纸 + 抖动墨边 + 楷体标题 + 印章红。
+   * 参考：Inkra（墨线纸面）、Looseleaf（胶带/贴纸）、PlopUI（按下挤压）。
+   */
+  :root{
+    --paper:#F4F0E3; --card:#FBF7EA; --sunken:#EBE5D4;
+    --ink:#2B2A26; --soft:#5D5A4F; --weak:#77726460;
+    --weak:#777264;
+    --rule:#DAD2BE; --seal:#B23B30; --marker:#F2E3A0;
+    --purple:#553087; --blue:#1C4F8C; --green:#1F6B36;
+    --hand:"KaiTi","Kaiti SC","STKaiti","楷体",-apple-system,"PingFang SC","Microsoft YaHei",serif;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  [data-theme="dark"]{
+    --paper:#1E1B16; --card:#262219; --sunken:#171410;
+    --ink:#F0E9DA; --soft:#B7AE9C; --weak:#9B937F;
+    --rule:#3A3428; --seal:#E0796A; --marker:#5A4A22;
+    --purple:#C4AEF5; --blue:#96C4F5; --green:#8FE0A4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--paper); color:var(--ink); font-family:var(--font); font-size:12.5px; line-height:1.45}
+  /* 纸纹 */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  }
+  .app{position:relative; z-index:1; height:100vh; display:flex; flex-direction:column}
+
+  .ib{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; padding:0; border:1.4px solid transparent; border-radius:12px 4px 10px 5px;
+    background:transparent; color:var(--soft); cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  .ib:hover{border-color:var(--rule); color:var(--ink); background:color-mix(in srgb,var(--ink) 4%, transparent)}
+  .ib:active{transform:translateY(1px) rotate(-.5deg)}
+  .ib:focus-visible{outline:2px solid var(--seal); outline-offset:2px}
+  .ib.xs{width:24px; height:24px}
+  .btn{
+    display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px;
+    border:1.4px solid var(--ink); border-radius:160px 12px 150px 14px/14px 150px 12px 160px;
+    background:transparent; color:var(--ink); font-family:var(--font); font-size:11.5px; font-weight:500;
+    cursor:pointer; transition:background .15s, transform .08s;
+  }
+  .btn.xs{height:24px; padding:0 9px; font-size:11px}
+  .btn.solid{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  .btn.solid:hover{background:color-mix(in srgb,var(--ink) 88%, var(--seal))}
+  .btn.outline:hover{background:color-mix(in srgb,var(--ink) 5%, transparent)}
+  .btn.quiet{border-color:transparent; color:var(--soft)}
+  .btn.quiet:hover{color:var(--ink); border-color:var(--rule)}
+  .btn:active, .ib:active{transform:translateY(1px)}
+
+  .hdr{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    height:46px; padding:0 12px; flex:0 0 auto;
+    border-bottom:1.6px solid var(--ink);
+    /* 手抖分隔线：双层线错位 */
+    box-shadow:0 3px 0 -2px var(--paper), 0 4px 0 -2px var(--rule);
+  }
+  .brand{display:flex; align-items:center; gap:8px; min-width:0}
+  .mark{
+    width:20px; height:20px; flex:0 0 auto; border:1.5px solid var(--ink);
+    border-radius:60% 40% 55% 45%/45% 55% 40% 60%;
+    display:grid; place-items:center; font-family:var(--hand); font-size:13px; font-weight:700;
+  }
+  .name{font-family:var(--hand); font-size:16px; font-weight:700; letter-spacing:.5px}
+  .date{font-size:11.5px; color:var(--weak); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hdr-actions{display:flex; align-items:center; gap:2px; flex:0 0 auto}
+  .is-live{color:var(--green)}
+
+  .vhead{padding:8px 12px 6px; flex:0 0 auto}
+  .vrow{display:flex; align-items:center; gap:4px}
+  .vrow + .vrow{margin-top:6px}
+  .vtitle{font-family:var(--hand); font-size:15px; font-weight:700; margin-right:auto; padding-left:2px; letter-spacing:.3px}
+  .vtitle em{font-family:var(--font); font-style:normal; font-weight:400; font-size:11px; color:var(--weak); margin-left:6px; letter-spacing:0}
+
+  .tl{flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; position:relative}
+  .track{position:relative; height:900px; padding-bottom:16px; margin-top:10px}
+  /* 横线本纸 */
+  .track::before{
+    content:""; position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none;
+    background-image:repeating-linear-gradient(to bottom, transparent 0 63px, var(--rule) 63px 64px);
+    opacity:.55;
+  }
+  .hour{position:absolute; left:0; right:0; height:0}
+  .hour span{
+    position:absolute; left:0; top:-8px; width:44px; text-align:right; padding-right:6px;
+    font-family:var(--hand); font-size:11px; color:var(--weak); background:var(--paper);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .card{
+    position:absolute; left:50px; right:12px; background:var(--card);
+    border:1.5px solid var(--ink); border-radius:4px 14px 6px 12px/12px 6px 14px 4px;
+    padding:8px 11px 9px; transform:rotate(var(--rot,0deg));
+    transition:transform .12s ease-out, box-shadow .12s ease-out;
+  }
+  .card:hover{transform:rotate(0deg) translate(-1px,-1px); box-shadow:3px 3px 0 -1px color-mix(in srgb,var(--ink) 22%, transparent)}
+  .card .ttl{font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .card .meta{margin-top:2px; font-size:10.5px; color:var(--weak); font-variant-numeric:tabular-nums; display:flex; gap:6px}
+  .card .note{margin-top:3px; font-size:11px; color:var(--soft); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .card .sticker{
+    display:inline-block; margin-bottom:3px; padding:0 6px;
+    font-size:10px; font-weight:600; color:var(--purple);
+    background:var(--card); border:1.2px solid currentColor; border-radius:10px 3px 11px 4px;
+    transform:rotate(-1.5deg);
+  }
+  .card.c-purple{--tint:var(--purple)} .card.c-blue{--tint:var(--blue)}
+  .card.c-purple .sticker{color:var(--purple)} .card.c-blue .sticker{color:var(--blue)}
+  .card.c-purple{background:color-mix(in srgb, var(--purple) 5%, var(--card))}
+  .card.c-blue{background:color-mix(in srgb, var(--blue) 5%, var(--card))}
+
+  /* 胶带 */
+  .card.taped::after{
+    content:""; position:absolute; top:-9px; left:16px; width:56px; height:16px;
+    background:color-mix(in srgb, #fff 55%, transparent);
+    border-left:1px dashed rgba(90,80,60,.25); border-right:1px dashed rgba(90,80,60,.25);
+    transform:rotate(-4deg); z-index:3;
+  }
+  [data-theme="dark"] .card.taped::after{background:rgba(120,110,90,.35); border-color:rgba(255,255,255,.12)}
+
+  /* 现在：毛笔线 + 印章 */
+  .now{position:absolute; left:44px; right:12px; height:2.5px; background:var(--seal); z-index:2; border-radius:2px; transform:rotate(-.15deg)}
+  .now .stamp{
+    position:absolute; left:-14px; top:-14px; width:26px; height:26px; border:1.6px solid var(--seal);
+    border-radius:52% 48% 52% 48%/48% 52% 48% 52%; color:var(--seal);
+    display:grid; place-items:center; font-family:var(--hand); font-size:9px; font-weight:700; line-height:1;
+    transform:rotate(-6deg); background:color-mix(in srgb, var(--seal) 6%, transparent);
+  }
+  .now .pill{
+    position:absolute; left:18px; top:-9px; height:18px; padding:0 8px; border-radius:4px;
+    background:var(--seal); color:#fff; font-size:10px; font-weight:600;
+    display:inline-flex; align-items:center; font-variant-numeric:tabular-nums;
+    transform:rotate(-.6deg);
+  }
+
+  .dock{
+    flex:0 0 auto; display:flex; gap:4px; align-items:center;
+    margin:0 12px 12px; padding:3px 4px; height:44px;
+    border:1.6px solid var(--ink); border-radius:200px 16px 190px 18px/18px 190px 16px 200px;
+    background:var(--paper);
+  }
+  .dock button{
+    flex:1 1 0; min-width:0; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    height:34px; border:0; border-radius:999px; background:transparent;
+    font:inherit; font-size:11px; color:var(--soft); cursor:pointer;
+  }
+  .dock button.on{
+    color:var(--ink); font-weight:700;
+    background-image:linear-gradient(to top, transparent 14%, var(--marker) 14%, var(--marker) 86%, transparent 86%);
+  }
+  .dock button:not(.on):hover{color:var(--ink)}
+  @media (max-width:300px){ .dock button span{display:none} }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hdr">
+    <div class="brand">
+      <span class="mark">J</span>
+      <span class="name">Journal</span>
+      <span class="date">2026年11月8日 周日</span>
+    </div>
+    <div class="hdr-actions">
+      <button class="ib" aria-label="面板"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button class="ib is-live" aria-label="本机服务已连接"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8" opacity=".35"/><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none"/></svg></button>
+      <button class="ib" aria-label="设置"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg></button>
+    </div>
+  </header>
+
+  <div class="vhead">
+    <div class="vrow">
+      <button class="ib xs" aria-label="上一页"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <span class="vtitle">11月8日 周日<em>· 1 条记录</em></span>
+      <button class="ib xs" aria-label="下一页"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="btn xs">今天</button>
+    </div>
+    <div class="vrow">
+      <button class="btn solid">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        新建
+      </button>
+      <button class="btn quiet">08–22</button>
+      <button class="ib" aria-label="宽屏模式" style="margin-left:auto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 3H6a3 3 0 0 0-3 3v2M16 3h2a3 3 0 0 1 3 3v2M8 21H6a3 3 0 0 1-3-3v-2M16 21h2a3 3 0 0 0 3-3v-2"/></svg></button>
+    </div>
+  </div>
+
+  <main class="tl">
+    <div class="track">
+      <div class="hour" style="top:0px"><span>08:00</span></div>
+      <div class="hour" style="top:64px"><span>09:00</span></div>
+      <div class="hour" style="top:128px"><span>10:00</span></div>
+      <div class="hour" style="top:192px"><span>11:00</span></div>
+      <div class="hour" style="top:256px"><span>12:00</span></div>
+      <div class="hour" style="top:320px"><span>13:00</span></div>
+      <div class="hour" style="top:384px"><span>14:00</span></div>
+      <div class="hour" style="top:448px"><span>15:00</span></div>
+      <div class="hour" style="top:512px"><span>16:00</span></div>
+      <div class="hour" style="top:576px"><span>17:00</span></div>
+      <div class="hour" style="top:640px"><span>18:00</span></div>
+      <div class="hour" style="top:704px"><span>19:00</span></div>
+
+      <article class="card taped" style="top:72px;height:92px;--rot:-.3deg">
+        <div class="ttl">闭环脚本</div>
+        <div class="meta"><span>09:00–10:30</span><span>·</span><span>dev-loop</span></div>
+        <div class="note">验证扩展在真实数据下的渲染与断言</div>
+      </article>
+
+      <article class="card c-purple" style="top:172px;height:100px;--rot:.25deg">
+        <span class="sticker">产品</span>
+        <div class="ttl">灵感产品感：把打卡和日历合并成一条时间线</div>
+        <div class="meta"><span>10:30–12:00</span></div>
+        <div class="note">一个视图看完全天，减少抽屉层级</div>
+      </article>
+
+      <article class="card c-blue" style="top:392px;height:86px;--rot:-.2deg">
+        <span class="sticker">界面</span>
+        <div class="ttl">卡片编辑器 Notion 化</div>
+        <div class="meta"><span>14:00–15:00</span></div>
+        <div class="note">属性行两列网格 + 原子组件复用</div>
+      </article>
+
+      <div class="now" style="top:571px">
+        <span class="stamp">现在</span>
+        <span class="pill">16:55</span>
+      </div>
+    </div>
+  </main>
+
+  <nav class="dock" aria-label="视图切换">
+    <button class="on" aria-pressed="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h13M4 12h16M4 17h8"/></svg><span>日程</span>
+    </button>
+    <button aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>周视图</span>
+    </button>
+    <button aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h.01M12 14h.01M17 14h.01"/></svg><span>月视图</span>
+    </button>
+  </nav>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark') {
+    document.documentElement.dataset.theme = 'dark';
+  }
+</script>
+</body>
+</html>

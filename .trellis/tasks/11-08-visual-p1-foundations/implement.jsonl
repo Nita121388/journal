@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/11-08-visual-p1-foundations/prd.md", "reason": "本阶段需求与验收标准"}
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/design.md", "reason": "方向 B 的权威数值：色彩/圆角/投影/尺寸标尺/组件变体矩阵"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "components/ 与 styles/ 的职责边界；不允许反向 import"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件写法约定：纯函数、DOM 原子、可访问性"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "现有 token 分层、反模式清单、token 加载顺序 Gotcha"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/test/覆盖率门禁"}
+{"file": "extension/styles/README.md", "reason": "token 文件加载顺序契约"}

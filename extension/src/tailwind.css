@@ -23,38 +23,59 @@
  * 运行时由 sidepanel.css :root 真正定义值，并随 [data-theme=dark] 自动切换。
  * 若用普通 @theme 会产生 --color-accent: var(--color-accent) 的循环引用而失效。 */
 
-/* 颜色别名：避开 Tailwind 默认色板命名冲突
- * canvas=页面底 / surface=卡片面 / ink=文字 / muted=次要文字 / line=描边 / accent=主色 */
+/* 颜色别名：右侧一律 `var(--新语义 token)`，真值全部由 styles/tokens.css 提供。
+ * 因此这里**永远不写 hex**（design-system §8 反模式），且暗色随 [data-theme="dark"] 自动跟随。
+ *
+ * 新语义命名（P1「Quiet Desk」基线）：
+ *   canvas  页面底（#FBFBFC）      surface 卡片/面板（#FFFFFF）   sunken 输入/轨道/hover 底
+ *   ink     正文                  soft    次要文字                 weak   最弱文字/时间轨
+ *   line    发丝分隔              line-2  控件与卡片描边
+ *   accent  唯一主色              accent-hover / accent-soft / on-accent
+ */
 @theme inline {
-  --color-canvas: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-ink: var(--color-text);
-  --color-muted: var(--color-muted);
-  --color-line: var(--color-border);
-  --color-accent: var(--color-accent);
-  --color-accent-strong: var(--color-accent-strong);
-  --color-accent-light: var(--color-accent-light);
-  --color-cell-empty: var(--color-cell-empty);
-  --color-cell-mid: var(--color-cell-mid);
-  --color-cell-filled: var(--color-cell-filled);
-  --color-card: var(--color-card-bg);
-  --color-card-line: var(--color-card-border);
-  /* 危险 / 警告语义色：真值由 sidepanel.css :root 的 --color-danger / --color-warn / --color-on-accent
-   * 提供（迁移前 toast.toast-error/-success/-warn 的硬编码值，现已提为语义 token）。
-   * 此处只做 var() 引用，不写死 hex（design-system §8 反模式）。 */
-  --color-danger: var(--color-danger);
-  --color-warn: var(--color-warn);
-  --color-on-accent: var(--color-on-accent);
+  /* ── 新语义 token ── */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-soft: var(--ink-soft);
+  --color-weak: var(--ink-weak);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-success: var(--success);
+
+  /* ── 旧别名保底（老组件不因配色换代断掉） ── */
+  --color-muted: var(--ink-weak);
+  --color-accent-strong: var(--accent-hover);
+  --color-accent-light: var(--accent-soft);
+  --color-cell-empty: var(--sunken);
+  --color-cell-mid: color-mix(in srgb, var(--accent) 55%, var(--surface));
+  --color-cell-filled: var(--accent);
+  --color-card: var(--surface);
+  --color-card-line: var(--line);
 
   /* 字体 */
   --font-sans: var(--font);
   --font-emoji: var(--font-emoji);
 
-  /* 圆角（对齐 design-system.md §1.1 基础层 --r-sm/--r-md/--r-lg）
-   * 真值由 styles/tokens.css 的 :root 提供，此处只做别名映射。 */
+  /* 圆角：真值由 styles/tokens.css 的 :root 提供，此处只做别名映射。
+   * --radius-sm/md/lg 是既有名字（`rounded-sm` 等 utility 依赖），不许改名。 */
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
+  --radius-chip: var(--r-chip);
+  --radius-ctl: var(--r-ctl);
+  --radius-ctl-md: var(--r-ctl-md);
+  --radius-ctl-lg: var(--r-ctl-lg);
+  --radius-card: var(--r-card);
+  --radius-pane: var(--r-pane);
+  --radius-full: var(--r-full);
 }
 
 /* ── 3. 第一批迁移组件（复杂组件保留原生 CSS，不在此处） ──────
@@ -64,47 +85,142 @@
 /* 区块标题 */
 @layer components {
   .section-label {
-    @apply block text-[11px] font-semibold uppercase tracking-[0.5px] text-muted;
+    @apply block text-[11px] font-semibold uppercase tracking-[0.5px] text-weak;
   }
   .section-header {
     @apply flex items-center gap-1.5 mb-2;
   }
   /* 计数徽标 */
   .section-badge {
-    @apply text-[11px] text-muted bg-cell-empty px-1.5 py-px rounded-[9px] font-medium;
+    @apply text-[11px] text-weak bg-sunken px-1.5 py-px rounded-[9px] font-medium;
   }
 
-  /* 按钮 */
-  .btn-primary {
-    @apply bg-accent-strong text-white border-none rounded-sm px-4 py-[7px] text-[13px] font-sans font-medium cursor-pointer;
+  /* ── 按钮基元（components/button.js 的 DOM 契约） ──────────────────
+   * 变体/尺寸一律走 **属性选择器** `[data-variant]` / `[data-size]`，
+   * 不新增 `.btn-solid` / `.btn-quiet` 这类二级类名：sidepanel.html 里已有
+   * `class="btn-secondary btn-quiet"`（card-editor 保存为模板），二级类名会撞车。
+   * 颜色/尺寸全部取自 styles/tokens.css，此处不写 hex。
+   * 五态：hover / active / focus-visible / disabled / aria-pressed（design.md §3.2）。 */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: var(--h-ctl);
+    padding: 0 11px;
+    border: 1px solid transparent;
+    border-radius: var(--r-ctl-md);
+    font-family: var(--font);
+    font-size: var(--fs-11-5);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--ink-soft);
+    background: transparent;
+    transition:
+      background-color var(--dur-1) var(--ease-out),
+      border-color var(--dur-1) var(--ease-out),
+      box-shadow var(--dur-1) var(--ease-out),
+      color var(--dur-1) var(--ease-out);
   }
-  .btn-primary:hover { @apply [filter:brightness(0.9)]; }
+  .btn[data-size="xs"] {
+    height: var(--h-ctl-sm);
+    padding: 0 8px;
+    border-radius: var(--r-ctl);
+    font-size: var(--fs-11-5);
+  }
+  .btn[data-size="md"] {
+    height: var(--h-ctl-lg);
+    padding: 0 14px;
+    border-radius: var(--r-ctl-lg);
+    font-size: var(--fs-12-5);
+  }
+  /* 仅图标：宽度压成正方形，靠 data-size 换档 */
+  .btn-icon { padding: 0; width: var(--h-ctl); }
+  .btn-icon[data-size="xs"] { width: var(--h-ctl-sm); }
+  .btn-icon[data-size="md"] { width: var(--h-ctl-lg); }
+
+  /* solid：每屏唯一主操作 */
+  .btn[data-variant="solid"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn[data-variant="solid"]:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+  /* outline：次要动作（面底 + 描边 + 极弱投影） */
+  .btn[data-variant="outline"] {
+    background: var(--surface);
+    border-color: var(--line-2);
+    color: var(--ink);
+    box-shadow: var(--shadow-1);
+  }
+  .btn[data-variant="outline"]:hover { background: var(--sunken); }
+  /* quiet / ghost：透明底透明边，只有 hover 才给弱底 */
+  .btn[data-variant="quiet"]:hover,
+  .btn[data-variant="ghost"]:hover {
+    background: var(--sunken);
+    color: var(--ink);
+  }
+
+  /* active：按下挤压（内阴影 + 轻微缩放，不是投影，故用 --shadow-press） */
+  .btn:active:not(:disabled) {
+    transform: scale(.985);
+    box-shadow: var(--shadow-press);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+  /* 切换型按钮的选中态（弱底语义，不整块染主色） */
+  .btn[aria-pressed="true"] {
+    background: var(--sunken);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* 既有按钮类（P2 才迁移到上面的基元；本阶段规则不动）：
+   * `.btn-primary` / `.btn-secondary` 保留，避免一次性改 HTML 让 dev-loop 断言失效。 */
+  .btn-primary {
+    @apply bg-accent text-on-accent border-none rounded-sm px-4 py-[7px] text-[13px] font-sans font-medium cursor-pointer;
+  }
+  .btn-primary:hover { @apply bg-accent-hover; }
+  .btn-primary:active { @apply [transform:scale(.985)]; }
 
   .btn-secondary {
-    @apply bg-canvas text-ink border border-line rounded-sm px-4 py-[7px] text-[13px] font-sans cursor-pointer;
+    @apply bg-surface text-ink border border-line-2 rounded-sm px-4 py-[7px] text-[13px] font-sans cursor-pointer;
+    box-shadow: var(--shadow-1);
   }
-  .btn-secondary:hover { @apply bg-cell-empty; }
+  .btn-secondary:hover { @apply bg-sunken; }
 
   /* 筛选 chip */
   .chip {
-    @apply font-sans text-[11px] px-[7px] py-0.5 rounded-[12px] border border-line bg-canvas text-muted cursor-pointer;
+    @apply font-sans text-[11px] px-[7px] py-0.5 rounded-[12px] border border-line-2 bg-surface text-weak cursor-pointer;
   }
-  .chip:hover { @apply border-accent text-accent-strong; }
-  .chip.is-active { @apply bg-accent-strong border-accent-strong text-white; }
+  .chip:hover { @apply border-accent text-accent; }
+  .chip.is-active { @apply bg-accent border-accent text-on-accent; }
 
   /* 空状态 */
   .empty-state {
-    @apply text-muted text-center text-[12px] py-4 px-2 border border-dashed border-line rounded-md;
+    @apply text-weak text-center text-[12px] py-4 px-2 border border-dashed border-line-2 rounded-md;
   }
 
   /* Toast */
   .toast {
     @apply fixed left-1/2 bottom-6 -translate-x-1/2 z-[200] text-left font-normal text-[13px]
       px-[18px] py-2.5 rounded-md opacity-100 select-text cursor-text;
-    background: var(--color-text);
-    color: var(--color-bg);
+    background: var(--ink);
+    color: var(--canvas);
     max-width: min(720px, calc(100% - 32px));
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    box-shadow: var(--shadow-2);
     transition: opacity 0.2s;
     pointer-events: auto;
     white-space: pre-wrap;
@@ -112,7 +228,7 @@
   }
   .toast.hidden { display: none; }
   .toast.toast-error { @apply bg-danger text-on-accent; }
-  .toast.toast-success { @apply bg-accent-strong text-on-accent; }
+  .toast.toast-success { @apply bg-success text-on-accent; }
   .toast.toast-warn { @apply bg-warn text-on-accent; }
   /* 带「撤销」等操作按钮的 toast：需横向布局，故去掉 pre-wrap */
   .toast.has-action {
@@ -126,11 +242,11 @@
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
+    background: color-mix(in srgb, currentColor 18%, transparent);
     color: inherit;
     cursor: pointer;
   }
-  .toast-action:hover { background: rgba(255, 255, 255, 0.34); }
-  .toast-action:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .toast-action:hover { background: color-mix(in srgb, currentColor 34%, transparent); }
+  .toast-action:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 }

@@ -256,7 +256,11 @@ export async function runSmoke({ page }) {
     else document.documentElement.removeAttribute('data-theme');
     return out;
   });
-  add('深色模式生效（页面底色变暗）', /rgb\((\d+),\s*\1,\s*\1\)/.test(darkProbe.bodyBg), darkProbe.bodyBg);
+  // “变暗”用亮度对比度判定，而不是「R=G=B 的等值灰」：深石板底（#0F1115）是带蓝调的近黑，
+  // 不是中性灰。断言语义 = 白字对它仍可读（≥7:1），配色换代不会让门禁变红。
+  const bgContrastWithWhite = contrastRatio('rgb(255, 255, 255)', darkProbe.bodyBg);
+  add('深色模式生效（页面底色变暗）', bgContrastWithWhite >= 7,
+    `${darkProbe.bodyBg} (白字对比 ${bgContrastWithWhite.toFixed(1)}:1)`);
   const darkRatio = contrastRatio(darkProbe.todayColor, darkProbe.todayBg);
   add('深色模式次要文字对比度 ≥4.5', darkRatio >= AA_NORMAL, `${darkRatio.toFixed(2)}:1 (${darkProbe.todayColor} on ${darkProbe.todayBg})`);
 
