@@ -15,10 +15,10 @@ function isOpaqueColor(s) {
   return /^rgba?\(/.test(String(s)) && !/rgba\(0, 0, 0, 0\)/.test(String(s));
 }
 
-/** 切到指定视图（顶部按钮与 dock 共用 data-mode）。 */
+/** 切到指定视图（#view-dock 是唯一视图入口）。 */
 async function switchMode(page, mode) {
   await page.evaluate((m) => {
-    const btn = document.querySelector(`.view-dock-btn[data-mode="${m}"], .view-mode-btn[data-mode="${m}"]`);
+    const btn = document.querySelector(`#view-dock [data-mode="${m}"]`);
     btn?.click();
   }, mode);
   await page.waitForTimeout(350);

@@ -38,20 +38,19 @@ export function setHostStatus(status) {
   btn.classList.toggle('is-unknown',
     status !== 'online' && status !== 'offline' && status !== 'starting');
   btn.disabled = status === 'starting';
+  // 图标本身是 SVG（`data-icon="status"`，实心圆点填充 currentColor），
+  // 颜色只是附加信号，可读名称必须同步到 title / aria-label（状态不只靠颜色），
+  // 所以这里**不写** btn.textContent（写了会把注入的 SVG 抹掉）。
   if (status === 'online') {
-    btn.textContent = '🟢';
     btn.title = 'Host 在线';
     btn.setAttribute('aria-label', 'Host 在线');
   } else if (status === 'offline') {
-    btn.textContent = '🔴';
     btn.title = 'Host 未连接，点击启动';
     btn.setAttribute('aria-label', 'Host 未连接，点击启动');
   } else if (status === 'starting') {
-    btn.textContent = '⏳';
-    btn.title = '正在启动 Host…';
-    btn.setAttribute('aria-label', '正在启动 Host…');
+    btn.title = '正在启动 Host';
+    btn.setAttribute('aria-label', '正在启动 Host');
   } else { // unknown：未判定
-    btn.textContent = '⚪️';
     btn.title = 'Host 状态：检测中';
     btn.setAttribute('aria-label', 'Host 状态：检测中');
   }
@@ -61,10 +60,10 @@ export function setHostStatus(status) {
     const label = els.hostBanner.querySelector('.host-banner-text');
     if (label) {
       label.textContent = status === 'starting'
-        ? '⏳ 正在启动本机服务…'
+        ? '正在启动本机服务…'
         : status === 'unknown'
-          ? '⏳ 正在检查本机服务…'
-          : '⚠️ 本机服务未连接，改动不会保存';
+          ? '正在检查本机服务…'
+          : '本机服务未连接，改动不会保存';
     }
     if (els.hostBannerStart) els.hostBannerStart.disabled = status === 'starting';
   }

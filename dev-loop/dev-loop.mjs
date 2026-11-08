@@ -27,6 +27,7 @@ import { runSelect } from './scenarios/select.mjs';
 import { runLlm } from './scenarios/llm.mjs';
 import { runOptions } from './scenarios/options.mjs';
 import { runCalendarVisual } from './scenarios/calendar-visual.mjs';
+import { runShell } from './scenarios/shell.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -123,6 +124,7 @@ try {
         : args.scenario === 'llm' ? runLlm
         : args.scenario === 'options' ? runOptions
         : args.scenario === 'calendar-visual' ? runCalendarVisual
+        : args.scenario === 'shell' ? runShell
         : runSmoke;
       // 传 outDir 让场景可以留多视图截图证据（audit 场景早已这样用）
       const { checks } = await run({ page, width, extId, outDir });

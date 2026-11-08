@@ -30,6 +30,7 @@ const r = (x, y, width, height, radius, extra = {}) =>
  *
  * 覆盖现役 HTML 里所有「emoji 功能图标」对应的 name。
  * `layout` / `list` / `grid` 为 P3 视图切换预留（design.md §3.1 的 26 个 + 3 个布局类）。
+ * `flame` / `chevronDown` 为 P2 外壳（打卡 section 头 / Skills 折叠箭头）新增。
  *
  * @type {Record<string, Array<[string, Record<string, string|number>]>>}
  */
@@ -77,6 +78,14 @@ export const ICONS = {
 
   chevronLeft: [p('M15 5.5L8.5 12l6.5 6.5')],
   chevronRight: [p('M9 5.5l6.5 6.5L9 18.5')],
+
+  /* 展开箭头（section header 的折叠开关，替代 ▾） */
+  chevronDown: [p('M6.5 9.5L12 15l5.5-5.5')],
+
+  /* 打卡/连续天数（替代 🔥） */
+  flame: [
+    p('M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.2-.2-4.1 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z'),
+  ],
 
   search: [c(11, 11, 7), p('M20 20l-4.4-4.4')],
   filter: [p('M4 6.5h16'), p('M7 12h10'), p('M10 17.5h4')],
@@ -174,4 +183,38 @@ export function icon(name, { size = 20, stroke = 1.75, cls = '' } = {}) {
   }
 
   return svg;
+}
+
+/**
+ * 把 HTML 里 `data-icon="name"` 的占位元素填成真实 SVG（**prepend**，不移除宿主已有文本/子节点）。
+ *
+ * 为什么需要它：静态 HTML 无法直接内联 20 条手写 SVG（维护成本 + emoji 复辟风险），
+ * 于是 HTML 只写占位属性、由组合根在建交互绑定前统一注入。这样：
+ *   - DOM 里**没有**功能 emoji（design-system §8 反模式）；
+ *   - 图标实现只有 `ICONS` 一处（改一处全站生效）；
+ *   - 不产生 innerHTML（项目规范禁止用 innerHTML 拼内容）。
+ *
+ * @param {Document|Element} [root=document] 注入范围（默认整页）
+ * @returns {number} 本次实际注入的元素个数（已注入过的跳过，可安全重复调用）
+ */
+export function hydrateIcons(root = document) {
+  if (!root?.querySelectorAll) return 0;
+  const targets = [];
+  // querySelectorAll 不含 root 自身；root 自己带占位属性时也算一个
+  if (typeof root.matches === 'function' && root.matches('[data-icon]')) targets.push(root);
+  targets.push(...root.querySelectorAll('[data-icon]'));
+
+  let injected = 0;
+  for (const host of targets) {
+    // 同一个元素只注一次：否则重复 hydrate 会叠加多层 SVG（先 prepend 的会留在后面）
+    if (host.dataset.iconReady === 'true') continue;
+
+    const name = host.dataset.icon || '';
+    const size = Number.parseInt(host.dataset.iconSize, 10) || 20;
+    const stroke = Number.parseFloat(host.dataset.iconStroke) || 1.75;
+    host.prepend(icon(name, { size, stroke }));
+    host.dataset.iconReady = 'true';
+    injected += 1;
+  }
+  return injected;
 }

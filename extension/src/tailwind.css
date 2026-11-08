@@ -85,7 +85,11 @@
 /* 区块标题 */
 @layer components {
   .section-label {
-    @apply block text-[11px] font-semibold uppercase tracking-[0.5px] text-weak;
+    @apply inline-flex items-center gap-[5px] text-[11.5px] font-semibold text-soft;
+  }
+  /* 区块标题里的图标容器：图标比文字低一档，视觉上让标题站住 */
+  .section-label i[data-icon] {
+    @apply text-weak;
   }
   .section-header {
     @apply flex items-center gap-1.5 mb-2;

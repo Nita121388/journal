@@ -49,6 +49,12 @@ CLI → 隔离 host(临时端口 + 临时数据目录) → 测试构建扩展(�
 `scenarios/smoke.mjs` 默认覆盖：首屏渲染（标题/今日日期/host 连接）、点击「今天」交互、卡片池可查询、console 零 error。
 扩展新场景：在 `scenarios/` 下新增模块，`dev-loop.mjs` 按 `--scenario <name>` 选择。
 
+可用的结构型场景（与 UI 重构阶段配套）：
+
+| 场景 | 守住什么 |
+|---|---|
+| `shell` | 外壳结构不变量：无 `.view-modes`、`#view-dock` 唯一驱动 `data-mode`、外壳按钮零 emoji、header 44px、无横向滚动、dock 无 `backdrop-filter`、`.section-label` 无 uppercase/tracking、键盘 Tab 可达 + 2px 焦点环（亮暗各跑一遍） |
+
 ## 环境
 
 - Windows 本机已验证；Node ≥ 18；Playwright 1.63.0 + chromium-1243（`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`）。

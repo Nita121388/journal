@@ -126,14 +126,16 @@
 }
 @layer components {
   .section-label {
-    display: block;
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
-    --tw-tracking: 0.5px;
-    letter-spacing: 0.5px;
+    color: var(--ink-soft);
+  }
+  .section-label i[data-icon] {
     color: var(--ink-weak);
-    text-transform: uppercase;
   }
   .section-header {
     margin-bottom: calc(var(--spacing) * 2);
@@ -527,10 +529,6 @@
   syntax: "*";
   inherits: false;
 }
-@property --tw-tracking {
-  syntax: "*";
-  inherits: false;
-}
 @property --tw-border-style {
   syntax: "*";
   inherits: false;
@@ -588,7 +586,6 @@
       --tw-drop-shadow-alpha: 100%;
       --tw-drop-shadow-size: initial;
       --tw-font-weight: initial;
-      --tw-tracking: initial;
       --tw-border-style: solid;
       --tw-translate-x: 0;
       --tw-translate-y: 0;

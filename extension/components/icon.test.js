@@ -7,13 +7,13 @@
  * 以及「零外链」——离线与 MV3 CSP 下都不能有外部引用。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ICONS, icon } from './icon.js';
+import { ICONS, hydrateIcons, icon } from './icon.js';
 
-/** design.md §3.1 的 26 个 + layout/list/grid（视图切换预留）。 */
+/** design.md §3.1 的 26 个 + layout/list/grid（视图切换预留）+ P2 新增 flame/chevronDown。 */
 const REQUIRED = [
   'menu', 'status', 'settings', 'plus', 'expand', 'range', 'calendar', 'week', 'month',
-  'timeline', 'chevronLeft', 'chevronRight', 'search', 'filter', 'template', 'save', 'copy',
-  'tag', 'folder', 'close', 'check', 'more', 'pin', 'sparkle', 'trash',
+  'timeline', 'chevronLeft', 'chevronRight', 'chevronDown', 'flame', 'search', 'filter',
+  'template', 'save', 'copy', 'tag', 'folder', 'close', 'check', 'more', 'pin', 'sparkle', 'trash',
   'layout', 'list', 'grid',
 ];
 
@@ -118,5 +118,47 @@ describe('icon()', () => {
     // 同一个笔误重复调用不再吵
     icon('no-such-icon');
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('hydrateIcons()', () => {
+  it('把所有 [data-icon] 占位元素注入成 SVG（数量与宿主一致）', () => {
+    document.body.innerHTML = `
+      <button data-icon="menu" data-icon-size="16"></button>
+      <span data-icon="flame"></span>
+      <i data-icon="chevronDown" data-icon-stroke="2"></i>
+      <b>没有占位属性，不该被动</b>`;
+
+    const injected = hydrateIcons(document);
+    expect(injected).toBe(3);
+
+    const hosts = [...document.querySelectorAll('[data-icon]')];
+    expect(hosts.length).toBe(3);
+    for (const host of hosts) {
+      expect(host.querySelectorAll('svg').length, host.dataset.icon).toBe(1);
+      // prepend 语义：SVG 是第一个子节点
+      expect(host.firstElementChild.tagName.toLowerCase()).toBe('svg');
+      expect(host.dataset.iconReady).toBe('true');
+    }
+    // 无关元素不被动
+    expect(document.querySelector('b svg')).toBeNull();
+  });
+
+  it('重复调用不重复注入（幂等）', () => {
+    document.body.innerHTML = `<button data-icon="settings"></button>`;
+    expect(hydrateIcons(document)).toBe(1);
+    expect(hydrateIcons(document)).toBe(0);
+    expect(document.querySelectorAll('[data-icon] svg').length).toBe(1);
+  });
+
+  it('data-icon-size 生效（默认 20）', () => {
+    document.body.innerHTML = `
+      <i data-icon="plus" data-icon-size="14"></i>
+      <i data-icon="save"></i>`;
+    hydrateIcons(document);
+    const [small, normal] = document.querySelectorAll('[data-icon] svg');
+    expect(small.getAttribute('width')).toBe('14');
+    expect(small.getAttribute('height')).toBe('14');
+    expect(normal.getAttribute('width')).toBe('20');
   });
 });

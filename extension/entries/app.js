@@ -18,6 +18,7 @@ import { loadSkillStatus } from '../views/skills.js';
 import { markViewMode, requestFocusScroll } from '../views/rightview.js';
 import { updateHeaderDate } from '../views/calendar.js';
 import { openEditor, openEditorRange, updateEditorDuration } from '../features/card-editor.js';
+import { hydrateIcons } from '../components/icon.js';
 import { bindShell } from './bind-shell.js';
 import { bindViews } from './bind-views.js';
 import { bindEditor } from './bind-editor.js';
@@ -29,6 +30,10 @@ export async function init() {
   actions.openEditor = openEditor;
   actions.openEditorRange = openEditorRange;
   actions.updateEditorDuration = updateEditorDuration;
+
+  // HTML 里只有 `data-icon="name"` 占位，这里一次注入真实 SVG。
+  // 必须在 bindShell/bindViews 之前：之后的事件绑定与断言都依赖图标已就位。
+  hydrateIcons();
 
   await bindShell();
   bindViews();

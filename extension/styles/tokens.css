@@ -26,6 +26,12 @@
   --canvas: #fbfbfc;
   --surface: #ffffff;
   --sunken: #f1f3f6;
+  /* 需要「凸起」的表面（浮层、dock 选中胶囊）：亮色与 surface 同值，
+   * 暗色单独提亮 —— 暗色 elevation 是「越亮越高」，与亮色相反。 */
+  --raised: #ffffff;
+  /* 交互底色（hover / 按下）：与「凹槽」区分开 —— 凹槽永远比 surface 暗，
+   * hover 在亮色下压暗、在暗色下提亮，否则暗色 dock 的选中胶囊会变成「凹陷」。 */
+  --hover: color-mix(in srgb, var(--ink) 6%, transparent);
 
   /* 2. 文字（实测对比度见 design.md §1.1） */
   --ink: #14161a;                           /* 17.5:1 / 17.5:1 / 16.3:1 */
@@ -199,7 +205,9 @@
 [data-theme="dark"] {
   --canvas: #0f1115;
   --surface: #171a20;
-  --sunken: #1f232a;
+  --sunken: #13161b;                        /* 比 surface 更暗，凹槽才成立 */
+  --raised: #1e232b;                        /* 暗色下比 surface 亮 8 级，胶囊才「凸」得出来 */
+  --hover: color-mix(in srgb, var(--ink) 9%, transparent);
 
   --ink: #edeff3;
   --ink-soft: #a2a8b4;

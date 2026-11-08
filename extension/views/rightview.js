@@ -44,22 +44,20 @@ function viewHeaderLabel() {
   if (typeCounts.task) parts.push(`${typeCounts.task} 任务`);
   if (typeCounts.text) parts.push(`${typeCounts.text} 记录`);
   const countStr = parts.length ? ` · ${parts.join(' · ')}` : ' · 暂无记录';
-  return `📅 ${compactDateLabel(date)}${countStr}`;
+  return `${compactDateLabel(date)}${countStr}`;
 }
 
 /**
- * 高亮当前视图模式按钮（顶部按钮组 + 底部 dock 同步）。
+ * 高亮当前视图模式按钮（底部 dock 是唯一视图入口）。
  *
  * 视觉高亮之外必须有可访问状态：读屏用户否则完全不知道当前是哪个视图。
  */
 export function markViewMode() {
-  for (const list of [els.viewModeBtns, els.viewDockBtns]) {
-    list?.forEach((b) => {
-      const on = b.dataset.mode === vs.viewMode;
-      b.classList.toggle('is-active', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
-  }
+  els.viewDockBtns?.forEach((b) => {
+    const on = b.dataset.mode === vs.viewMode;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
 }
 
 /**

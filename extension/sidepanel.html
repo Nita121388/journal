@@ -16,19 +16,21 @@
   <!-- 离线持久横幅：host 是本机权威数据源，离线时改动无法保存。
        用持久横幅而非瞬时 toast —— 用户可能几分钟后才继续操作。 -->
   <div id="host-banner" class="host-banner hidden" role="status" aria-live="polite">
-    <span class="host-banner-text">⚠️ 本机服务未连接，改动不会保存</span>
+    <span class="host-banner-text">本机服务未连接，改动不会保存</span>
     <button id="host-banner-start" class="host-banner-btn" type="button">启动服务</button>
   </div>
 
   <header id="header">
     <div id="header-left">
-      <span id="app-title">📓 Journal</span>
+      <span id="app-title"><span class="brand-mark" aria-hidden="true">J</span>Journal</span>
       <time id="today-display"></time>
     </div>
     <div id="header-right">
-      <button id="btn-panels" aria-label="打开面板" title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar">☰</button>
-      <button id="btn-host-status" class="host-status-btn is-unknown" aria-label="Host 状态：检测中" title="Host 状态：检测中">⚪️</button>
-      <button id="btn-settings" aria-label="设置" title="设置">⚙️</button>
+      <button id="btn-panels" class="hdr-btn ghost" data-icon="menu" aria-label="打开面板"
+              title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar"></button>
+      <button id="btn-host-status" class="hdr-btn host-status-btn is-unknown" data-icon="status"
+              aria-label="Host 状态：检测中" title="Host 状态：检测中"></button>
+      <button id="btn-settings" class="hdr-btn ghost" data-icon="settings" aria-label="设置" title="设置"></button>
     </div>
   </header>
 
@@ -39,10 +41,12 @@
       <!-- 统一卡片池（唯一主视图：文本/待办都是卡片，待办只是状态筛选） -->
         <section id="cardpool-section">
           <div class="section-header">
-            <span class="section-label">🃏 卡片池</span>
+            <span class="section-label"><i data-icon="layout" data-icon-size="14"></i>卡片池</span>
             <span id="cardpool-count" class="section-badge">0</span>
-            <button id="btn-pool-layout" class="pool-tool-btn" title="切换布局（卡片/列表）">⊞</button>
-            <button id="btn-save-view" class="pool-tool-btn" title="保存当前为命名视图">💾</button>
+            <button id="btn-pool-layout" class="pool-tool-btn" data-icon="grid" data-icon-size="14"
+                    aria-label="切换布局（卡片/列表）" title="切换布局（卡片/列表）"></button>
+            <button id="btn-save-view" class="pool-tool-btn" data-icon="save" data-icon-size="14"
+                    aria-label="保存当前为命名视图" title="保存当前为命名视图"></button>
             <select id="pool-view-select" class="pool-view-select" aria-label="命名视图">
               <option value="">全部卡片</option>
             </select>
@@ -52,18 +56,18 @@
           </div>
           <input id="pool-search" type="search" class="pool-search"
                  placeholder="搜索标题 / 内容 / 标签…" aria-label="搜索卡片" autocomplete="off" />
-          <button id="pool-extra-filter" class="pool-extra-filter" aria-expanded="false" aria-controls="pool-extra">⛁ 项目/标签筛选</button>
+          <button id="pool-extra-filter" class="pool-extra-filter" aria-expanded="false" aria-controls="pool-extra"><i data-icon="filter" data-icon-size="14"></i><span>项目/标签筛选</span></button>
           <div id="pool-extra" class="pool-extra"></div>
           <ul id="cardpool-list"></ul>
           <div class="cardpool-actions">
-            <button id="btn-template" class="cardpool-add-btn" title="用模板新建">🗂️ 模板</button>
-            <button id="btn-new-card" class="cardpool-add-btn">＋ 新卡片</button>
+            <button id="btn-template" class="cardpool-add-btn" title="用模板新建"><i data-icon="template" data-icon-size="14"></i><span>模板</span></button>
+            <button id="btn-new-card" class="cardpool-add-btn"><i data-icon="plus" data-icon-size="14"></i><span>新卡片</span></button>
           </div>
         </section>
 
         <!-- 日历 -->
         <section id="calendar-section">
-          <label class="section-label">📅 日历</label>
+          <label class="section-label"><i data-icon="calendar" data-icon-size="14"></i>日历</label>
           <div class="calendar-header">
             <button id="cal-prev" class="cal-nav-btn" aria-label="上一月">‹</button>
             <span id="cal-month-label" class="cal-month-label"></span>
@@ -79,7 +83,7 @@
         <!-- 热力图 -->
         <section id="heatmap-section">
           <div class="section-header">
-            <span class="section-label">🔥 打卡</span>
+            <span class="section-label"><i data-icon="flame" data-icon-size="14"></i>打卡</span>
             <span id="heatmap-streak" class="section-badge"></span>
           </div>
           <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
@@ -88,14 +92,15 @@
         <!-- 本机 Skills（快速复制给 AI） -->
         <section id="skills-section">
           <div class="section-header">
-            <span class="section-label">🧠 AI Skill 状态</span>
+            <span class="section-label"><i data-icon="sparkle" data-icon-size="14"></i>AI Skill 状态</span>
             <span id="skills-count" class="section-badge">…</span>
-            <button id="btn-skills-toggle" class="skills-toggle-btn" aria-label="展开/收起" title="展开/收起">▾</button>
+            <button id="btn-skills-toggle" class="skills-toggle-btn" data-icon="chevronDown" data-icon-size="14"
+                    aria-label="展开/收起" title="展开/收起"></button>
           </div>
           <div id="skills-panel" class="skills-panel hidden">
             <div id="skills-overall" class="skills-overall"></div>
             <ul id="skills-list" class="skills-list"></ul>
-            <button id="btn-skills-copy" class="skills-copyall-btn">📋 复制所有路径给 AI</button>
+            <button id="btn-skills-copy" class="skills-copyall-btn"><i data-icon="copy" data-icon-size="14"></i><span>复制所有路径给 AI</span></button>
           </div>
         </section>
       </aside>
@@ -103,27 +108,23 @@
       <!-- 右侧：日历/周历/时间线 -->
       <section id="timeline-section">
         <div class="view-header">
-          <div class="view-nav">
-            <button id="view-prev" class="cal-nav-btn" aria-label="上一页">‹</button>
+          <div class="view-row view-row--nav">
+            <button id="view-prev" class="hdr-btn ghost xs" data-icon="chevronLeft" aria-label="上一页"></button>
             <span id="timeline-date-header"></span>
-            <button id="view-next" class="cal-nav-btn" aria-label="下一页">›</button>
+            <button id="view-next" class="hdr-btn ghost xs" data-icon="chevronRight" aria-label="下一页"></button>
             <button id="view-today" class="cal-today-btn" title="回到今天">今天</button>
           </div>
-          <div class="view-tools">
-            <button id="btn-quick-add" class="view-wide-btn" title="在今天新建卡片" aria-label="在今天新建卡片">＋</button>
-            <button id="btn-wide-mode" class="view-wide-btn" title="宽屏模式（循环：自动 / 强制宽屏 / 强制窄屏）">⛶</button>
+          <div class="view-row view-row--tools">
+            <button id="btn-quick-add" class="view-wide-btn" data-icon="plus" aria-label="在今天新建卡片"><span>新建</span></button>
             <button id="btn-span" class="view-span-btn" title="切换时间线范围（08-22 / 24 小时）">08–22</button>
-            <div class="view-modes">
-              <button id="view-mode-month" class="view-mode-btn" data-mode="month" title="月历">📅</button>
-              <button id="view-mode-week" class="view-mode-btn" data-mode="week" title="周历">📆</button>
-              <button id="view-mode-timeline" class="view-mode-btn" data-mode="timeline" title="日程">⏱</button>
-            </div>
+            <button id="btn-wide-mode" class="hdr-btn ghost" data-icon="expand" aria-label="宽屏模式"
+                    title="宽屏模式（循环：自动 / 强制宽屏 / 强制窄屏）"></button>
           </div>
         </div>
         <div id="timeline-container">
           <!-- 时间线/月历/周历 动态渲染 -->
         </div>
-        <!-- 底部浮动视图切换 dock（视觉主入口；顶部 .view-modes 保留为可访问/窄栏入口）
+        <!-- 底部视图切换 dock：**唯一**的视图切换入口（data-mode 只由它驱动）
              图标走内联 SVG 而非 emoji：design-system §5「禁止把 emoji 用于视图切换等功能入口」 -->
         <nav id="view-dock" class="view-dock" aria-label="视图切换">
           <button type="button" class="view-dock-btn" data-mode="timeline" aria-pressed="false">

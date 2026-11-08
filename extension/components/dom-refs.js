@@ -4,7 +4,9 @@
  * sidepanel.html 中所有被 JS 引用的静态元素集中在此，避免散落的 getElementById。
  * 纯查找，不含行为；不依赖任何其他层。
  *
- * 注意：`viewModeBtns` 是 NodeList（querySelectorAll），不是单个元素。
+ * 注意：`viewDockBtns` 是 NodeList（querySelectorAll），不是单个元素。
+ * `viewModeBtns` 已在 P2 外壳重构中删除 —— 顶部 `.view-modes` 三个 emoji 按钮
+ * 不再是视图入口，`#view-dock` 是唯一入口，`data-mode` 只由它驱动。
  */
 
 export const els = {
@@ -21,8 +23,7 @@ export const els = {
   viewPrev: document.getElementById('view-prev'),
   viewNext: document.getElementById('view-next'),
   viewToday: document.getElementById('view-today'),
-  viewModeBtns: document.querySelectorAll('.view-mode-btn'),
-  /** 底部浮动视图切换 dock 的按钮（与顶部 .view-mode-btn 共享 data-mode 语义） */
+  /** 底部视图切换 dock 的按钮（#view-dock 为唯一视图入口） */
   viewDockBtns: document.querySelectorAll('.view-dock-btn'),
   btnSpan: document.getElementById('btn-span'),
   btnWide: document.getElementById('btn-wide-mode'),

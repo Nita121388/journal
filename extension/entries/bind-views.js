@@ -6,6 +6,7 @@
  */
 
 import { els } from '../components/dom-refs.js';
+import { icon } from '../components/icon.js';
 import { getPort } from '../platform/index.js';
 import { todayKey, currentTime } from '../shared/model.js';
 import { vs, monthOf } from '../state/view-state.js';
@@ -72,7 +73,8 @@ export function bindViews() {
     await renderRightView();
   });
 
-  // 顶部按钮组 + 底部 dock 共用同一套 [data-mode] 语义，一处委托即可
+  // `#view-dock` 是唯一的视图切换入口（P2 删除了顶部 .view-modes 的三个 emoji 按钮）。
+  // 仍用容器级委托思路：按钮由 HTML 静态给出，切换逻辑只在一处。
   const switchViewMode = async (mode) => {
     if (!mode || mode === vs.viewMode) return;
     vs.viewMode = mode;
@@ -82,11 +84,9 @@ export function bindViews() {
     requestFocusScroll(); // 切换视图后重新聚焦当前时刻
     await renderRightView();
   };
-  for (const list of [els.viewModeBtns, els.viewDockBtns]) {
-    list?.forEach((btn) => {
-      btn.addEventListener('click', () => { switchViewMode(btn.dataset.mode); });
-    });
-  }
+  els.viewDockBtns?.forEach((btn) => {
+    btn.addEventListener('click', () => { switchViewMode(btn.dataset.mode); });
+  });
 
   // 24h / 08-22 时间线范围切换
   const updateSpanBtn = () => {
@@ -168,11 +168,22 @@ export function bindViews() {
     actions.openEditor(null, currentTime(), null, null);
   });
 
-  // ── 卡片池：布局切换（卡片视图 / 列表视图） ──
+  // ── 卡片池：布局切换（卡片视图 / 列表视图）──
+  // 按钮里只有一个 SVG 图标（无文本），所以状态用图标替换而不是改 textContent。
+  const paintPoolLayoutIcon = () => {
+    if (!els.poolLayoutBtn) return;
+    // 动态换图标：先撤掉 data-icon 占位标记，避免下次 hydrateIcons 再叠一层
+    delete els.poolLayoutBtn.dataset.icon;
+    delete els.poolLayoutBtn.dataset.iconReady;
+    els.poolLayoutBtn.replaceChildren(
+      icon(vs.poolLayout === 'card' ? 'grid' : 'list', { size: 14 }),
+    );
+  };
+  paintPoolLayoutIcon();
   els.poolLayoutBtn?.addEventListener('click', () => {
     vs.poolLayout = vs.poolLayout === 'card' ? 'list' : 'card';
     getPort().prefSet('journal.poolLayout', vs.poolLayout);
-    els.poolLayoutBtn.textContent = vs.poolLayout === 'card' ? '⊞' : '☰';
+    paintPoolLayoutIcon();
     renderCardPool();
   });
 

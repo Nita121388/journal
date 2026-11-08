@@ -25,6 +25,11 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 
 在 `dev-loop/scenarios/` 新增模块导出 `runScenario({ page, width }) → { checks }`，在 `dev-loop.mjs` 注册，用 `--scenario <name>` 调用。
 
+> Gotcha：`--theme` 参数只对 `audit` 场景生效。其他场景要断言暗色必须自己在
+> `page.evaluate` 里 `setAttribute('data-theme','dark')`（`shell` 与 `tailwind-migrated` 都这么做）。
+> 切回亮色后记得 `waitForTimeout(250)` 再截图——token 翻转会重启 `background-color` 过渡，
+> 否则末尾的全页截图会拍到「过渡中间色」，看起来像配色错了。
+
 ## 与本项目的关系
 
 - 扩展源码在 `extension/`（分层见 [Directory Structure](./directory-structure.md)）；dev-loop 只**读取**它做测试构建，绝不写入。
@@ -36,6 +41,7 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 | 场景 | 守住什么 |
 |---|---|
 | `smoke` | 首屏布局、host 状态、键盘可达、空态动作 |
+| `shell` | 外壳结构：`.view-modes` 已删除、`#view-dock` 唯一驱动 `data-mode`、外壳按钮零功能 emoji、header 44px、无横向滚动、dock 无 `backdrop-filter`、`.section-label` 无 uppercase/tracking、header+dock 按钮 Tab 可达且 2px 焦点环（亮暗各一遍） |
 | `audit` | 主题 × 视图模式截图与度量 |
 | `tailwind-migrated` | 迁移到 `@layer components` 的组件 computed-style + 暗色跟随 |
 | `select` / `tpl` / `llm` / `options` | 下拉框、模板构建器、LLM 设置、设置页 |

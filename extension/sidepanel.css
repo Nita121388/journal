@@ -15,22 +15,86 @@ body {
 /* ─── Header ─────────────────────────────────────── */
 
 header#header {
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
-  background: var(--color-bg);
+  background: var(--canvas);
   z-index: 10;
+  flex: 0 0 auto;
 }
 
-#header-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex: 1 1 auto; }
-#app-title { font-weight: 600; font-size: 16px; white-space: nowrap; }
-#today-display { color: var(--color-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#header-left { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1 1 auto; }
+#app-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+/* 品牌标记：单字母方块，替代原来的 📓（功能 emoji 不进 DOM） */
+.brand-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+#today-display {
+  font-size: 11.5px;
+  color: var(--ink-weak);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
 
-#header-right { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+#header-right { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+
+/* 图标按钮基元（header / 视图头共用；24 高走 .xs 档）
+ * 五态：hover / active / focus-visible / disabled / aria-expanded。
+ * 颜色全部走 token，暗色无额外覆盖规则。 */
+.hdr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-ctl-md);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.hdr-btn.xs { width: 24px; height: 24px; border-radius: var(--r-ctl); }
+.hdr-btn:hover { background: var(--hover); color: var(--ink); }
+.hdr-btn:active { transform: scale(0.96); }
+.hdr-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hdr-btn[aria-expanded="true"] { background: var(--hover); color: var(--ink); }
+.hdr-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* data-icon 占位容器：只承载 SVG，不参与文字排版 */
+[data-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
 
 /* ─── 卡片池搜索框 ───────────────────────────────── */
 
@@ -71,12 +135,10 @@ header#header {
 }
 .card-body .card-secondary { font-size: 11px; color: var(--color-muted); margin-top: 2px; }
 
-/* 侧边栏最窄 320px：收 padding、收字号，保证标题与日期不被折行/覆盖 */
+/* 侧边栏最窄 320px：只收 padding，header 高度固定 44px */
 @media (max-width: 420px) {
-  header#header { padding: 8px 10px; gap: 6px; }
-  #header-left { gap: 8px; }
-  #app-title { font-size: 15px; }
-  #today-display { font-size: 12px; }
+  header#header { padding: 0 10px; }
+  #header-left { gap: 6px; }
 }
 
 /* ─── Host 离线持久横幅 ─────────────────────────────── */
@@ -85,61 +147,44 @@ header#header {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 12px;
   font-size: 12px;
-  background: #fff4e5;
-  color: #8a4b00;
-  border-bottom: 1px solid #ffd8a8;
+  /* 语义 token 派生（R7）：不再硬编码琥珀色，暗色自动跟随 */
+  background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+  color: var(--warn);
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 30%, var(--surface));
 }
 .host-banner.hidden { display: none; }
 .host-banner-text { flex: 1; min-width: 0; }
 .host-banner-btn {
   flex-shrink: 0;
   font-family: var(--font); font-size: 12px; font-weight: 600;
-  padding: 4px 10px; border-radius: 6px;
+  padding: 4px 10px; border-radius: var(--r-chip);
   border: 1px solid currentColor; background: transparent; color: inherit;
   cursor: pointer;
 }
-.host-banner-btn:hover { background: rgba(138, 75, 0, 0.08); }
+.host-banner-btn:hover { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.host-banner-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .host-banner-btn:disabled { opacity: 0.6; cursor: progress; }
 
-[data-theme="dark"] .host-banner {
-  background: #3a2a10;
-  color: #ffcc80;
-  border-bottom-color: #5a4220;
-}
+/* 旧的 emoji 字号规则已删：三个 header 按钮统一走 .hdr-btn（SVG + 28px 方框） */
+#btn-panels[aria-expanded="true"] { color: var(--accent); }
 
-#btn-settings,
-#btn-panels {
-  background: none; border: none; font-size: 16px;
-  cursor: pointer; color: var(--color-muted);
-  border-radius: 6px; padding: 6px 8px;
-}
-#btn-settings:hover,
-#btn-panels:hover { background: var(--color-cell-empty); }
-#btn-panels[aria-expanded="true"] { color: var(--color-accent); }
-
-/* ─── Host 状态按钮（header 右上角） ──────────────────── */
-
-.host-status-btn {
-  background: none; border: none; font-size: 15px;
-  cursor: pointer;
-  border-radius: 6px; padding: 6px 8px;
-  line-height: 1;
-  filter: saturate(0.4) opacity(0.55);
-  transition: filter 0.15s, background 0.15s;
-}
-.host-status-btn:hover { background: var(--color-cell-empty); }
+/* ─── Host 状态按钮（header 右上角） ────────────────────
+ * 图标是 `data-icon="status"` 的实心圆点（fill=currentColor），
+ * 所以状态只改 color —— 不再是「往按钮里塞 🟢/🔴 emoji」。 */
+.host-status-btn { color: var(--ink-weak); }
+.host-status-btn svg { fill: currentColor; stroke: none; }
+.host-status-btn:hover { background: var(--hover); }
 /* 未判定（探测中）：中性灰，不表达「可用」 */
-.host-status-btn.is-unknown { filter: saturate(0.2) opacity(0.6); }
-
+.host-status-btn.is-unknown { color: var(--ink-weak); opacity: 0.7; }
+.host-status-btn.is-online { color: var(--success); }
 /* 离线：红色警示 + 可点击拉起 */
 .host-status-btn.is-offline {
+  color: var(--danger);
   cursor: pointer;
-  filter: none;
   animation: host-pulse 1.8s ease-in-out infinite;
 }
-.host-status-btn.is-offline:hover { background: rgba(220, 60, 60, 0.12); }
 /* 启动中：禁用 */
-.host-status-btn.is-starting { cursor: progress; filter: none; animation: none; opacity: 0.7; }
+.host-status-btn.is-starting { color: var(--warn); cursor: progress; animation: none; }
 
 @keyframes host-pulse {
   0%, 100% { opacity: 1; }
@@ -187,11 +232,11 @@ main {
   width: min(88%, 320px);
   z-index: 100;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   min-width: 0;
   padding: 12px;
-  background: var(--color-bg);
-  border-right: 1px solid var(--color-border);
+  background: var(--canvas);
+  border-right: 1px solid var(--line);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -246,11 +291,24 @@ body.panels-open #board::before {
 
 /* ─── 卡片池 ─────────────────────────────────────── */
 
+/* ─── 侧栏区块（P2 表面层级）─────────────────────────
+ * 原来是「灰底页面 → 白底盒子 → 内层白卡」三层嵌套。
+ * 现在侧栏区块**就是 canvas 底**，区块之间只用 1px --line 分隔，
+ * 白底只留给真正需要站起来的卡片/面板。 */
+#cardpool-section,
+#calendar-section,
+#heatmap-section,
+#skills-section {
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+#skills-section { border-bottom: 0; padding-bottom: 0; }
+
 #cardpool-section {
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
+  padding-top: 2px;
 }
 
 #cardpool-list {
@@ -323,28 +381,30 @@ body.panels-open #board::before {
   min-height: 24px;
   width: 100%;
   margin-top: 6px;
-  background: var(--color-bg);
-  border: 1px dashed var(--color-border);
-  border-radius: 6px;
-  padding: 6px 0;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-ctl);
+  padding: 5px 0;
+  font-size: 11.5px;
   font-family: var(--font);
-  color: var(--color-muted);
+  color: var(--ink-soft);
   cursor: pointer;
 }
 .cardpool-add-btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  background: var(--color-accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
+.cardpool-add-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ─── 日历 ─────────────────────────────────────── */
 
 #calendar-section {
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
+  min-width: 0;
 }
 
 .calendar-header {
@@ -442,10 +502,7 @@ body.panels-open #board::before {
 /* ─── 热力图 ─────────────────────────────────────── */
 
 #heatmap-section {
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
+  min-width: 0;
 }
 
 #heatmap-container {
@@ -601,18 +658,18 @@ body.panels-open #board::before {
 /* ─── 本机 Skills ─────────────────────────────────── */
 
 #skills-section {
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
+  min-width: 0;
 }
 
 .skills-toggle-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: 12px; color: var(--color-muted);
-  padding: 2px 6px; border-radius: 4px; margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  background: none; border: 0; border-radius: var(--r-chip);
+  cursor: pointer; color: var(--ink-weak); margin-left: auto;
+  transition: transform var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
 }
-.skills-toggle-btn:hover { background: var(--color-cell-empty); }
+.skills-toggle-btn:hover { background: var(--hover); color: var(--ink); }
+.skills-toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .skills-toggle-btn.open { transform: rotate(180deg); }
 
 .skills-panel.hidden { display: none; }
@@ -652,12 +709,14 @@ body.panels-open #board::before {
 
 .skills-copyall-btn {
   width: 100%; margin-top: 6px;
-  background: var(--color-accent-light); color: var(--color-accent);
-  border: 1px solid var(--color-border); border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--line-2); border-radius: var(--r-ctl);
   padding: 5px 0; font-size: 11px; font-family: var(--font);
   cursor: pointer;
 }
-.skills-copyall-btn:hover { background: var(--color-accent); color: var(--color-on-accent); }
+.skills-copyall-btn:hover { background: var(--accent); color: var(--on-accent); }
+.skills-copyall-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ─── 右侧时间线 ─────────────────────────────── */
 
@@ -666,48 +725,48 @@ body.panels-open #board::before {
   flex-direction: column;
   min-height: 0;
   max-height: var(--panel-max-h);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
   overflow: hidden;
 }
 
-/* ─── 底部浮动视图切换 dock ─────────────────────────────
- * 参考 Obsidian「达达清单」的底部 dock；这里用 sticky 贴在滚动容器底部，
- * 窄侧栏下不会被 #timeline-container 的 overflow 裁掉。
- * 图标为内联 SVG（design-system §5：功能入口禁用 emoji）。 */
+/* ─── 底部视图切换 dock（Quiet Desk 形态，唯一视图入口）──────────
+ * `--sunken` 轨道 + 选中项 `--surface` 胶囊 + `--shadow-1` + `--accent` 文字。
+ * sticky 吸底、**向上**投影（BoardUI 负 Y 思路）：避免与内容向下投的阴影打架。
+ * `backdrop-filter` 必须是 none（design.md §7：全站 0 处合成层）。 */
 .view-dock {
   position: sticky;
   bottom: 0;
   z-index: var(--z-sticky, 20);
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 2px;
-  margin: 0 8px 8px;
+  margin: 6px 10px 10px;
   padding: 3px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--r-full, 999px);
-  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  backdrop-filter: none;
+  box-shadow: 0 -2px 13px rgba(16, 24, 40, 0.05);
 }
 .view-dock-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex: 1 1 0;
   justify-content: center;
   min-width: 0;
-  padding: 4px 8px;
-  border: none;
-  border-radius: var(--r-full, 999px);
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-full);
   background: none;
   font: inherit;
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--ink-soft);
   cursor: pointer;
-  transition: background var(--dur-1, 150ms) ease-out, color var(--dur-1, 150ms) ease-out;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .view-dock-btn svg { flex-shrink: 0; }
 .view-dock-btn span {
@@ -715,123 +774,127 @@ body.panels-open #board::before {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.view-dock-btn:hover { background: var(--color-cell-empty); color: var(--color-text); }
+.view-dock-btn:hover:not(.is-active) { background: var(--hover); color: var(--ink); }
 .view-dock-btn.is-active {
-  background: var(--color-accent-light);
-  color: var(--color-accent-strong);
+  background: var(--raised);
+  color: var(--accent);
   font-weight: 600;
+  box-shadow: var(--shadow-1);
 }
-.view-dock-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+.view-dock-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-/* 极窄侧栏（320px）：只留图标，文字隐藏但保留 aria-pressed 语义 */
-@media (max-width: 359px) {
+/* 极窄侧栏（<300px）：只留图标，文字隐藏但保留 aria-pressed 语义。
+ * 320px 实测三个标签（日程/周视图/月视图）放得下，隐藏反而让 dock 显得空。 */
+@media (max-width: 300px) {
   .view-dock-btn span { display: none; }
 }
 
+/* 视图头日期：现在位于 .view-row--nav 内，自身不再画分隔线与底色 */
 #timeline-date-header {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  background: var(--color-bg);
+  font-variant-numeric: tabular-nums;
 }
 
-/* 右视图头部：导航 + 模式切换 */
+/* 右视图头（两行）：行1 = ‹ 日期 · N 条记录 › [今天]；行2 = [新建] [范围] [⛶]
+ * 两行是**固定**布局，不靠 flex-wrap 去挤压 —— ≤420px 下日期曾与 6 个控件抢位置。 */
 .view-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
-  /* 窄侧栏（320–400）工具组换行，而不是把日期标签挤成 0 宽 */
-  flex-wrap: wrap;
-  row-gap: 6px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
+  flex: 0 0 auto;
 }
-.view-nav {
+.view-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  flex: 1 1 auto;
 }
-.view-nav #timeline-date-header {
+.view-row--nav #timeline-date-header {
   flex: 1 1 auto;
-  /* 保证日期至少可读：低于此宽宁可让工具组换行 */
-  min-width: 76px;
+  min-width: 0;
   padding: 0;
-  border: none;
+  border: 0;
   background: none;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.view-tools {
-  display: flex;
+.view-row--tools { gap: 6px; }
+.view-row--tools #btn-wide-mode { margin-left: auto; }
+
+/* 工具条三件套统一到 24 高基元（--r-ctl / 11.5px） */
+.view-span-btn,
+.view-wide-btn,
+.view-row--nav .cal-today-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-ctl);
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.view-span-btn:hover,
+.view-wide-btn:hover,
+.view-row--nav .cal-today-btn:hover { background: var(--hover); color: var(--ink); }
+.view-span-btn { font-variant-numeric: tabular-nums; }
+.view-span-btn:focus-visible,
+.view-wide-btn:focus-visible,
+.view-row--nav .cal-today-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 「今天」是次要动作，给弱描边把它从日期串里分出来（仍 24 高、--r-ctl） */
+.view-row--nav .cal-today-btn {
+  background: var(--surface);
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-1);
   flex: 0 0 auto;
 }
-.view-span-btn {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 7px;
-  cursor: pointer;
-  color: var(--color-muted);
-  transition: border-color 0.15s, color 0.15s;
-}
-.view-span-btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
+
+/* 「新建」= 每屏唯一主操作（solid accent） */
 .view-wide-btn {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 7px;
-  cursor: pointer;
-  color: var(--color-muted);
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-1);
 }
-.view-wide-btn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+.view-wide-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
+
+/* 宽屏三态：`.is-on` = 用户强制开（主色）；`.is-off` = 用户强制关（弱化） */
+#btn-wide-mode.is-on { color: var(--accent); background: var(--accent-soft); }
+#btn-wide-mode.is-off { color: var(--ink-weak); opacity: 0.55; }
+
+/* 「今天」在侧栏小日历里也统一到 24 高基元（密度对齐） */
+#calendar-section .cal-today-btn {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-ctl);
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-1);
 }
-.view-wide-btn.is-on {
-  border-color: var(--color-accent);
-  background: var(--color-accent-light);
-  color: var(--color-accent);
-}
-.view-wide-btn.is-off {
-  opacity: 0.5;
-  text-decoration: line-through;
-}
-.view-modes {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.view-mode-btn {
-  border: 1px solid transparent;
-  background: none;
-  border-radius: 6px;
-  font-size: 14px;
-  padding: 3px 6px;
-  cursor: pointer;
-  opacity: 0.5;
-  transition: opacity 0.15s, background 0.15s;
-}
-.view-mode-btn:hover { background: var(--color-cell-empty); opacity: 0.85; }
-.view-mode-btn.is-active { opacity: 1; background: var(--color-accent-light); border-color: var(--color-accent); }
+#calendar-section .cal-today-btn:hover { background: var(--hover); color: var(--ink); }
+
+/* .view-modes / .view-mode-btn 已删除（P2 R2）：
+ * 顶部三个 emoji 视图按钮与底部 dock 是同一功能的两套入口。
+ * 现在 #view-dock 是唯一视图切换入口，data-mode 只由它驱动。 */
 
 /* ─── 月历视图 ─────────────────────────────── */
 /* 月历网格样式已迁至下方「日历公共卡片组件」段的 .cc-* 规则 */
@@ -1327,6 +1390,7 @@ body.panels-open #board::before {
   min-height: 0;
   overflow-y: auto;
   padding: 0 14px;
+  background: var(--surface); /* 与 #timeline-section 同面，避免「面板里再套一层暗底」 */
 }
 
 /* 日程画布（15 分钟网格 + 绝对定位卡片） */
@@ -1997,14 +2061,21 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* header 工具按钮 + 视图下拉 */
 .pool-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   background: none;
-  border: none;
-  font-size: 12px;
+  border: 0;
+  border-radius: var(--r-chip);
   cursor: pointer;
-  color: var(--color-muted);
-  padding: 0 2px;
+  color: var(--ink-soft);
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
-.pool-tool-btn:hover { color: var(--color-accent); }
+.pool-tool-btn:hover { background: var(--hover); color: var(--ink); }
+.pool-tool-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 同上：仅布局（max-width），视觉由 select.css 接管 */
 .pool-view-select { max-width: 96px; }
 
@@ -3157,20 +3228,25 @@ body.tpl-dragging { user-select: none; }
 /* 项目/标签筛选收进可展开的「筛选」区，默认收起（渐进披露） */
 .pool-extra-filter {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--font);
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px dashed var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-muted);
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-full);
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  color: var(--ink-soft);
   cursor: pointer;
 }
-.pool-extra-filter:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.pool-extra-filter:hover { border-color: var(--accent); color: var(--accent); }
 .pool-extra-filter[aria-expanded="true"] {
   border-style: solid;
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 #pool-extra {
   display: none;
@@ -3225,8 +3301,9 @@ body.tpl-dragging { user-select: none; }
 }
 .timeline-empty-hint b { color: var(--color-text); font-weight: 600; }
 
-/* 快捷新建按钮 */
-#btn-quick-add { font-size: 15px; line-height: 1; }
+/* 快捷新建按钮
+ * 尺寸/颜色全部交给 .view-wide-btn 基元（P2）；这里曾经写死 font-size:15px，
+ * 那是它还是「＋」单字符 emoji 按钮的时代 —— 现在按钮里有汉字，15px 会把工具条顶歪。 */
 
 /* 卡片底部信息吸附到底部：避免高卡片内容短时显得空荡 */
 .timeline-card .card-body { flex: 1 1 auto; }
