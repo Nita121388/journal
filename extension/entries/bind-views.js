@@ -72,15 +72,21 @@ export function bindViews() {
     await renderRightView();
   });
 
-  els.viewModeBtns?.forEach(btn => {
-    btn.addEventListener('click', async () => {
-      vs.viewMode = btn.dataset.mode;
-      getPort().prefSet('journal.viewMode', vs.viewMode);
-      markViewMode();
-      requestFocusScroll(); // 切换视图后重新聚焦当前时刻
-      await renderRightView();
+  // 顶部按钮组 + 底部 dock 共用同一套 [data-mode] 语义，一处委托即可
+  const switchViewMode = async (mode) => {
+    if (!mode || mode === vs.viewMode) return;
+    vs.viewMode = mode;
+    vs.expandedCardId = null; // 换视图时收起详情，避免 Milkdown 实例跨视图滞留
+    getPort().prefSet('journal.viewMode', vs.viewMode);
+    markViewMode();
+    requestFocusScroll(); // 切换视图后重新聚焦当前时刻
+    await renderRightView();
+  };
+  for (const list of [els.viewModeBtns, els.viewDockBtns]) {
+    list?.forEach((btn) => {
+      btn.addEventListener('click', () => { switchViewMode(btn.dataset.mode); });
     });
-  });
+  }
 
   // 24h / 08-22 时间线范围切换
   const updateSpanBtn = () => {

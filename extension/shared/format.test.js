@@ -2,7 +2,7 @@
  * format.test.js — 纯展示格式化
  */
 import { describe, it, expect } from 'vitest';
-import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel } from './format.js';
+import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel, cardColorKey, CARD_COLOR_KEYS } from './format.js';
 import { todayKey } from './model.js';
 
 describe('formatDateLabel', () => {
@@ -113,5 +113,47 @@ describe('formatProvenance', () => {
   });
   it('含 device.hostname', () => {
     expect(formatProvenance({ origin: 'human', device: { hostname: 'mbp' } })).toContain('mbp');
+  });
+});
+
+describe('cardColorKey', () => {
+  it('task 未完成 → red，已完成 → gray', () => {
+    expect(cardColorKey({ type: 'task' })).toBe('red');
+    expect(cardColorKey({ type: 'task', done: true })).toBe('gray');
+  });
+
+  it('text / idea 无标签 → blue', () => {
+    expect(cardColorKey({ type: 'text' })).toBe('blue');
+    expect(cardColorKey({ type: 'idea' })).toBe('blue');
+  });
+
+  it('同名标签恒得同色（纯函数、无状态）', () => {
+    const a = cardColorKey({ type: 'text', tags: ['工作'] });
+    const b = cardColorKey({ type: 'text', tags: ['工作'] });
+    expect(a).toBe(b);
+    expect(CARD_COLOR_KEYS.slice(0, 4)).toContain(a);
+  });
+
+  it('不同标签通常不同色（4 色桶，抽查 20 个不全部相同）', () => {
+    const keys = Array.from({ length: 20 }, (_, i) => cardColorKey({ type: 'text', tags: [`标签${i}`] }));
+    expect(new Set(keys).size).toBeGreaterThan(1);
+  });
+
+  it('显式 props.color 优先于类型与标签', () => {
+    expect(cardColorKey({ type: 'task', done: true, tags: ['x'], props: { color: 'purple' } })).toBe('purple');
+  });
+
+  it('非法 props.color 被忽略，回落到类型规则', () => {
+    expect(cardColorKey({ type: 'task', props: { color: '#fff' } })).toBe('red');
+    expect(cardColorKey({ type: 'task', props: { color: 'pink' } })).toBe('red');
+  });
+
+  it('未知类型无标签 → gray', () => {
+    expect(cardColorKey({ type: 'unknown' })).toBe('gray');
+  });
+
+  it('空卡片不抛错', () => {
+    expect(cardColorKey({})).toBe('gray');
+    expect(cardColorKey(undefined)).toBe('gray');
   });
 });

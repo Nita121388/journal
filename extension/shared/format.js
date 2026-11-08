@@ -132,3 +132,39 @@ export function formatProvenance(ev, fallback = '—') {
   if (ev.at) parts.push(new Date(ev.at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
   return parts.join(' · ');
 }
+
+/** 卡片配色键全集（与 tokens.css 的 `--cc-*` 色系一一对应）。 */
+export const CARD_COLOR_KEYS = Object.freeze(['red', 'green', 'blue', 'purple', 'gray']);
+
+/** 标签名 → 稳定配色键：同名标签恒得同色（FNV-1a 取模，纯函数无状态）。 */
+function colorFromTag(tag) {
+  const s = String(tag ?? '');
+  if (!s) return 'gray';
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return CARD_COLOR_KEYS[h % 4]; // 前 4 个是彩色，gray 只留给兜底
+}
+
+/**
+ * 卡片 → 配色键（月/周/日视图共用，保证同一张卡在所有视图同色）。
+ *
+ * 优先级：显式 `props.color`（用户手选） > 类型 > 首个标签兜底 > gray。
+ * 类型映射刻意区分 task / text：参考图里任务偏暖色、记录偏冷色。
+ * @param {object} card
+ * @returns {'red'|'green'|'blue'|'purple'|'gray'}
+ */
+export function cardColorKey(card) {
+  const explicit = card?.props?.color;
+  if (typeof explicit === 'string' && CARD_COLOR_KEYS.includes(explicit)) return explicit;
+  const type = card?.type;
+  if (type === 'task') return card?.done ? 'gray' : 'red';
+  if (type === 'text' || type === 'idea') {
+    const firstTag = Array.isArray(card?.tags) ? card.tags[0] : null;
+    return firstTag ? colorFromTag(firstTag) : 'blue';
+  }
+  const firstTag = Array.isArray(card?.tags) ? card.tags[0] : null;
+  return firstTag ? colorFromTag(firstTag) : 'gray';
+}

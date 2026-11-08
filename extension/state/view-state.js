@@ -53,6 +53,12 @@ export const vs = {
   allCardsCache: [],
   /** @type {number} 视图切换序号（防抖过期异步渲染） */
   switchSeq: 0,
+  /**
+   * 当前展开（Milkdown 正文渲染）的卡片 id；null = 无展开。
+   * 同一时刻只允许一张：Milkdown 实例昂贵，见 views/milkdown-mount.js 的实例池上限。
+   * @type {string|null}
+   */
+  expandedCardId: null,
 
   // ── 卡片池筛选 ──
   /** @type {''|'active'|'todo'|'doing'|'done'|'none'} */
@@ -92,6 +98,7 @@ export const vs = {
  * @property {Record<string,number>} heatmapCache dayKey → 卡片数
  * @property {object[]} allCardsCache 全部卡片快照
  * @property {number} switchSeq 视图切换序号
+ * @property {string|null} expandedCardId 当前展开详情的卡片 id
  * @property {''|'active'|'todo'|'doing'|'done'|'none'} poolStatusFilter
  * @property {string} poolTagFilter
  * @property {string} poolProjectFilter

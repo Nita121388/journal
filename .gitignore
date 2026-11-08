@@ -4,9 +4,12 @@ dist/
 build/
 *.tsbuildinfo
 
-# 但扩展的 Tailwind 构建产物要提交（Chrome 加载 unpacked 免构建即可用）
+# 但扩展的构建产物要提交（Chrome 加载 unpacked 免构建即可用）
 !extension/dist/
 !extension/dist/**
+# 扩展的构建脚本是源码，必须进仓库（否则无法复现 dist/milkdown.bundle.js）
+!extension/build/
+!extension/build/**
 
 # Env / secrets
 .env

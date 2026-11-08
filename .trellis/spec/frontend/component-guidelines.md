@@ -232,3 +232,60 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 - 图标/显示名覆盖允许，类型锁定（内置三件套）时右键菜单不出现「修改类型/移除」。
 
 **原则**：凡「原地编辑 + 校验失败重来」的交互，onCommit 必须支持「返回 false 拒绝且不丢焦点」；凡「名字即数据标识」的字段，改名路径与 dedupe 路径必须分开，防止校验被去重绕过。
+
+## 日历公共卡片组件（calendar-card.js）
+
+月/周/日三视图的卡片渲染**只有一个实现**：`views/calendar-card.js`。
+
+| 导出 | 用途 | 渲染档位 |
+|---|---|---|
+| `renderCardPill(card, opts)` | 月格 / 全天行的紧凑 pill | L0（`md-lite` 单行） |
+| `renderDayCardList(cards, opts)` | 月格事件列表（最多 `MAX_PILLS_PER_DAY` 条 + `+N`） | L0 |
+| `renderDayHeader(dayKey, opts)` | 日期头（大号日号 + 节日副标 + 今天标记 + 计数） | — |
+| `renderCardBlock(card, lane, allday, date)` | 周/日时间网格块（拖拽/缩放/`is-short`） | L1（`md-lite` 多行） |
+| `renderCardDetail(card, opts)` | 展开态：header + **Milkdown 正文** + footer | L2 |
+
+约定：
+- 色系由 `shared/format.js` 的 `cardColorKey(card)` 决定，返回 `red|green|blue|purple|gray`；
+  视图只加 `cc-color-{key}` 类，**不自己拼颜色**。CSS 侧映射集中在 `sidepanel.css`
+  的 `.cc-color-*` 五条规则（新增色系只改这一处）。
+- 视图层禁止再写 `buildCalSummary` 这类「本视图专用摘要」——三视图必须同源，
+  否则改一次色要改三处（这正是本轮重构的起因）。
+- 层级拆分：`rightview.js` 只做调度（`<200` 行），月历在 `views/month.js`，
+  「某天有哪些卡」在 `views/day-cards.js`（`getCardsByDaySync`），
+  展开态在 `views/card-expand.js`。把 `getCardsByDaySync` 留在 `rightview.js`
+  会让 `month.js ↔ rightview.js` 循环 import。
+
+## Gotcha: 窄侧栏（320–500px）下的日历信息取舍
+
+月视图 7 列在 400px 侧栏里每格只有 **44px**。实测 `pill` 宽 32px 时：
+「图标 + 标题 + 时间」三者并排会把标题挤成 **0 宽**（dev-loop 探针实测 `titleW=0`）。
+
+规则（`sidepanel.css` 的 `.cc-pill` 段）：
+- 默认（<620px）：隐藏 `.cc-pill-time`，且月格内隐藏 `.cc-pill-icon` —— 类别仍由
+  底色 + 描边编码，标题拿到全部剩余宽度（实测 11px → 24px，多显示 2 个字）。
+- ≥620px（宽屏模式）：图标 + 标题 + 时间齐全。
+- 完整信息兜底在 `title` 属性与 `aria-label` 里，不靠视觉截断猜内容。
+
+**原则**：窄容器里的「图标/时间/标题」三者不可能都保住时，按信息价值排序取舍，
+并保证完整的语义仍可从 `title` / `aria-label` 取到。
+
+## Gotcha: sticky 表头被 `overflow:hidden` 与父容器高度废掉
+
+**场景**：周视图的日期头原本放在每天列（`.calview-week-col`）内部，`position: sticky; top: 0`。
+
+两个独立的失效原因：
+1. 外层 `.calview-week-grid` 有 `overflow: hidden` → 它自己成为 sticky 的滚动容器，
+   而它从不滚动 → sticky 永远不生效；
+2. 即使没有 overflow，sticky 元素的包含块是列容器，而列高 = 内容高，
+   没有可移动空间 → 同样不吸附。
+
+**正解**：
+- 用 `overflow: clip` 替代 `overflow: hidden`（clip 不建立滚动容器，圆角仍生效）；
+- 把表头**提到独立 grid 行**（`grid-template-rows: var(--head-h) auto auto`），
+  用显式 `grid-row/grid-column` 定位，避免依赖 DOM 顺序；
+- sticky 元素会盖住其下方内容 → 紧随其后的「全天行」也要 sticky 到
+  `top: var(--calview-head-h)`，否则滚动后全天卡被表头遮住。
+
+**原则**：`sticky` 失效先查两件事——祖先链上是否有 `overflow` 建立了滚动容器，
+以及包含块有没有可移动空间。两者都对了再谈 z-index。

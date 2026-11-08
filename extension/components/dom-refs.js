@@ -22,6 +22,8 @@ export const els = {
   viewNext: document.getElementById('view-next'),
   viewToday: document.getElementById('view-today'),
   viewModeBtns: document.querySelectorAll('.view-mode-btn'),
+  /** 底部浮动视图切换 dock 的按钮（与顶部 .view-mode-btn 共享 data-mode 语义） */
+  viewDockBtns: document.querySelectorAll('.view-dock-btn'),
   btnSpan: document.getElementById('btn-span'),
   btnWide: document.getElementById('btn-wide-mode'),
   cardpoolList: document.getElementById('cardpool-list'),

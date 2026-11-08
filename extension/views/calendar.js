@@ -19,6 +19,8 @@ import { vs } from '../state/view-state.js';
  */
 export function renderCalendar(container, matrix, activeDate, heatmap) {
   container.replaceChildren();
+  // 选中日是否落在本矩阵里：决定 roving tabindex 的停点归属（见下方 tabIndex 赋值）
+  const hasActiveInMatrix = matrix.some((week) => week.some((cell) => cell.dayKey === activeDate));
   for (const week of matrix) {
     for (const cell of week) {
       const btn = document.createElement('button');
@@ -48,8 +50,10 @@ export function renderCalendar(container, matrix, activeDate, heatmap) {
       if (!cell.isCurrentMonth) btn.classList.add('is-out-month');
       if (cell.isToday) btn.classList.add('is-today');
       if (cell.dayKey === activeDate) btn.classList.add('is-selected');
-      // 键盘可达：roving tabindex（仅选中/今天可 Tab，其余方向键导航）
-      btn.tabIndex = (cell.isToday || cell.dayKey === activeDate) ? 0 : -1;
+      // 键盘可达：roving tabindex —— **全网格只允许一个 tab 停点**（spec design-system §4）。
+      // 优先给选中日；若选中日不在本矩阵内（跨月查看）才退给今天。
+      // 之前用 `isToday || isSelected` 会让「今天 ≠ 选中日」时出现两个停点。
+      btn.tabIndex = (cell.dayKey === activeDate || (!hasActiveInMatrix && cell.isToday)) ? 0 : -1;
       // 卡片数量背景色
       const bgLevel = count >= 5 ? 5 : count;
       if (bgLevel > 0) btn.classList.add(`count-${bgLevel}`);

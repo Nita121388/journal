@@ -46,6 +46,10 @@
       不得重新引入 `findPropDef` / `BUILTIN_DEFS` 分叉或 `switch(key)` 分发
 - [ ] 新增存储字段 → 在 [State Management](./state-management.md) 说明，并在边界做运行时校验
 - [ ] 导出函数补 JSDoc（[Type Safety](./type-safety.md)）
+- [ ] 新增视觉块先问「月/周/日是否都要用」——是则进 `views/calendar-card.js`，
+      不要各视图各写一份（见 [Component Guidelines](./component-guidelines.md) 的日历组件节）
+- [ ] 要渲染用户 Markdown → 走 `views/milkdown-mount.js`（实例池上限 2 + 降级），
+      禁止直接 import 打包产物；改 Milkdown 版本后必须重跑 `npm run build:js` 并提交产物
 
 ---
 
@@ -56,3 +60,5 @@
 - [ ] UI 改动 → `cd dev-loop && node dev-loop.mjs --width 320,360,400,500` 全绿（见 [dev-loop](./dev-loop.md)）
 - [ ] `chrome://extensions` load unpacked 正常，侧边栏与设置页 console 无 error
 - [ ] 无 `eval` / `new Function` / 用户内容进 `innerHTML`
+- [ ] 动了 `build/milkdown-entry.js` 或升级 Milkdown → `npm run --prefix extension build:js` 且产物已提交
+- [ ] 日历/视图改动 → `node dev-loop/dev-loop.mjs --scenario calendar-visual --seed --width 320,360,400,500`

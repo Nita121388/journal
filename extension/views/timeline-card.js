@@ -10,6 +10,7 @@ import { actions } from '../state/actions.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
+import { toggleCardDetail } from './card-expand.js';
 
 const ORIGIN_ICON = { human: '👤', 'agent-assisted': '🤖', 'agent-auto': '⚙️' };
 
@@ -73,7 +74,7 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
 
   const isShort = el.classList.contains('is-short');
 
-  // Header（短卡片只显示开始时间，把横向空间让给内容）
+  // Header：**图标 + 标题**（视觉向参考图对齐——块内首行是标题，次行才是时间）。
   // 全部用 DOM API 构建：`provenance.project` 与 `card.emoji` 都可能来自用户输入 / AI 建卡 /
   // 多端同步的任意文本，拼 innerHTML 会形成注入面（spec: 用户内容一律走 textContent）。
   const header = document.createElement('div');
@@ -81,28 +82,40 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
   appendOriginBadge(header, card);
   header.append(
     spanEl('card-type-icon', typeIcon(card.type, card.emoji)),
-    spanEl('card-time', headerTimeText(card, allday, isShort)),
-    spanEl('card-meta', !allday && !isShort ? `${Math.max(15, getCardDuration(card))} 分钟` : ''),
+    spanEl('card-primary', cardPrimaryText(card, '(空卡片)')),
   );
+  // 展开入口：hover/聚焦时在 header 右侧露出，点开用 Milkdown 渲染正文
+  // （单击卡片主体仍是「打开编辑器」，保持既有交互不回归）
+  const expandBtn = document.createElement('button');
+  expandBtn.type = 'button';
+  expandBtn.className = 'card-expand-btn';
+  expandBtn.textContent = '◱';
+  expandBtn.title = '展开内容预览（Markdown 渲染）';
+  expandBtn.setAttribute('aria-label', '展开内容预览');
+  expandBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleCardDetail(card.id);
+  });
+  header.append(expandBtn);
 
-  // Body：标题优先作为首行，内容作为次要行。
-  // 之前只渲染 content，导致「只填标题」的卡片在时间线里显示「(空卡片)」。
+  // Body：**时间行 + 次要内容**（时间放在标题下面，与参考图一致；
+  // 时间节点仍用 .card-time / .card-meta 类名，拖拽与缩放的实时文本更新不必改）。
   const body = document.createElement('div');
   body.className = 'card-body' + (card.type === 'task' && card.done ? ' is-done' : '');
-  const primary = cardPrimaryText(card, '');
-  if (primary) {
-    const line = document.createElement('div');
-    line.className = 'card-primary';
-    line.textContent = primary;
-    body.append(line);
+  const timeRow = document.createElement('div');
+  timeRow.className = 'card-timerow';
+  timeRow.append(spanEl('card-time', headerTimeText(card, allday, isShort)));
+  if (!allday && !isShort) {
+    timeRow.append(spanEl('card-meta', `${Math.max(15, getCardDuration(card))} 分钟`));
   }
+  body.append(timeRow);
+  // 次要内容：有标题时 content 作为正文；只填 content 的卡不再重复一遍
   if (card.title && card.content) {
     const sub = document.createElement('div');
     sub.className = 'card-secondary';
     sub.textContent = card.content;
     body.append(sub);
   }
-  if (!body.childNodes.length) body.textContent = '(空卡片)';
 
   // Footer
   const footer = buildCardFooter(card);

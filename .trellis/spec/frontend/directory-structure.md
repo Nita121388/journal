@@ -26,6 +26,7 @@ Journal 是 **Chrome Manifest V3 扩展 + Side Panel**，**无框架、无打包
 | 卡片数据读写 | `state/repository.js` |
 | 视图可变状态（筛选/选中/模式） | `state/view-state.js` |
 | 纯计算（时间/聚合/字段/格式） | `shared/` |
+| Markdown 只读渲染 | `views/milkdown-mount.js`（Milkdown 实例池）／`shared/md-lite.js`（纯文本降级） |
 
 ---
 
@@ -39,7 +40,11 @@ extension/
 ├── sidepanel.css          # 手写样式（含视图定位等无法 utility 化的部分）
 ├── options.css  select.css
 ├── dist/sidepanel.css     # Tailwind 构建产物（已提交，勿手改）
+├── dist/milkdown.bundle.js # ✦ Milkdown 打包产物（已提交，勿手改；npm run build:js 生成）
 ├── src/tailwind.css       # Tailwind 构建源
+├── build/                 # 构建脚本（不进扩展运行时）
+│   ├── build-milkdown.mjs #   esbuild → dist/milkdown.bundle.js
+│   └── milkdown-entry.js  #   产物入口（只导出 mountReadonly/unmount/liveCount/version）
 ├── styles/
 │   ├── tokens.css         # ✦ 主界面设计 token 的唯一定义处
 │   └── tokens-options.css # ✦ 设置页 token 的唯一定义处
@@ -78,7 +83,10 @@ extension/
 │   └── settings.js        #   本地设置
 │
 ├── views/                 # 主视图渲染（每个 <400 行）
-│   ├── timeline.js  timeline-card.js  week.js  month(见 rightview.js)
+│   ├── timeline.js  timeline-card.js  week.js  month.js
+│   ├── calendar-card.js   # ✦ 日历公共卡片组件（pill/day-header/block/detail，三视图唯一实现）
+│   ├── milkdown-mount.js  # ✦ Milkdown 只读挂载器（实例池 + 降级，唯一挂载入口）
+│   ├── card-expand.js  day-cards.js  range-select.js
 │   ├── rightview.js  pool.js  heatmap.js  calendar.js  skills.js
 │   ├── named-view.js  refresh.js
 │
@@ -120,6 +128,8 @@ desktop ◀── extension/** 与 host（本期未实现）
    只可用 `getPort()` 拿到的端口对象。
 6. `entries/` 是组合根：可依赖全部，负责选择端口与注入。
 7. `host/` 只可 import `extension/shared/**`。
+8. Milkdown 只允许经 `views/milkdown-mount.js` 使用：直接 `import('../../dist/milkdown.bundle.js')`
+   会绕过实例池上限与降级，等于把 ProseMirror 泄漏面重新打开。
 
 ### 强制手段
 
@@ -140,6 +150,9 @@ desktop ◀── extension/** 与 host（本期未实现）
 ├─ 要读写卡片？                            → state/repository.js（不要再开一条通路）
 ├─ 是「筛选/选中/模式」这类可变界面状态？   → state/view-state.js（加字段，别建新模块变量）
 ├─ 渲染 DOM / 绑定事件？                    → views/（按视图）或 features/（按交互）
+├─ 多个视图共用同一个视觉块？              → views/calendar-card.js（不要再各写一份摘要）
+├─ 要渲染用户 Markdown？                    → views/milkdown-mount.js（默认，有实例池）
+│                                             或 shared/md-lite.js（窄格/短块，纯文本）
 ├─ 只是 DOM 元素引用？                      → components/dom-refs.js
 └─ 要选择端口 / 决定启动顺序？              → entries/
 ```

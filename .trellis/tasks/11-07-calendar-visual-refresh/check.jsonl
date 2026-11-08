@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Pre-Development Checklist + Quality Check"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "UI 改动必须 dev-loop 多宽度回归"}

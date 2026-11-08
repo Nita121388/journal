@@ -67,6 +67,11 @@
 ### 1.3 组件层（component）—— 组件私有
 仅在组件内部使用，如 `--tl-card-h-min`、`--pool-chip-h`。
 
+### 1.4 日历色系（`--cc-*`，亮/暗两套）
+`styles/tokens.css` 里定义五组 `--cc-{color}-{bg,border,text}` + `--cc-today`。
+组件侧**只写一次映射**（`sidepanel.css` 的 `.cc-color-*` 把 `--cc-bg/--cc-border/--cc-fg`
+指向对应色组），新增色系只改这两处。文字色对各自底色实测 ≥ 4.5:1（dev-loop `calendar-visual` 断言）。
+
 ## 2. 布局与响应式（侧栏专项）
 
 | 断点 | 布局策略 |
@@ -125,7 +130,11 @@
 | 下拉框 Select | 自建组件（`extension/select.css` + `extension/features/select.js`，BoardUI 风格）：隐藏原生 select 作数据源 + 代理触发器 + **自绘非模态 popover**（portal 到 body、z 150）。触发器：1px 弱描边 + 大圆角（sm 8px / md 10-12px）+ 极弱投影 `--select-shadow` + 200ms 过渡 + SVG chevron 展开旋转 + ring-offset 焦点环（`--color-focus`）。键盘：↑↓ Home End Enter Esc Tab + 字符 typeahead；`aria-activedescendant` 焦点不离开触发器；multiple 触发器显示「已选 N 项」。样式走两页各自 `:root` 的 `--select-*` token，不写 hex |
 | Toast | 顶部/底部居中，停留 3–5s，可关闭，z-toast |
 | 行级浮层（右键菜单/图标选择器） | 构建器弹窗之上、属性编辑弹窗之下：构建器 overlay=120、行级浮层=130、属性定义弹窗=140（高于通用 overlay=100）。浮层定位贴右边界防溢出，`max-width: calc(100vw - 16px)` |
-| 日历格 | 32–36px；today=accent 底+高对比字；日志日=cell 色阶；hover 显示日期+计数 |
+| 日历格（左栏小日历） | 32–36px；today=accent 底+高对比字；日志日=cell 色阶；hover 显示日期+计数 |
+| 日历事件 pill | 高 ~16px、圆角 5px；底色/描边/文字走 `--cc-{red,green,blue,purple,gray}-*` 五色系；标题单行截断；时间只在 ≥620px 显示 |
+| 日历日期头 | 日号 13px 加粗 + 节日/节气副标 9px + 今天圆角标（红底白字，`compact` 时显示「今」） |
+| 日历展开详情 | sticky 吸底、左侧 3px 色条、正文 Milkdown（`max-height:40vh` 内滚动） |
+| 视图切换 dock | 底部 sticky 胶囊 dock，SVG 图标 + 文字，`aria-pressed` 同步顶部按钮组 |
 
 ## 7. 主题（暗色）
 
@@ -147,6 +156,18 @@
 - ❌ 在 `src/tailwind.css` 的组件里写死 hex（与全站一样必须走语义 token）
 - ❌ 把 `@import "tailwindcss"`（含 preflight）引入——会全站 reset 漂移，必须用 `theme/utilities` 两段式
 - ❌ 通过 CDN `<script>` 引入 Tailwind——MV3 CSP 禁止（`script-src 'self'`），只能本地 CLI 构建
+
+## 8.0 构建与 Milkdown（esbuild）
+
+- 入口：`extension/build/milkdown-entry.js` → `npm run build:js` → `extension/dist/milkdown.bundle.js`（**产物提交进仓库**，Chrome load unpacked 免构建）。
+- 只导出四个 API：`mountReadonly` / `unmount` / `liveCount` / `version`，**不暴露 Milkdown 内部对象**（便于整体替换实现）。
+- 只读渲染必须走 `views/milkdown-mount.js`：它维护实例池（`MAX_MOUNTED = 2`，LRU 淘汰）、懒加载产物、失败降级到 `shared/md-lite.js`。
+- 实现要点（踩过的坑）：
+  - `define: { 'process.env.NODE_ENV': '"production"' }` 必须加，否则浏览器里 `process is not defined`。
+  - 用 `new URL('../../dist/milkdown.bundle.js', import.meta.url)` + `import(/* @vite-ignore */ ...)` 而不是字面量动态 import：否则 vitest/vite 会尝试静态解析 370KB minified 产物而报错。
+  - 测试通过 `__setLoaderForTest(fn)` 注入假加载器，不依赖真实产物。
+  - 不启用 HTML preset：用户 Markdown 里的原始 HTML 按文本渲染，杜绝注入面。
+- 重渲染前必须 `releaseAll()`：`renderRightView` 会把承载 ProseMirror 的 DOM 一起扔掉，不销毁就是泄漏。
 
 ## 8.1 构建与 Tailwind（v4）
 

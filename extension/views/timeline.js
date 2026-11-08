@@ -10,7 +10,7 @@ import { getCardsByDay, updateCardEntry } from '../state/repository.js';
 import { els } from '../components/dom-refs.js';
 import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
 import { bindRangeSelect } from './range-select.js';
-import { renderTimelineCard } from './timeline-card.js';
+import { renderCardBlock } from './calendar-card.js';
 import { actions } from '../state/actions.js';
 
 // escapeHtml / typeIcon 等纯展示工具已统一到 shared/format.js（唯一实现处）。
@@ -138,7 +138,7 @@ export async function renderTimeline() {
 
   for (const card of timedCards) {
     const laneInfo = lanes.get(card.id);
-    const cardEl = renderTimelineCard(card, laneInfo);
+    const cardEl = renderCardBlock(card, laneInfo);
     canvas.append(cardEl);
 
     // 最右侧卡片：hover 时在右侧滑入"同一时间新建"按钮
@@ -190,7 +190,7 @@ export async function renderTimeline() {
     all.append(head);
     const wrap = document.createElement('div');
     wrap.className = 'schedule-allday-cards';
-    for (const card of noTimeCards) wrap.append(renderTimelineCard(card, null, true));
+    for (const card of noTimeCards) wrap.append(renderCardBlock(card, null, true));
     all.append(wrap);
     container.append(all);
   }

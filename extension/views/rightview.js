@@ -6,14 +6,17 @@
  */
 
 import { els } from '../components/dom-refs.js';
-import { cardPrimaryText, compactDateLabel, typeIcon } from '../shared/format.js';
-import { currentTime, getCardStartTime, getCardTypeCounts, getMonthMatrix, timeToMinutes, toDayKey, todayKey } from '../shared/model.js';
-import { actions } from '../state/actions.js';
-import { monthOf, vs } from '../state/view-state.js';
+import { compactDateLabel } from '../shared/format.js';
+import { getCardStartTime, getCardTypeCounts, timeToMinutes, toDayKey, todayKey } from '../shared/model.js';
+import { vs } from '../state/view-state.js';
 import { renderTimeline, scheduleHeight } from './timeline.js';
-import { CARD_TYPES } from '../shared/card-schema.js';
-
+import { getCardsByDaySync } from './day-cards.js';
+import { renderMonthGrid } from './month.js';
 import { renderWeekGrid } from './week.js';
+import { releaseAll as releaseMilkdown } from './milkdown-mount.js';
+import { renderExpandedCard } from './card-expand.js';
+
+export { getCardsByDaySync };
 export function addDays(dayKey, n) {
   const [y, m, d] = dayKey.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -44,28 +47,19 @@ function viewHeaderLabel() {
   return `📅 ${compactDateLabel(date)}${countStr}`;
 }
 
-/** 同步取某天卡片（从缓存，按时间排序） */
-export function getCardsByDaySync(date) {
-  if (!Array.isArray(vs.allCardsCache)) return [];
-  return vs.allCardsCache
-    .filter(c => c.assignedDate === date)
-    .sort((a, b) => {
-      const sa = getCardStartTime(a), sb = getCardStartTime(b);
-      if (sa && sb) return sa.localeCompare(sb);
-      if (sa) return -1;
-      if (sb) return 1;
-      return 0;
-    });
-}
-
-/** 高亮当前视图模式按钮 */
+/**
+ * 高亮当前视图模式按钮（顶部按钮组 + 底部 dock 同步）。
+ *
+ * 视觉高亮之外必须有可访问状态：读屏用户否则完全不知道当前是哪个视图。
+ */
 export function markViewMode() {
-  els.viewModeBtns?.forEach((b) => {
-    const on = b.dataset.mode === vs.viewMode;
-    b.classList.toggle('is-active', on);
-    // 视觉高亮之外必须有可访问状态：读屏用户否则完全不知道当前是哪个视图
-    b.setAttribute('aria-pressed', String(on));
-  });
+  for (const list of [els.viewModeBtns, els.viewDockBtns]) {
+    list?.forEach((b) => {
+      const on = b.dataset.mode === vs.viewMode;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
 }
 
 /**
@@ -117,86 +111,22 @@ export async function renderRightView() {
   if (els.timelineDateHeader) els.timelineDateHeader.textContent = viewHeaderLabel();
   const container = els.timelineContainer;
   const prevScroll = container.scrollTop; // 渲染前捕获，供恢复（replaceChildren 会重置滚动）
+  // 重渲染会把承载 Milkdown 的 DOM 一起扔掉；必须先显式销毁实例，否则 ProseMirror 泄漏
+  releaseMilkdown();
   container.replaceChildren();
   container.classList.toggle('calview-week-wrap', vs.viewMode === 'week');
-  if (vs.viewMode === 'month') { renderMonthGrid(container); return; }
-  if (vs.viewMode === 'week') { renderWeekGrid(container); scrollTimelineToFocus(container, prevScroll); return; }
+  if (vs.viewMode === 'month') {
+    renderMonthGrid(container);
+    renderExpandedCard(container);
+    return;
+  }
+  if (vs.viewMode === 'week') {
+    renderWeekGrid(container);
+    renderExpandedCard(container);
+    scrollTimelineToFocus(container, prevScroll);
+    return;
+  }
   await renderTimeline();
+  renderExpandedCard(container);
   scrollTimelineToFocus(container, prevScroll);
-}
-
-/** 月历网格 */
-function renderMonthGrid(container) {
-  const matrix = getMonthMatrix(vs.calendarMonth.year, vs.calendarMonth.month);
-  const weekday = document.createElement('div');
-  weekday.className = 'calview-weekdays';
-  for (const name of ['日', '一', '二', '三', '四', '五', '六']) {
-    const s = document.createElement('span');
-    s.textContent = name;
-    weekday.append(s);
-  }
-  const grid = document.createElement('div');
-  grid.className = 'calview-month-grid';
-  for (const week of matrix) {
-    for (const cell of week) {
-      const dayEl = document.createElement('div');
-      dayEl.className = 'calview-day';
-      dayEl.dataset.day = cell.dayKey;
-      if (!cell.isCurrentMonth) dayEl.classList.add('is-out-month');
-      if (cell.isToday) dayEl.classList.add('is-today');
-      if (cell.dayKey === vs.selectedDate) dayEl.classList.add('is-selected');
-      const num = document.createElement('div');
-      num.className = 'calview-day-num';
-      num.textContent = String(cell.day);
-      dayEl.append(num);
-      const cards = getCardsByDaySync(cell.dayKey);
-      const list = document.createElement('div');
-      list.className = 'calview-day-cards';
-      for (const card of cards.slice(0, 3)) list.append(buildCalSummary(card));
-      if (cards.length > 3) {
-        const more = document.createElement('div');
-        more.className = 'calview-more';
-        more.textContent = `+${cards.length - 3}`;
-        list.append(more);
-      }
-      dayEl.append(list);
-      dayEl.addEventListener('click', async (e) => {
-        if (e.target.closest('.calview-summary')) return;
-        vs.selectedDate = cell.dayKey;
-        vs.weekAnchor = cell.dayKey;
-        vs.calendarMonth = monthOf(cell.dayKey);
-        vs.viewMode = 'timeline';
-        await actions.refreshAll();
-      });
-      grid.append(dayEl);
-    }
-  }
-  container.append(weekday, grid);
-}
-
-/**
-/** 卡片摘要（月历/周历共用）：时间 + 类型图标 + 内容截断，点击进编辑器 */
-function buildCalSummary(card) {
-  const type = CARD_TYPES.includes(card.type) ? card.type : 'text';
-  const el = document.createElement('div');
-  el.className = `calview-summary type-${type}` + (type === 'task' && card.done ? ' is-done' : '');
-  const start = getCardStartTime(card);
-  el.append(...[
-    start ? spanEl('calview-summary-time', start) : null,
-    spanEl('card-type-icon', typeIcon(type, card.emoji)),
-    spanEl('calview-summary-text', cardPrimaryText(card)),
-  ].filter(Boolean));
-  el.addEventListener('click', (e) => {
-    e.stopPropagation();
-    actions.openEditor(card, start ?? currentTime(), card.assignedDate ?? vs.selectedDate);
-  });
-  return el;
-}
-
-/** 建一个带 class 与文本的 `<span>`（文本走 textContent，天然安全）。 */
-function spanEl(className, text) {
-  const s = document.createElement('span');
-  s.className = className;
-  s.textContent = text;
-  return s;
 }

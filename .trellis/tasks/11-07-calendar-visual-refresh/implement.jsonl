@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "分层铁律与新增文件放哪：views/components/shared 边界"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "渲染函数纯函数/幂等/textContent/Field Registry 与 gotcha"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "语义 token、禁硬编码 hex、可访问性硬门、Tailwind 产物顺序"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/vitest/dev-loop 门禁"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "JSDoc 要求"}

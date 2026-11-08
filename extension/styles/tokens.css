@@ -43,6 +43,25 @@
   --select-hover-border: var(--color-muted);
   --select-dur: 200ms;
   --select-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 日历卡片色系（月/周/日视图共用，见 views/calendar-card.js 的 cardColorKey）
+   * 参考 Obsidian「达达清单」的粉/绿/蓝/紫四系：底色极浅、描边中等、文字加深。
+   * 对比度：文字色对各自 bg 均 ≥ 4.5:1（dev-loop 断言）。 */
+  --cc-red-bg: #fdecec;
+  --cc-red-border: #f3b8b8;
+  --cc-red-text: #a4282c;
+  --cc-green-bg: #e9f6ec;
+  --cc-green-border: #b3ddbd;
+  --cc-green-text: #1f6b36;
+  --cc-blue-bg: #e9f1fb;
+  --cc-blue-border: #b6cdec;
+  --cc-blue-text: #1c4f8c;
+  --cc-purple-bg: #f1ecfb;
+  --cc-purple-border: #c9b9ec;
+  --cc-purple-text: #553087;
+  --cc-gray-bg: #f0f1f3;
+  --cc-gray-border: #d5d8dd;
+  --cc-gray-text: #4b5563;
+  --cc-today: #e5484d;                     /* 今天标记（红底白字 4.63:1） */
   --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000); /* 焦点环（design-system §4） */
   --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -64,4 +83,21 @@
   --color-card-border: #3a3a3a;
   --color-timeline: #444;
   --color-scroll-thumb: #4a4a4a;
+  /* 日历卡片色系（暗色）：底色压到低饱和深色，文字提亮保证 ≥4.5:1 */
+  --cc-red-bg: #3a2426;
+  --cc-red-border: #6d3a3d;
+  --cc-red-text: #ff9ea2;
+  --cc-green-bg: #1f3226;
+  --cc-green-border: #3c5f47;
+  --cc-green-text: #8fe0a4;
+  --cc-blue-bg: #1e2c3d;
+  --cc-blue-border: #37536f;
+  --cc-blue-text: #96c4f5;
+  --cc-purple-bg: #2b2440;
+  --cc-purple-border: #4b3f6b;
+  --cc-purple-text: #c4aef5;
+  --cc-gray-bg: #2d2d2d;
+  --cc-gray-border: #444;
+  --cc-gray-text: #b9bec7;
+  --cc-today: #e5484d;
 }

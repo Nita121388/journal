@@ -50,8 +50,25 @@ header#header {
 .pool-search::placeholder { color: var(--color-muted); }
 .pool-search:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
-/* 时间线卡片正文：标题首行 + 内容次要行（只填其一时不显示「(空卡片)」） */
-.card-body .card-primary { font-weight: 500; }
+/* 时间线卡片：header = 图标 + 标题；body = 时间行 + 次要内容
+ * （视觉向参考图对齐：块内首行是标题，次行才是 `09:00–10:00`） */
+.card-header .card-primary {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-body .card-timerow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
 .card-body .card-secondary { font-size: 11px; color: var(--color-muted); margin-top: 2px; }
 
 /* 侧边栏最窄 320px：收 padding、收字号，保证标题与日期不被折行/覆盖 */
@@ -655,6 +672,62 @@ body.panels-open #board::before {
   overflow: hidden;
 }
 
+/* ─── 底部浮动视图切换 dock ─────────────────────────────
+ * 参考 Obsidian「达达清单」的底部 dock；这里用 sticky 贴在滚动容器底部，
+ * 窄侧栏下不会被 #timeline-container 的 overflow 裁掉。
+ * 图标为内联 SVG（design-system §5：功能入口禁用 emoji）。 */
+.view-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky, 20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0 8px 8px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-full, 999px);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+.view-dock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--r-full, 999px);
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: background var(--dur-1, 150ms) ease-out, color var(--dur-1, 150ms) ease-out;
+}
+.view-dock-btn svg { flex-shrink: 0; }
+.view-dock-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.view-dock-btn:hover { background: var(--color-cell-empty); color: var(--color-text); }
+.view-dock-btn.is-active {
+  background: var(--color-accent-light);
+  color: var(--color-accent-strong);
+  font-weight: 600;
+}
+.view-dock-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+
+/* 极窄侧栏（320px）：只留图标，文字隐藏但保留 aria-pressed 语义 */
+@media (max-width: 359px) {
+  .view-dock-btn span { display: none; }
+}
+
 #timeline-date-header {
   padding: 10px 14px;
   border-bottom: 1px solid var(--color-border);
@@ -761,55 +834,7 @@ body.panels-open #board::before {
 .view-mode-btn.is-active { opacity: 1; background: var(--color-accent-light); border-color: var(--color-accent); }
 
 /* ─── 月历视图 ─────────────────────────────── */
-.calview-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin: 8px 0 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-align: center;
-}
-.calview-month-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-.calview-day {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-bg);
-  min-height: 84px;
-  padding: 4px 5px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-  transition: border-color 0.15s;
-}
-.calview-day:hover { border-color: var(--color-accent); }
-.calview-day.is-out-month { opacity: 0.35; }
-.calview-day.is-today { outline: 2px solid var(--color-accent); outline-offset: -1px; }
-.calview-day.is-selected { border-color: var(--color-accent); background: var(--color-accent-light); }
-.calview-day-num {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-.calview-day.is-selected .calview-day-num { color: var(--color-accent); }
-.calview-day-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-.calview-more {
-  font-size: 9px;
-  color: var(--color-muted);
-  text-align: center;
-}
+/* 月历网格样式已迁至下方「日历公共卡片组件」段的 .cc-* 规则 */
 
 /* ─── 周历视图 ─────────────────────────────── */
 /* ─── 周视图：垂直占满 + 时间刻度尺 ──────────────────── */
@@ -817,28 +842,112 @@ body.panels-open #board::before {
 .calview-week-wrap { overflow-x: auto; overflow-y: auto; }
 .calview-week-grid {
   display: grid;
+  /* 3 行：日期头（sticky）/ 全天行 / 时间画布；列 = 刻度尺 + 7 天 */
   grid-template-columns: 44px repeat(7, minmax(64px, 1fr));
+  grid-template-rows: var(--calview-head-h) auto auto;
   min-width: 520px;
   gap: 0;
   margin-top: 8px;
   align-items: stretch;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  overflow: hidden;
+  /* 用 clip 而不是 hidden：hidden 会让 grid 自身成为 sticky 的滚动容器，
+   * 表头于是完全无法吸附（滚动到当前时刻后直接消失）。
+   * clip 不建立滚动容器，圆角依旧生效。 */
+  overflow: clip;
   background: var(--color-bg);
   --calview-head-h: 34px;
 }
 
-/* 左侧刻度尺 */
-.calview-week-ruler {
-  position: relative;
+/* 日期头行：sticky 吸附在 #timeline-container 顶部 */
+.calview-week-head {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  overflow: hidden;
+  transition: background var(--dur-1, 150ms) ease-out;
+}
+.calview-week-head:hover { background: var(--color-cell-empty); }
+.calview-week-head.is-today { background: var(--color-accent-light); }
+.calview-week-head.is-selected { box-shadow: inset 0 -2px 0 var(--color-accent); }
+.calview-week-ruler-head {
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+/* 全天行：每天一格（无卡也占位，行高一致） */
+.calview-week-ruler-allday {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 3px 4px;
+  font-size: 9px;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
   background: var(--color-surface);
 }
-.calview-week-ruler-head { height: var(--calview-head-h); border-bottom: 1px solid var(--color-border); }
-.calview-week-ruler-body { position: relative; }
+
+/* 全天行与表头一起吸附：sticky 表头会盖住其下方内容，
+ * 所以全天行也 sticky 到表头高度之下（参考图里全天行同样常驻）。 */
+.calview-week-allday,
+.calview-week-ruler-allday {
+  position: sticky;
+  top: var(--calview-head-h);
+  z-index: 3;
+  background: var(--color-bg);
+}
+.calview-week-allday {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  /* 全天行保持「一条 pill 高」：卡片不再继承 .is-allday 的 flex:1 1 140px，
+   * 否则一张全天卡会把整行撑到 140px+，时间画布被整体下推。 */
+  height: 26px;
+  padding: 2px 3px;
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.calview-week-allday.is-today { background: var(--color-accent-light); }
+.calview-week-allday .timeline-card.is-allday {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  font-size: 10px;
+  line-height: 1.25;
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+.calview-week-allday .timeline-card .card-body { font-size: 10px; line-height: 1.15; }
+.calview-week-allday .timeline-card .card-timerow,
+.calview-week-allday .timeline-card .card-footer,
+.calview-week-allday .timeline-card .card-expand-btn { display: none; }
+
+/* 左侧刻度尺 */
+.calview-week-ruler-body {
+  position: relative;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
 .calview-week-ruler-label {
   position: absolute;
   right: 5px;
@@ -850,48 +959,13 @@ body.panels-open #board::before {
   pointer-events: none;
 }
 
-/* 7 天列 */
-.calview-week-col {
+/* 时间区：网格线 + 绝对定位卡片 */
+.calview-week-body {
   position: relative;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   border-right: 1px solid var(--color-border);
-  transition: background 0.15s;
 }
-.calview-week-col:last-child { border-right: none; }
-.calview-week-col.is-today { background: var(--color-accent-light); }
-.calview-week-col.is-selected { background: var(--color-accent-light); }
-.calview-week-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 3px;
-  height: var(--calview-head-h);
-  padding: 0 6px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--color-surface);
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.calview-week-head:hover { background: var(--color-cell-empty); }
-.calview-week-count {
-  flex-shrink: 0;
-  font-size: 10px;
-  color: var(--color-muted);
-  background: var(--color-cell-empty);
-  border-radius: 8px;
-  padding: 0 5px;
-}
-
-/* 时间区：网格线 + 绝对定位卡片 */
-.calview-week-body { position: relative; }
+.calview-week-body.is-today { background: color-mix(in srgb, var(--color-accent-light) 45%, transparent); }
 .calview-week-gridline {
   position: absolute;
   left: 0;
@@ -902,104 +976,349 @@ body.panels-open #board::before {
 }
 .calview-week-gridline.is-hour { border-top-color: var(--color-muted); opacity: 0.4; }
 
-/* 列内卡片：占满列宽、不受日视图 min-width/max-width 约束（窄栏 7 列时列宽远小于 120px） */
-.calview-week-col .schedule-allday {
-  border: none;
-  border-top: 1px dashed var(--color-border);
-  border-radius: 0;
-  padding: 4px;
-  margin: 0;
-  background: transparent;
-}
-.calview-week-col .schedule-allday-label { font-size: 9px; margin-bottom: 3px; }
-.calview-week-col .schedule-allday-cards { flex-direction: column; gap: 3px; }
-.calview-week-col .schedule-allday-cards .timeline-card.is-allday {
-  min-width: 0;
-  width: 100%;
-  font-size: 10px;
-  padding: 2px 4px;
-}
-.calview-week-col .schedule-allday-cards .timeline-card .card-body { font-size: 10px; line-height: 1.2; }
-.calview-week-col .timeline-card {
+/* 周列内卡片：占满列宽、不受日视图 min-width/max-width 约束（7 列时列宽远小于 120px） */
+.calview-week-body .timeline-card {
   min-width: 0;
   max-width: none;
   width: auto;
   left: 1px;
   right: 1px;
-  padding: 3px 4px 6px;
+  padding: 2px 4px 5px;
   border-radius: 4px;
 }
-/* 窄列内文字多行截断（-webkit-line-clamp 需 normal white-space，不能用 nowrap） */
-.calview-week-col .timeline-card .card-body {
-  font-size: 10px;
-  line-height: 1.25;
-  white-space: normal;
-  word-break: break-word;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-}
-.calview-week-col .timeline-card .card-header { gap: 2px; padding: 0; }
-.calview-week-col .timeline-card .card-time { font-size: 9px; }
-.calview-week-col .timeline-card .card-meta { display: none; }
-.calview-week-col .timeline-card .card-footer { display: none; }
-.calview-week-col .timeline-card .card-resize-handle { height: 5px; }
-
-/* 表头：日期缩写 + 溢出隐藏（7 列在窄侧栏宽度有限） */
-.calview-week-head > span:first-child {
+.calview-week-body .timeline-card .card-header { gap: 2px; padding: 0; }
+.calview-week-body .timeline-card .card-footer { display: none; }
+/* 窄列（~65px）信息取舍：来源角标与「N 分钟」让位给标题与时间段 */
+.calview-week-body .timeline-card .card-origin,
+.calview-week-body .timeline-card .card-meta { display: none; }
+.calview-week-body .timeline-card .card-timerow {
+  font-size: 9px;
+  gap: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
 }
-@media (max-width: 420px) {
-  .calview-week-head > span:first-child { font-size: 9px; letter-spacing: -0.2px; }
-}
+.calview-week-body .timeline-card .card-primary { font-size: 10px; }
+.calview-week-body .timeline-card .card-resize-handle { height: 5px; }
 
 /* 窄栏：压缩刻度与表头 */
 @media (max-width: 420px) {
   .calview-week-grid { grid-template-columns: 34px repeat(7, 1fr); }
   .calview-week-ruler-label { font-size: 9px; right: 3px; }
-  .calview-week-head { font-size: 10px; padding: 0 3px; }
-  .calview-week-col .timeline-card { left: 1px; right: 1px; }
+  .calview-week-head { font-size: 10px; padding: 2px 3px; }
+  .calview-week-body .timeline-card { left: 1px; right: 1px; }
 }
 
-/* ─── 卡片摘要（月历/周历共用） ─────────────── */
-.calview-summary {
+/* ─── 日历公共卡片组件（views/calendar-card.js） ───────────────
+ * 月/周/日三视图共用一套类名，配色统一走 tokens.css 的 --cc-* 色系。
+ * 旧的 .calview-summary* 已删除（不双份维护）。 */
+
+/* 色系 → 组件的唯一映射处：新增色系只需在这里加一行 */
+.cc-color-red    { --cc-bg: var(--cc-red-bg);    --cc-border: var(--cc-red-border);    --cc-fg: var(--cc-red-text); }
+.cc-color-green  { --cc-bg: var(--cc-green-bg);  --cc-border: var(--cc-green-border);  --cc-fg: var(--cc-green-text); }
+.cc-color-blue   { --cc-bg: var(--cc-blue-bg);   --cc-border: var(--cc-blue-border);   --cc-fg: var(--cc-blue-text); }
+.cc-color-purple { --cc-bg: var(--cc-purple-bg); --cc-border: var(--cc-purple-border); --cc-fg: var(--cc-purple-text); }
+.cc-color-gray   { --cc-bg: var(--cc-gray-bg);   --cc-border: var(--cc-gray-border);   --cc-fg: var(--cc-gray-text); }
+
+/* ── 月格 pill ── */
+.cc-pill {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
   font-size: 10px;
   line-height: 1.3;
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: var(--color-cell-empty);
-  color: var(--color-text);
+  text-align: left;
+  /* 窄侧栏（320–500px）月格只有 ~44–60px：内边距与图标都压到最小，
+   * 把省下的宽度全部让给标题（实测能多显示 1–2 个字）。 */
+  padding: 1px 3px;
+  border: 1px solid var(--cc-border, var(--color-border));
+  border-radius: 5px;
+  background: var(--cc-bg, var(--color-cell-empty));
+  color: var(--cc-fg, var(--color-text));
   cursor: pointer;
-  min-width: 0;
-  border-left: 2px solid var(--color-muted);
+  transition: filter var(--dur-1, 150ms) ease-out;
 }
-.calview-summary:hover { background: var(--color-accent-light); }
-.calview-summary.type-task { border-left-color: #42a5f5; }
-.calview-summary.type-text { border-left-color: var(--color-accent); }
-.calview-summary.type-idea { border-left-color: var(--color-accent); } /* 存量 idea 并入文本显示 */
-.calview-summary.is-done { opacity: 0.55; }
-.calview-summary.is-done .calview-summary-text { text-decoration: line-through; }
-.calview-summary-time {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--color-muted);
-  flex-shrink: 0;
+.cc-pill:hover { filter: brightness(0.96); }
+.cc-pill:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.cc-pill.is-done { opacity: 0.6; }
+.cc-pill.is-done .cc-pill-title { text-decoration: line-through; }
+.cc-pill-icon { flex-shrink: 0; font-size: 8px; line-height: 1; }
+/* 窄侧栏：连图标都让位给标题 —— 类别仍由底色 + 左边框色编码，不丢语义 */
+@media (max-width: 619px) {
+  .cc-day .cc-pill-icon { display: none; }
 }
-.calview-summary .card-type-icon { flex-shrink: 0; font-size: 9px; }
-.calview-summary-text {
+.cc-pill-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.cc-pill-time {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  /* 侧栏常态宽度（320–500px）下月格仅 ~44–60px 宽：7 列里放下
+   * 「图标 + 标题 + 时间」会把标题挤成 0 宽（实测 titleW=0），
+   * 故窄宽度优先保证标题可读，时间只在宽屏模式（≥620px）显示。 */
+  display: none;
+}
+@media (min-width: 620px) {
+  .cc-pill-time { display: inline; }
+}
+
+/* ── 月格：日期头 + 事件列表 ── */
+.cc-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: center;
+}
+.cc-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  /* 固定行高：卡片多的日子不再把整行撑高（参考图行高一致，表格感更强） */
+  grid-auto-rows: 92px;
+  gap: 4px;
+}
+.cc-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  padding: 3px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color var(--dur-1, 150ms) ease-out;
+}
+@media (min-width: 620px) {
+  .cc-month-grid { grid-auto-rows: 120px; }
+}
+.cc-day:hover { border-color: var(--color-accent); }
+.cc-day.is-out-month { opacity: 0.35; }
+.cc-day.is-selected { border-color: var(--color-accent); background: var(--color-accent-light); }
+.cc-day.is-today { background: color-mix(in srgb, var(--cc-bg, #fff) 70%, var(--cc-today) 6%); }
+.cc-day.is-today.is-selected { background: var(--color-accent-light); }
+
+.cc-dayheader {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cc-dayheader-num {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.cc-dayheader-sub {
+  font-size: 9px;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-dayheader-today {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 3px;
+  white-space: nowrap;
+  border-radius: var(--r-full, 999px);
+  background: var(--cc-today);
+  color: #fff;
+}
+.cc-dayheader-count {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cc-day.is-selected .cc-dayheader-num,
+.cc-day.is-selected .cc-dayheader-count { color: var(--color-accent-strong); }
+.cc-day.is-today .cc-dayheader-num { color: var(--cc-today); }
+
+.cc-daylist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.cc-daylist-more {
+  font-size: 9px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* ── 时间网格块（周/日视图）：同一套色系，标题在前、时间在后 ──
+ * 参考图里块内是「图标 + 标题」首行、`09:00–10:00` 次行，故用 flex order
+ * 把 body（标题/内容）提到 header（时间）之前，不改 DOM 结构、不影响拖拽逻辑。
+ * 选择器写成 `.timeline-card.cc-block`（0,2,0）以覆盖下方 .timeline-card 的白色底。 */
+.timeline-card.cc-block {
+  background: var(--cc-bg, var(--color-card-bg));
+  border-color: var(--cc-border, var(--color-card-border));
+  border-left-color: var(--cc-border, var(--color-accent));
+  color: var(--cc-fg, var(--color-text));
+}
+.timeline-card.cc-block .card-time,
+.timeline-card.cc-block .card-meta,
+.timeline-card.cc-block .card-timerow { color: var(--cc-fg, var(--color-muted)); opacity: 0.85; }
+.timeline-card.cc-block .card-primary {
+  font-weight: 600;
+  color: var(--cc-fg, var(--color-text));
+}
+.timeline-card.cc-block .card-secondary { color: var(--cc-fg, var(--color-text)); opacity: 0.8; }
+.timeline-card.cc-block.is-dragging { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
+
+/* ── 周视图表头（星期字 + 公共日期头） ──
+ * 7 列在 320–500px 侧栏里每列只有 ~45–65px，一行放不下「周三 8 今天 5」，
+ * 故改成两行：第一行星期单字，第二行日号 + 今天/节日 + 计数。 */
+.calview-week-weekday {
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-muted);
+}
+.calview-week-head {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.1;
+  padding: 3px 4px;
+}
+.calview-week-head .cc-dayheader { gap: 2px; align-items: center; }
+.calview-week-head .cc-dayheader-num { font-size: 12px; }
+.calview-week-head .cc-dayheader-sub,
+.calview-week-head .cc-dayheader-today { font-size: 8px; }
+.calview-week-head .cc-dayheader-count { font-size: 8px; }
+
+/* ── 展开态详情（Milkdown 正文） ── */
+.cc-detail {
+  position: sticky;
+  bottom: 8px;
+  z-index: var(--z-sticky, 20);
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--cc-border, var(--color-border));
+  border-left: 3px solid var(--cc-border, var(--color-border));
+  border-radius: var(--r-md, 8px);
+  background: var(--cc-bg, var(--color-card-bg));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.cc-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.cc-detail-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cc-fg, var(--color-text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-detail-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cc-fg, var(--color-text));
+  opacity: 0.85;
+}
+.cc-detail-close {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  color: var(--cc-fg, var(--color-text));
+  opacity: 0.7;
+}
+.cc-detail-close:hover { opacity: 1; }
+.cc-detail-close:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; border-radius: 3px; }
+.cc-detail-body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--cc-fg, var(--color-text));
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.cc-detail-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cc-detail-meta { font-size: 10px; color: var(--cc-fg, var(--color-text)); opacity: 0.75; }
+.cc-detail-edit {
+  margin-left: auto;
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 10px;
+  border: 1px solid var(--cc-border, var(--color-border));
+  border-radius: var(--r-full, 999px);
+  background: transparent;
+  color: var(--cc-fg, var(--color-text));
+  cursor: pointer;
+}
+.cc-detail-edit:hover { background: color-mix(in srgb, var(--cc-bg) 60%, var(--cc-fg) 8%); }
+.cc-detail-edit:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+
+/* ── Milkdown 只读正文 / md-lite 降级 ── */
+.md-readonly, .cc-detail-body .ProseMirror { outline: none; }
+.cc-detail-body .ProseMirror > *:first-child { margin-top: 0; }
+.cc-detail-body .ProseMirror > *:last-child { margin-bottom: 0; }
+.cc-detail-body .ProseMirror p { margin: 0 0 0.5em; }
+.cc-detail-body .ProseMirror ul,
+.cc-detail-body .ProseMirror ol { margin: 0 0 0.5em; padding-left: 1.2em; }
+.cc-detail-body .ProseMirror code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.cc-detail-body .ProseMirror pre {
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  overflow-x: auto;
+}
+.cc-detail-body .ProseMirror blockquote {
+  margin: 0 0 0.5em;
+  padding-left: 8px;
+  border-left: 2px solid var(--cc-border, var(--color-border));
+  opacity: 0.9;
+}
+.md-lite { margin: 0 0 0.4em; }
+.md-lite.is-empty, .md-lite.is-placeholder { color: var(--color-muted); }
 
 #timeline-container {
   position: relative; /* 空态提示的定位上下文（此前回退到 #board，宽屏会横跨侧栏） */
@@ -1352,6 +1671,28 @@ body.is-dragging .timeline-card.is-short {
   flex: 1 1 auto;
   min-height: 0;
 }
+
+/* 展开入口按钮：默认隐藏，hover / 键盘聚焦时露出（不占常态空间） */
+.card-expand-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: none;
+  background: none;
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  color: var(--color-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1, 150ms) ease-out;
+}
+.timeline-card:hover .card-expand-btn,
+.timeline-card:focus-within .card-expand-btn { opacity: 1; }
+.card-expand-btn:hover { color: var(--color-text); }
+.card-expand-btn:focus-visible { opacity: 1; outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.calview-week-body .card-expand-btn,
+.calview-week-allday .card-expand-btn { display: none; }
 
 /* 长卡片（≥45 分钟）：footer 默认隐藏，内容占满全高，hover 时淡入 */
 .card-footer {
@@ -1729,9 +2070,9 @@ body.is-dragging .timeline-card.is-short {
 html.wide-mode main { max-width: none; }
 
 /* 月历/周历格子随宽变大 */
-html.wide-mode .calview-day { min-height: 110px; }
-html.wide-mode .calview-week-col { min-height: 480px; }
-html.wide-mode .calview-summary { font-size: 11px; padding: 3px 5px; }
+html.wide-mode .cc-day { min-height: 110px; }
+html.wide-mode .calview-week-body { min-height: 480px; }
+html.wide-mode .cc-pill { font-size: 11px; padding: 3px 5px; }
 
 /* 时间线卡片摘要随宽显示更多文字（现有 ellipsis 继续生效） */
 html.wide-mode .timeline-card { max-width: 300px; }
@@ -3144,8 +3485,8 @@ body.tpl-dragging { user-select: none; }
 .timeline-now-tag { background: #1b5e20; color: #fff; }
 
 /* 月/周摘要里的「+N」与日期数字对比度不足 */
-.calview-more { color: var(--color-text); font-weight: 600; }
-.calview-day-num { color: var(--color-text); }
+.cc-daylist-more { color: var(--color-text); font-weight: 600; }
+.cc-dayheader-num { color: var(--color-text); }
 
 /* P2-2 字号下限：10px/9px 的元信息提到 11px（可读性下限） */
 .pool-truncated-hint { font-size: 11px; color: var(--color-muted); margin-top: 4px; }

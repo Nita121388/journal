@@ -14,8 +14,13 @@
     "lint": "eslint ."
   },
   "devDependencies": {
+    "@milkdown/core": "^7.23.0",
+    "@milkdown/ctx": "^7.23.0",
+    "@milkdown/preset-commonmark": "^7.23.0",
+    "@milkdown/prose": "^7.23.0",
     "@tailwindcss/cli": "^4.3.3",
     "@vitest/coverage-v8": "^5.0.3",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.3",

@@ -26,6 +26,7 @@ import { runTailwindMigrated } from './scenarios/tailwind-migrated.mjs';
 import { runSelect } from './scenarios/select.mjs';
 import { runLlm } from './scenarios/llm.mjs';
 import { runOptions } from './scenarios/options.mjs';
+import { runCalendarVisual } from './scenarios/calendar-visual.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -121,8 +122,10 @@ try {
         : args.scenario === 'select' ? runSelect
         : args.scenario === 'llm' ? runLlm
         : args.scenario === 'options' ? runOptions
+        : args.scenario === 'calendar-visual' ? runCalendarVisual
         : runSmoke;
-      const { checks } = await run({ page, width, extId });
+      // 传 outDir 让场景可以留多视图截图证据（audit 场景早已这样用）
+      const { checks } = await run({ page, width, extId, outDir });
       const shot = join(outDir, `shot-${width}.png`);
       await page.screenshot({ path: shot, fullPage: true });
       const rawErrors = [
