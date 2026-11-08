@@ -3,7 +3,7 @@
   "name": "card-editor-notion-ui",
   "title": "卡片编辑器 UI Notion 化重构（组件封装）",
   "description": "把卡片编辑弹窗从六段卡片式改为 Notion 属性网格风格；抽出 seg/chip/property-row/icon 公共组件复用；保持 dev-loop 依赖的 DOM 契约不变",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "chemclin",
   "assignee": "chemclin",
   "createdAt": "2026-11-08",
-  "completedAt": null,
+  "completedAt": "2026-11-08",
   "branch": "dev/local",
   "base_branch": "main",
   "worktree_path": null,
@@ -22,5 +22,7 @@
   "parent": null,
   "relatedFiles": [],
   "notes": "",
-  "meta": {}
+  "meta": {
+    "commit": "bb6e6a8"
+  }
 }
