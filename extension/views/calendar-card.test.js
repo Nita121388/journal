@@ -105,9 +105,20 @@ describe('renderCardPill', () => {
     expect(el.querySelector('.cc-pill-time')).toBeNull();
   });
 
-  it('done 的任务带 is-done 类', () => {
-    const el = renderCardPill(card({ type: 'task', done: true, content: 'x' }));
+  // 2026-11-09 类型退场：完成态由 status 单真值决定（不再看 type/done）
+  it('status=done 的卡片带 is-done 类', () => {
+    const el = renderCardPill(card({ type: 'task', status: 'done', content: 'x' }));
     expect(el.classList.contains('is-done')).toBe(true);
+  });
+
+  it('仅有 done=true（无 status）不再判定为完成', () => {
+    const el = renderCardPill(card({ type: 'task', done: true, content: 'x' }));
+    expect(el.classList.contains('is-done')).toBe(false);
+  });
+
+  it('不再输出 type-* 类名（类型已退出 UI）', () => {
+    const el = renderCardPill(card({ type: 'task', content: 'x' }));
+    expect([...el.classList].some((c) => c.startsWith('type-'))).toBe(false);
   });
 
   it('onOpen 回调收到卡片且不冒泡', () => {
@@ -123,10 +134,11 @@ describe('renderCardPill', () => {
     expect(parentClick).not.toHaveBeenCalled();
   });
 
-  it('aria-label 含类型与时间', () => {
-    const el = renderCardPill(card({ type: 'task', content: '跑测试', startTime: '08:00' }));
-    expect(el.getAttribute('aria-label')).toContain('任务');
+  it('aria-label 含状态词与时间（类型退场后不再出现「任务」）', () => {
+    const el = renderCardPill(card({ type: 'task', status: 'done', content: '跑测试', startTime: '08:00' }));
+    expect(el.getAttribute('aria-label')).toContain('已完成');
     expect(el.getAttribute('aria-label')).toContain('08:00');
+    expect(el.getAttribute('aria-label')).not.toContain('任务');
   });
 });
 

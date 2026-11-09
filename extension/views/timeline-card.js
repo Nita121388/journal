@@ -5,7 +5,8 @@
  */
 
 import { createChip } from '../components/chip.js';
-import { cardPrimaryText, formatProvenance, typeIcon } from '../shared/format.js';
+import { cardIconEl } from '../components/card-icon.js';
+import { cardPrimaryText, formatProvenance } from '../shared/format.js';
 import { addMinutes, currentTime, getCardDuration, getCardEndTime, getCardStartTime, minutesToTime, timeToMinutes } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
@@ -82,7 +83,7 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
   header.className = 'card-header';
   appendOriginBadge(header, card);
   header.append(
-    spanEl('card-type-icon', typeIcon(card.type, card.emoji)),
+    cardIconEl(card, { cls: 'card-type-icon', size: 12 }),
     spanEl('card-primary', cardPrimaryText(card, '(空卡片)')),
   );
   // 展开入口：hover/聚焦时在 header 右侧露出，点开用 Milkdown 渲染正文
@@ -102,7 +103,8 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
   // Body：**时间行 + 次要内容**（时间放在标题下面，与参考图一致；
   // 时间节点仍用 .card-time / .card-meta 类名，拖拽与缩放的实时文本更新不必改）。
   const body = document.createElement('div');
-  body.className = 'card-body' + (card.type === 'task' && card.done ? ' is-done' : '');
+  // 完成态由 status 单真值决定（type 已退出 UI；done 字段仍同步写入保持兼容）
+  body.className = 'card-body' + (card.status === 'done' ? ' is-done' : '');
   const timeRow = document.createElement('div');
   timeRow.className = 'card-timerow';
   timeRow.append(spanEl('card-time', headerTimeText(card, allday, isShort)));
@@ -275,7 +277,7 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
   return el;
 }
 
-/** 构建卡片底部操作区（完成/类型/删除） */
+/** 构建卡片底部操作区（完成 / 删除） */
 export function buildCardFooter(card) {
   const footer = document.createElement('div');
   footer.className = 'card-footer';
@@ -290,29 +292,20 @@ export function buildCardFooter(card) {
     footer.append(chips);
   }
 
-  if (card.type === 'task') {
-    const doneBtn = document.createElement('button');
-    doneBtn.className = 'card-footer-btn done-btn';
-    doneBtn.textContent = card.done ? '↩️ 撤销' : '✅ 完成';
-    doneBtn.setAttribute('aria-label', card.done ? '标记为未完成' : '标记为完成');
-    doneBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await patchCard(card.id, { done: !card.done });
-    });
-    footer.append(doneBtn);
-  }
-
-  const typeBtn = document.createElement('button');
-  typeBtn.className = 'card-footer-btn';
-  typeBtn.textContent = '🔄';
-  typeBtn.title = '切换类型';
-  typeBtn.setAttribute('aria-label', '切换卡片类型');
-  typeBtn.addEventListener('click', async (e) => {
+  // 完成动作常驻：类型退场后「完成」只能由 status 表达（done 字段同步写入）
+  const isDone = card.status === 'done';
+  const doneBtn = document.createElement('button');
+  doneBtn.className = 'card-footer-btn done-btn' + (isDone ? ' is-done' : '');
+  doneBtn.textContent = isDone ? '撤销完成' : '标记完成';
+  doneBtn.setAttribute('aria-label', isDone ? '标记为未完成' : '标记为完成');
+  doneBtn.setAttribute('aria-pressed', isDone ? 'true' : 'false');
+  doneBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const next = card.type === 'text' || card.type === 'idea' ? 'task' : 'text';
-    await patchCard(card.id, { type: next });
+    await patchCard(card.id, isDone
+      ? { status: 'todo', done: false, progress: card.progress === 100 ? 0 : (card.progress ?? 0) }
+      : { status: 'done', done: true, progress: 100 });
   });
-  footer.append(typeBtn);
+  footer.append(doneBtn);
 
   const delBtn = document.createElement('button');
   delBtn.className = 'card-footer-btn';

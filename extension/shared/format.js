@@ -97,6 +97,10 @@ export function sanitizeEmoji(raw) {
 /**
  * 类型图标：卡片有自定义 emoji 时优先用 emoji，否则用类型默认。
  *
+ * @deprecated 2026-11-09 类型（text|task|idea）已退出 UI，视图层不再调用本函数 ——
+ * 卡片默认图标改用 `components/card-icon.js` 的 `cardIconEl()`（note 线稿 SVG）。
+ * 暂留一个版本供历史数据/第三方脚本使用，下个版本清理。
+ *
  * 返回值**保证不含 HTML 元字符**（经 {@link sanitizeEmoji}），
  * 因此可安全地拼进 `innerHTML`。
  * @param {string} type

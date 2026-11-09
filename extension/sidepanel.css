@@ -1865,6 +1865,12 @@ body.is-dragging .timeline-card.is-short {
   color: var(--color-muted);
 }
 .card-type-icon { font-size: 11px; font-family: var(--font-emoji); }
+/* 类型退场（2026-11-09）：卡片默认图标是 note 线稿（SVG），不是类型 emoji。
+ * 三个消费点同一处理：时间线卡片头 / 卡片池 / 日历 pill。 */
+.card-type-icon svg,
+.cardpool-type-icon svg,
+.cc-pill-icon svg { display: block; }
+.card-type-icon svg { color: var(--ink-weak); }
 .card-origin {
   font-size: 10px;
   flex-shrink: 0;
@@ -2507,6 +2513,8 @@ textarea.prop-input {
   height: auto;
   font-family: var(--font-emoji);
 }
+/* 未自选图标时图标位显示 note 线稿（类型退场后不再回落 📝） */
+.ce-emoji-tile .emoji-preview svg { display: block; color: var(--ink-weak); }
 .ce-head-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 /* 大标题：常态无边框，focus 才出现 1px 底边（Notion 页面标题行为） */
 .card-editor-title {

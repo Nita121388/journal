@@ -6,21 +6,22 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, editorType, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
+import { icon } from '../components/icon.js';
 import { confirmDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
-import { formatProvenance, typeIcon } from '../shared/format.js';
+import { formatProvenance } from '../shared/format.js';
 import { addMinutes, getCardEndTime, getCardStartTime, snapToQuarter, snapUpToQuarter, timeToMinutes } from '../shared/model.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
 
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
-import { statusOptions, STATUSES } from '../shared/card-schema.js';
+import { CARD_TYPES, statusOptions, STATUSES } from '../shared/card-schema.js';
 import { renderEditorProps } from './editor-props.js';
 import { applyFields, fieldsWithValues, resolveFields } from './editor-fields.js';
 import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
@@ -29,12 +30,18 @@ let emojiPickerCleanup = null;
 
 /** 编辑器自定义属性：key → 值 */
 export let editorProps = {};
-/** 属性定义库已提取到 state/prop-library.js（getPropLibrary/upsertPropDef/…） */
-/** 卡片编辑器：勾选完成 ⇒ 进度100 联动开关 */
+/** 卡片 type（text|task|idea）已退出 UI：编辑既有卡时保留原值，新建恒为 'text' */
+let editorTypeValue = 'text';
 
 function setEditorEmoji(emoji) {
   editorEmoji = emoji || '';
-  if (emojiPreview) emojiPreview.textContent = editorEmoji || typeIcon(editorType.value);
+  if (!emojiPreview) return;
+  // 未自选图标时给 note 线稿占位（类型退场后不再按类型给 📝/☑️/💡）
+  if (editorEmoji) {
+    emojiPreview.textContent = editorEmoji;
+  } else {
+    emojiPreview.replaceChildren(icon('note', { size: 14 }));
+  }
 }
 
 export function openEmojiPicker() {
@@ -54,10 +61,6 @@ function closeEmojiPicker() {
   emojiPickerCleanup = null;
 }
 
-editorType?.addEventListener('change', () => {
-  // 未设置自定义 emoji 时，预览跟随类型默认图标
-  if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
-});
 // 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
 // 后被点击元素脱离文档导致 closest() 失效、误关 picker）
 editorOverlay?.addEventListener('click', (e) => {
@@ -176,7 +179,7 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
     // 未安排标记：卡片无日期时占位提示
     editorDate.title = d ? '' : '未安排（保存在卡片池）';
   }
-  editorType.value = card?.type ?? 'text';
+  editorTypeValue = CARD_TYPES.includes(card?.type) ? card.type : 'text';
   editorContent.value = card?.content ?? '';
   // 阶段 C：标题 / 状态 / 进度 / 优先级 / 时长 / 自定义属性
   if (editorTitle) editorTitle.value = card?.title ?? '';
@@ -230,7 +233,6 @@ function formSnapshot() {
   return JSON.stringify({
     title: editorTitle?.value ?? '',
     content: editorContent?.value ?? '',
-    type: editorType?.value ?? '',
     date: editorDate?.value ?? '',
     status: editorStatus?.value ?? '',
     statusCustom: editorStatusCustom?.value ?? '',
@@ -432,6 +434,7 @@ export function closeEditor() {
   editorOverlay.classList.add('hidden');
   editorSnapshot = '';
   editingCardId = null;
+  editorTypeValue = 'text';
   closeTemplatePicker();
   applyEditorTemplate({ id: null, name: '空白', keys: [] });
   editorContent.value = '';
@@ -458,7 +461,8 @@ export function closeEditor() {
 export async function saveEditor() {
   const content = editorContent.value.trim();
   const title = editorTitle?.value?.trim() ?? '';
-  const type = editorType.value;
+  // type 已退出 UI：保留编辑中卡片的原 type（旧任务卡不降级），新建恒为 'text'
+  const type = editorTypeValue;
   const pendingTag = editorTagInput?.value;
   if (pendingTag) addEditorTag(pendingTag);
   // 新建：标题或内容至少填一个。

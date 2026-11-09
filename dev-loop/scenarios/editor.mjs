@@ -52,6 +52,23 @@ export async function runEditor({ page, width }) {
   );
   add('默认模板标签为「空白」', rows.templateLabel === '空白', rows.templateLabel);
 
+  // ── ①b 类型退场（2026-11-09）：形态由模板承担，不再让用户选「文本/任务/想法」 ──
+  const typeGone = await page.evaluate(() => {
+    const subrow = document.querySelector('#card-editor .ce-head-subrow');
+    const text = (subrow?.textContent || '').trim();
+    return {
+      hasSelect: !!document.getElementById('card-editor-type'),
+      subrowText: text,
+      hasTypeWord: /文本|任务|想法/.test(text),
+      previewIsGlyph: !!document.querySelector('#emoji-preview svg'),
+      previewText: (document.getElementById('emoji-preview')?.textContent || '').trim(),
+    };
+  });
+  add('编辑器已无「类型」下拉', !typeGone.hasSelect);
+  add('头部无「文本/任务/想法」文案', !typeGone.hasTypeWord, typeGone.subrowText.slice(0, 40));
+  add('未选图标时图标位是 line 图标（非 📝）', typeGone.previewIsGlyph && typeGone.previewText === '',
+    `svg=${typeGone.previewIsGlyph} text="${typeGone.previewText}"`);
+
   // ── ② 功能 emoji 清零（白名单：卡片图标预览 / 表情选择器） ──
   const emojiHits = await page.evaluate(() => {
     const PICTO = /\p{Extended_Pictographic}/u;

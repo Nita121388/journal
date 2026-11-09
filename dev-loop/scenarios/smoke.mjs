@@ -194,15 +194,20 @@ export async function runSmoke({ page }) {
   });
   add('空日引导在视口内可见', hintVis?.visible === true, hintVis ? `Δtop=${hintVis.top}px / ${hintVis.h}px` : '无空态提示');
 
-  // 13) 卡片编辑器：类型齐全（含「想法」）+ 优先级可设（工作流维度完整）
+  // 13) 卡片编辑器：模板入口在位（类型已退场，形态由模板承担）+ 优先级可设
   await page.locator('#btn-quick-add').click();
   await page.waitForTimeout(350);
   const editorOpen = await page.locator('#card-editor-overlay').isVisible().catch(() => false);
   add('快捷新建打开编辑器', editorOpen);
 
-  const typeOpts = await page.locator('#card-editor-type option')
-    .evaluateAll((o) => o.map((x) => x.value)).catch(() => []);
-  add('类型含 text/task/idea', ['text', 'task', 'idea'].every((v) => typeOpts.includes(v)), typeOpts.join(','));
+  // 2026-11-09 类型退场：编辑器不再有「文本/任务/想法」下拉，头部只留模板入口。
+  const headShape = await page.evaluate(() => ({
+    hasType: !!document.getElementById('card-editor-type'),
+    templateBtn: document.getElementById('card-editor-template-name')?.textContent?.trim() ?? '',
+    typeWords: /文本|任务|想法/.test(document.querySelector('#card-editor .ce-head-subrow')?.textContent ?? ''),
+  }));
+  add('编辑器已无「类型」下拉', !headShape.hasType && !headShape.typeWords, `typeWords=${headShape.typeWords}`);
+  add('头部模板入口在位（默认空白）', headShape.templateBtn === '空白', `name=${headShape.templateBtn}`);
 
   // P5：编辑器默认只显示最小属性集（状态/标签），优先级与排程需显式展开。
   // 走用户真实路径：头部「空白」→「显示全部属性」（一次性，不建模板）。
@@ -332,6 +337,8 @@ export async function runSmoke({ page }) {
     const titleOnly = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#timeline-container .timeline-card')];
       const hit = cards.find((c) => (c.textContent || '').includes('只填标题的卡'));
+      const footerBtns = hit ? [...hit.querySelectorAll('.card-footer button')] : [];
+      const labels = footerBtns.map((b) => b.getAttribute('aria-label') || b.textContent.trim());
       return {
         total: cards.length,
         found: Boolean(hit),
@@ -339,6 +346,11 @@ export async function runSmoke({ page }) {
         tabIndex: hit ? hit.tabIndex : -1,
         role: hit ? hit.getAttribute('role') || '' : '',
         aria: hit ? hit.getAttribute('aria-label') || '' : '',
+        // 类型退场（2026-11-09）：完成动作改由 status 驱动且常驻；不再有「切换类型」
+        hasDoneBtn: labels.includes('标记为完成'),
+        hasTypeSwitch: labels.includes('切换卡片类型'),
+        iconIsSvg: !!hit?.querySelector('.card-type-icon svg'),
+        iconText: (hit?.querySelector('.card-type-icon')?.textContent || '').trim(),
       };
     });
     add('只填标题也能建卡（P0 回归）', titleOnly.found, `时间线卡片数=${titleOnly.total}`);
@@ -346,6 +358,10 @@ export async function runSmoke({ page }) {
     add('时间线卡片键盘可达（tabIndex=0 + role=button）',
       titleOnly.tabIndex === 0 && titleOnly.role === 'button', `tabIndex=${titleOnly.tabIndex} role=${titleOnly.role}`);
     add('时间线卡片有可访问名', /只填标题的卡/.test(titleOnly.aria), titleOnly.aria);
+    add('卡片页脚「标记完成」常驻（按 status 判定）', titleOnly.hasDoneBtn);
+    add('卡片页脚已无「切换类型」', !titleOnly.hasTypeSwitch);
+    add('卡片默认图标为 note 线稿（非 📝/☑️/💡）', titleOnly.iconIsSvg && titleOnly.iconText === '',
+      `svg=${titleOnly.iconIsSvg} text="${titleOnly.iconText}"`);
 
     // 清理：删掉本场景创建的卡片，否则后续宽度会带着它跑，
     // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
@@ -413,18 +429,18 @@ export async function runSmoke({ page }) {
     };
     const dialog = document.querySelector('#card-editor-overlay .card-editor');
     const dr = dialog ? dialog.getBoundingClientRect() : null;
-    const ids = ['card-editor-type', 'card-editor-start', 'card-editor-end', 'card-editor-duration-min', 'card-editor-duration'];
+    const ids = ['card-editor-template', 'card-editor-start', 'card-editor-end', 'card-editor-duration-min', 'card-editor-duration'];
     const boxes = Object.fromEntries(ids.map((i) => [i, box(i)]));
     const overflow = dr
       ? ids.filter((i) => boxes[i] && boxes[i].l < dr.left - 1 || (boxes[i] && boxes[i].r > dr.right + 1))
       : ['no-dialog'];
     return {
-      typeW: boxes['card-editor-type']?.w ?? -1,
+      tplW: boxes['card-editor-template']?.w ?? -1,
       overflow,
       overflowX: document.documentElement.scrollWidth - window.innerWidth,
     };
   });
-  add('「类型」选择器可用宽度（≥90px）', editorLayout.typeW >= 90, `w=${editorLayout.typeW}px`);
+  add('头部模板按钮有可点宽度（≥60px）', editorLayout.tplW >= 60, `w=${editorLayout.tplW}px`);
   add('编辑器排程区不溢出面板', editorLayout.overflow.length === 0, `溢出=${editorLayout.overflow.join(',') || '无'}`);
   add('编辑器内无横向溢出', editorLayout.overflowX <= 1, `overflowX=${editorLayout.overflowX}px`);
   await page.locator('#card-editor-cancel').click();

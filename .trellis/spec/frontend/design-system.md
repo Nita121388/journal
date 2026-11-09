@@ -230,6 +230,27 @@
 旧变量名（`--color-text-2` / `--color-border-strong` / `--color-accent-deep` / `--color-code-bg`）
 作为别名保留，新增样式一律用新 token。改一处必须同步另一处，并跑 `options` 场景验收。
 
+## 14. 卡片类型退场（2026-11-09）
+
+`type`（`text | task | idea`）是**模板出现之前的分类手段**。模板上线后卡片形态由模板决定，
+编辑器里再让用户选一次类型属重复分类，已整体退出 UI。**数据字段保留**（零迁移）。
+
+| 层 | 契约 |
+|---|---|
+| 编辑器 | 无「类型」下拉；头部子行只有「模板：<名>」入口。保存时 `type = 编辑中原值`（旧任务卡不降级），新建恒 `'text'` |
+| 时间线卡片页脚 | 无「切换类型」按钮；「标记完成 / 撤销完成」**常驻**，写 `status`（+ `done`、`progress` 同步） |
+| 完成态判定 | 一律 `status === 'done'`（正文删除线 / 日历 pill `.is-done`）；不再看 `type`/`done` |
+| 日历 pill 可访问名 | 用 `statusLabel(card.status)`（单真值），不再输出「任务/记录/想法」，也不再生成 `type-*` 类名（原先无 CSS 消费） |
+| 卡片图标 | `components/card-icon.js: cardIconEl(card,{cls,size})`：有 `card.emoji` 用 emoji，否则 `note` 线稿 SVG |
+| `shared/format.js:typeIcon` | **deprecated**：视图层零调用，保留一个版本供历史数据/第三方使用 |
+
+**为什么保留 `type` 字段**：它牵动 SQLite 列、Markdown 同步格式、Todoist 导入与
+`host/lib/storage.js:statusFromTypeDone()` 的历史数据推导。删除的收益（省一个字段）
+远小于迁移风险。`statusFromTypeDone` 只在 `status` 缺失时兜底，UI 已不再触发 `patch.type`。
+
+**Gotcha**：`patch { status, done }` 同时存在时，`applyCardPatch` 的显式 `status` 优先
+（`else if` 分支只对「只改 done/type」的老客户端生效）——所以完成/撤销可以安全地同时写两个字段。
+
 ## 8. 反模式（Code Review 拦截项）
 
 - ❌ 硬编码 hex（必须语义 token）

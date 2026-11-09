@@ -15,8 +15,8 @@ import { cardColorKey } from '../shared/format.js';
 import { festivalOf } from '../shared/lunar-lite.js';
 import { toPlainLine } from '../shared/md-lite.js';
 import { addMinutes, getCardEndTime, getCardStartTime, getCardDuration } from '../shared/model.js';
-import { CARD_TYPES } from '../shared/card-schema.js';
-import { typeIcon } from '../shared/format.js';
+import { statusLabel } from '../shared/card-schema.js';
+import { cardIconEl } from '../components/card-icon.js';
 import { actions } from '../state/actions.js';
 import { acquire, release } from './milkdown-mount.js';
 import { renderTimelineCard } from './timeline-card.js';
@@ -27,8 +27,10 @@ export const MAX_PILLS_PER_DAY = 3;
 /** pill 内标题截断长度（窄侧栏下 320px 一格只有 ~40px 宽）。 */
 const PILL_TITLE_MAX = 14;
 
-/** 类型 → 中文标签（`aria-label` / 详情头部用）。 */
-const TYPE_LABEL = { task: '任务', text: '记录', idea: '想法' };
+/** 卡片的可访问名：类型已退出 UI，用状态词（单真值）代替「文本/任务/想法」。 */
+function cardAriaLabel(card) {
+  return statusLabel(card?.status);
+}
 
 /** 建一个带 class 与文本的 `<span>`（文本走 textContent，天然安全）。 */
 function spanEl(className, text) {
@@ -76,18 +78,16 @@ export function cardTimeText(card, opts = {}) {
  */
 export function renderCardPill(card, opts = {}) {
   const showTime = opts.showTime !== false;
-  const type = CARD_TYPES.includes(card?.type) ? card.type : 'text';
   const color = pillColorKey(card);
 
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = `cc-pill cc-color-${color} type-${type}`;
-  if (type === 'task' && card?.done) el.classList.add('is-done');
+  el.className = `cc-pill cc-color-${color}`;
+  if (card?.status === 'done') el.classList.add('is-done');
   el.dataset.cardId = card?.id ?? '';
   if (card?.id) el.dataset.id = card.id;
 
-  const icon = spanEl('cc-pill-icon', typeIcon(type, card?.emoji));
-  icon.setAttribute('aria-hidden', 'true');
+  const icon = cardIconEl(card, { cls: 'cc-pill-icon', size: 12 });
 
   const title = spanEl('cc-pill-title', toPlainLine(cardBodyMd(card), { maxLen: PILL_TITLE_MAX }) || '(空卡片)');
 
@@ -95,8 +95,8 @@ export function renderCardPill(card, opts = {}) {
   if (showTime) el.append(spanEl('cc-pill-time', cardTimeText(card, { range: false })));
 
   const timeText = cardTimeText(card);
-  el.title = `${TYPE_LABEL[type] ?? '卡片'} · ${timeText}\n${toPlainLine(cardBodyMd(card)) || '(空卡片)'}`;
-  el.setAttribute('aria-label', `${TYPE_LABEL[type] ?? '卡片'}，${timeText}，${toPlainLine(cardBodyMd(card)) || '空卡片'}`);
+  el.title = `${cardAriaLabel(card)} · ${timeText}\n${toPlainLine(cardBodyMd(card)) || '(空卡片)'}`;
+  el.setAttribute('aria-label', `${cardAriaLabel(card)}，${timeText}，${toPlainLine(cardBodyMd(card)) || '空卡片'}`);
 
   el.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -173,17 +173,14 @@ export function renderDayCardList(cards, opts = {}) {
  * @returns {HTMLElement}
  */
 export function renderCardDetail(card, opts = {}) {
-  const type = CARD_TYPES.includes(card?.type) ? card.type : 'text';
   const el = document.createElement('div');
-  el.className = `cc-detail cc-color-${pillColorKey(card)} type-${type}`;
+  el.className = `cc-detail cc-color-${pillColorKey(card)}`;
   el.dataset.cardId = card?.id ?? '';
 
   // ── header
   const header = document.createElement('div');
   header.className = 'cc-detail-header';
-  const icon = spanEl('cc-pill-icon', typeIcon(type, card?.emoji));
-  icon.setAttribute('aria-hidden', 'true');
-  header.append(icon);
+  header.append(cardIconEl(card, { cls: 'cc-pill-icon', size: 12 }));
   header.append(spanEl('cc-detail-title', toPlainLine(card?.title ?? '', { maxLen: 60 }) || '未命名'));
   header.append(spanEl('cc-detail-time', cardTimeText(card)));
 

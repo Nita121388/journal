@@ -45,7 +45,8 @@ export async function runSelect({ page, extId }) {
   const statics = await page.evaluate(() =>
     // 2026-11-09：卡片编辑器的自定义属性表单（#prop-type）已删除，
     // 属性定义统一走模板构建器的 #tpl-np-type 弹窗，不再单独增强一个 select。
-    ['pool-view-select', 'card-editor-type', 'tpl-np-type'].map((id) => {
+    // 同日「类型」下拉（#card-editor-type）随类型退场删除，不再有第二处静态 select。
+    ['pool-view-select', 'tpl-np-type'].map((id) => {
       const sel = document.getElementById(id);
       return {
         id,

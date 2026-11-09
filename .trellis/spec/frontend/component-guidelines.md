@@ -133,6 +133,16 @@ async function switchToDate(newDate) {
 
 **原则**：任何「异步写入 + 可切换上下文」的 UI 都必须先 flush 再切换；防抖包装器应支持 cancel。
 
+## 卡片图标原子（components/card-icon.js）
+
+卡片左上的小图标只有一个实现：`cardIconEl(card, {cls, size})`。
+
+- 有 `card.emoji` → emoji 文本（内容 emoji 允许）；否则 → `note` 线稿 SVG（currentColor）。
+- 产出 `<span class="cls">`，`cls` 沿用既有布局类名（`.card-type-icon` / `.cardpool-type-icon` /
+  `.cc-pill-icon`），因此 CSS 不用改结构，只需补 `svg { display:block }`。
+- **禁止**再按 `card.type` 给 📝/☑️/💡：类型已退出 UI（见 design-system §14）。
+  新增卡片图标位置一律调本原子，不要就地写一份 emoji 映射。
+
 ## Gotcha: 短卡片悬停展开 + 拖拽的 CSS 互斥
 
 **场景**：日程画布上时长 ≤ 30 分钟的卡片只有 30px 高，正文被 `overflow:hidden` 裁掉。做法是给这类卡片加 `.is-short`：紧凑布局（收缩 padding、折叠 footer）+ `:hover` 撑开显示完整内容。

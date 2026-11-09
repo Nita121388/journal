@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "图标=SVG/emoji 白名单、状态词唯一真值、单真值原则"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "typeIcon/type-* 类、timeline-card 行为消费点、池渲染约定"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "分层归属：视图渲染 views/、交互 features/、纯计算 shared/"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "editor 场景断言与宽度跑法；六场景门禁"}

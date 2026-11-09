@@ -40,14 +40,14 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 
 | 场景 | 守住什么 |
 |---|---|
-| `smoke` | 首屏布局、host 状态、键盘可达、空态动作 |
+| `smoke` | 首屏布局、host 状态、键盘可达、空态动作；卡片页脚「标记完成」常驻且无「切换类型」、默认图标为线稿（类型退场） |
 | `shell` | 外壳结构：`.view-modes` 已删除、`#view-dock` 唯一驱动 `data-mode`、外壳按钮零功能 emoji、header 44px、无横向滚动、dock 无 `backdrop-filter`、`.section-label` 无 uppercase/tracking、header+dock 按钮 Tab 可达且 2px 焦点环（亮暗各一遍） |
 | `audit` | 主题 × 视图模式截图与度量 |
 | `tailwind-migrated` | 迁移到 `@layer components` 的组件 computed-style + 暗色跟随 |
 | `select` / `tpl` / `llm` / `options` | 下拉框、模板构建器、LLM 设置、设置页 |
 | `calendar-visual` | 日历公共组件同源、色系 token 生效、今天标记、Milkdown 展开态、无横向溢出 |
 | `week-readable` | 周视图窄栏可读性：无横向溢出、标题不被压成逐字竖排、同列卡不重叠（叠放需有 `+N` 说明）、卡片底色不透明、`+N` 字号 ≥9px |
-| `editor` | 卡片编辑器：默认属性行 = 状态/标签、弹窗内无功能 emoji（内容 emoji 白名单）、遮罩 `backdropFilter=none`、保存=solid/md 取消=outline/md、版本徽标 = `manifest.version`、模板下拉含「空白」项 |
+| `editor` | 卡片编辑器：默认属性行 = 状态/标签、**无「类型」下拉且头部无「文本/任务/想法」文案**、未选图标时图标位是线稿、弹窗内无功能 emoji（内容 emoji 白名单）、遮罩 `backdropFilter=none`、保存=solid/md 取消=outline/md、版本徽标 = `manifest.version`、模板下拉含「空白」项 |
 
 `calendar-visual` 的用法（需要数据才有卡可展开）：
 

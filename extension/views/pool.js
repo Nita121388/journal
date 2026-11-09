@@ -10,7 +10,8 @@
 import { currentTime, snapUpToQuarter, addMinutes, cardMatchesQuery } from '../shared/model.js';
 import { statusLabel, statusOptions } from '../shared/card-schema.js';
 import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
-import { shortDate, typeIcon, cardPrimaryText } from '../shared/format.js';
+import { shortDate, cardPrimaryText } from '../shared/format.js';
+import { cardIconEl } from '../components/card-icon.js';
 import { els } from '../components/dom-refs.js';
 import { vs } from '../state/view-state.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
@@ -201,9 +202,7 @@ export async function renderCardPool() {
       setTimeout(() => { cardDragged = false; }, 0);
     });
 
-    const icon = document.createElement('span');
-    icon.className = 'cardpool-type-icon';
-    icon.textContent = typeIcon(card.type, card.emoji);
+    const icon = cardIconEl(card, { cls: 'cardpool-type-icon', size: 12 });
 
     const text = document.createElement('span');
     text.className = 'cardpool-text';
