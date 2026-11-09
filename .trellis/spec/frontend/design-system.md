@@ -182,6 +182,29 @@
 **逃生口**：模板下拉末项「显示全部属性」一次性展开全部内建属性（不建模板、不改数据）。
 无模板时用户仍能填优先级/排程，不必先造一个模板。
 
+## 13. 自定义属性交互（卡片编辑器 = 模板构建器，2026-11-09）
+
+卡片编辑器的自定义属性区**复用模板构建器的行结构与交互**，不再有自己的表单语言：
+
+- 行结构 `.tpl-prop-row`：`[图标][名称][值控件][pencil][trash]`，图标与动作按钮一律 SVG。
+- 「添加属性」是**分割按钮**：主体 = 立刻新建一行并进入行内命名；caret = 从属性库选择。
+- 图标点击走 emoji 选择器；名称双击行内改名；pencil 打开**同一个**属性定义弹窗
+  （`features/template-menu.js:openPropDefDialog({key,def,submit})`，用 submit 回调隔离构建器状态）；
+  trash 只从当前卡移除，保留属性库定义。
+- 旧的 `#prop-form`（名称/图标文本框/类型/选项）与 `.ce-more` 折叠区已删除，不留双份实现。
+
+### Gotcha A：blur 会吞掉同一次点击
+
+`openNameEditor` 的 blur 回调若**同步**重渲染列表，用户点行尾 ✎/✕ 时 blur 先触发，
+被点的按钮在 click 派发前脱离文档 → 处理器永远不执行（实测「点编辑属性没反应」）。
+**正解**：`blur` 里 `setTimeout(() => finish(true), 0)`，让本次点击序列先落定。
+
+### Gotcha B：ESM 的 import 绑定是只读视图
+
+跨模块给 `export let x` 直接赋值（`tplEditKey = key` / `tplBuilderState = {...}`）会在运行时抛
+`TypeError: Assignment to constant variable`，且这类错误常被上层 try/catch 或竞态掩盖。
+**正解**：模块内提供 setter（`setTplEditKey` / `setTplBuilderState`），外部一律走 setter。
+
 ## 12. 状态词唯一真值（2026-11-09）
 
 卡片状态只有 4 个 key：`none|todo|doing|done`（`shared/card-schema.js:STATUSES`），
