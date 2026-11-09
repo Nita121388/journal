@@ -299,42 +299,18 @@
         <!-- 正文：Notion 里正文在属性区之下，不再套卡片 -->
         <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4" aria-label="内容"></textarea>
 
-        <!-- 更多：自定义属性 -->
-        <details class="ce-more">
-          <summary>自定义属性</summary>
-          <div class="card-editor-props">
-            <div class="props-header">
-              <span class="section-label">属性（自定义）</span>
-              <button id="btn-add-prop" type="button" class="props-add-btn" title="新增自定义属性" data-icon="plus" data-icon-size="12">添加属性</button>
-              <button id="btn-prop-lib" type="button" class="props-add-btn" title="从属性库复用" data-icon="template" data-icon-size="12">属性库</button>
-            </div>
-            <div id="card-editor-props-list" class="props-list"></div>
-            <div id="prop-form" class="prop-form hidden">
-              <div class="prop-form-row">
-                <label class="prop-field">名称 <input id="prop-key" type="text" placeholder="client" aria-label="属性名" /></label>
-                <label class="prop-field">图标 <input id="prop-icon" type="text" maxlength="8" placeholder="🧑" aria-label="图标" /></label>
-              </div>
-              <div class="prop-form-row">
-                <label class="prop-field">类型
-                  <select id="prop-type" aria-label="属性类型">
-                    <option value="text">文本</option>
-                    <option value="number">数字</option>
-                    <option value="select">选择</option>
-                    <option value="multi">多选</option>
-                    <option value="date">日期</option>
-                    <option value="time">时间</option>
-                    <option value="checkbox">勾选</option>
-                  </select>
-                </label>
-                <label class="prop-options-wrap hidden">选项(,分隔) <input id="prop-options" type="text" placeholder="A,B,C" aria-label="选项" /></label>
-              </div>
-              <div class="prop-form-actions">
-                <button id="prop-form-ok" type="button" class="btn" data-variant="solid" data-size="sm">添加</button>
-                <button id="prop-form-cancel" type="button" class="btn" data-variant="outline" data-size="sm">取消</button>
-              </div>
-            </div>
+        <!-- 自定义属性：与模板构建器同一套行交互（平面行 + 分割添加按钮 + 行内命名）。
+             旧实现是「折叠 details + 列表 + 独立表单（名称/图标/类型/选项）」三层结构，
+             点「添加属性」会跳到表单里填字段，和模板构建器完全两套语言。 -->
+        <div class="ce-custom-props">
+          <div id="card-editor-props-list" class="props-list"></div>
+          <div class="props-add-row-wrap">
+            <button id="btn-add-prop" type="button" class="props-add-main" aria-label="添加属性">
+              <i data-icon="plus" data-icon-size="12" aria-hidden="true"></i><span>添加属性</span>
+            </button>
+            <button id="btn-prop-lib" type="button" class="props-add-caret" title="从属性库选择" aria-label="从属性库选择" data-icon="chevronDown" data-icon-size="12"></button>
           </div>
-        </details>
+        </div>
       </div>
 
       <div class="card-editor-footer">

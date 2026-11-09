@@ -95,7 +95,24 @@ function applyRowIcon(key, char, locked) {
 /* ── 行内名称编辑（双击改名 / 新建属性命名） ────────────────── */
 
 /** 通用行内名称编辑器：Enter / blur 提交，Esc 取消 */
-function openNameEditor(row, nameEl, { initial, onCommit, onCancel, onInput }) {
+/**
+ * 通用行内名称编辑器：Enter / blur 提交，Esc 取消。
+ *
+ * ⚠️ blur 必须**延后一拍**提交：新建属性后名称输入处于编辑态，用户直接点行尾的
+ * ✎ / ✕ 按钮时，blur 会先于 click 触发；若此时同步 render 重建整张列表，
+ * 被点的按钮会在 click 派发前脱离文档，处理器永远不执行（实测「点编辑属性没反应」）。
+ * setTimeout(0) 让 click 先落定，再重建。
+ *
+ * @param {HTMLElement} row 行容器
+ * @param {HTMLElement} nameEl 名称元素（将被替换为 input）
+ * @param {object} opts
+ * @param {string} opts.initial 初始名
+ * @param {(next: string) => boolean|void} [opts.onCommit] 返回 false = 拒绝提交、保持编辑态
+ * @param {() => void} [opts.onCancel]
+ * @param {(v: string) => void} [opts.onInput]
+ * @param {() => void} [opts.rerender] 提交后的重渲染回调（默认模板构建器）
+ */
+export function openNameEditor(row, nameEl, { initial, onCommit, onCancel, onInput, rerender = renderTemplateBuilder }) {
   if (row.querySelector('.tpl-prop-name-input')) return;
   const input = document.createElement('input');
   input.type = 'text'; input.className = 'tpl-prop-name-input';
@@ -112,14 +129,15 @@ function openNameEditor(row, nameEl, { initial, onCommit, onCancel, onInput }) {
       // onCommit 返回 false 表示拒绝（保留字等），保持编辑态不重建
       if (onCommit?.(next) === false) { done = false; return; }
     } else onCancel?.();
-    renderTemplateBuilder();
+    rerender();
   };
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); finish(true); }
     else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
   });
-  input.addEventListener('blur', () => finish(true));
+  // 延迟到本次点击序列结束：blur 常由「点行尾按钮」触发，同步重建会吞掉那次 click
+  input.addEventListener('blur', () => { setTimeout(() => finish(true), 0); });
   if (onInput) input.addEventListener('input', () => onInput(input.value));
   nameEl.replaceWith(input);
   input.focus();

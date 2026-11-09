@@ -8,7 +8,7 @@
 import {
   editorOverlay, editorStart, editorEnd, editorDurationMin, editorStatus,
   editorStatusCustom, editorProgress, editorProgressNumber,
-  btnAddProp, btnPropLib, btnEmojiTile, propFormOk, propFormCancel, propType, propOptions,
+  btnAddProp, btnPropLib, btnEmojiTile,
   saveTemplateBtn, editorSave, editorCancel, editorClose,
   tplBuilderOverlay, tplBuilderClose, tplCancel, tplSave, tplPrefill, tplBuilderTile,
   tplNpOk, tplNpCancel, tplNpType, tplNpOptions,
@@ -18,7 +18,7 @@ import {
   onEditorStatusChange, onEditorProgressChange, updateStatusSeg,
   requestCloseEditor,
 } from '../features/card-editor.js';
-import { openPropForm, closePropForm, onPropFormOk, openPropLibrary } from '../features/editor-props.js';
+import { addEditorProp, openPropLibrary } from '../features/editor-props.js';
 import { tplPropOverlay, closeTplPropDialog, closeTemplateBuilder } from '../features/template-builder.js';
 import {
   fieldPickerEl, closeFieldPicker, propRowMenuEl, closePropRowMenu,
@@ -87,14 +87,8 @@ export function bindEditor() {
   btnEmojiTile?.addEventListener('click', openEmojiPicker);
   editorProgress?.addEventListener('change', onEditorProgressChange);
   editorProgress?.addEventListener('input', onEditorProgressChange);
-  btnAddProp?.addEventListener('click', openPropForm);
+  btnAddProp?.addEventListener('click', addEditorProp);
   btnPropLib?.addEventListener('click', openPropLibrary);
-  propFormCancel?.addEventListener('click', closePropForm);
-  propFormOk?.addEventListener('click', onPropFormOk);
-  propType?.addEventListener('change', () => {
-    const wrap = propOptions?.closest('.prop-options-wrap');
-    if (wrap) wrap.classList.toggle('hidden', propType.value !== 'select' && propType.value !== 'multi');
-  });
   saveTemplateBtn?.addEventListener('click', saveEditorAsTemplate);
   // 遮罩点击 = 关闭（与 Esc / 取消同一语义）；有未保存改动时先确认。
   // 曾经是「点遮罩=保存」，与 Esc 的丢弃语义相反 —— 同一点击动作两种相反结果。

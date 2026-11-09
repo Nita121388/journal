@@ -43,7 +43,9 @@ export async function runSelect({ page, extId }) {
 
   // ── 1. 静态 select 均已增强 ─────────────────────────
   const statics = await page.evaluate(() =>
-    ['pool-view-select', 'card-editor-type', 'prop-type', 'tpl-np-type'].map((id) => {
+    // 2026-11-09：卡片编辑器的自定义属性表单（#prop-type）已删除，
+    // 属性定义统一走模板构建器的 #tpl-np-type 弹窗，不再单独增强一个 select。
+    ['pool-view-select', 'card-editor-type', 'tpl-np-type'].map((id) => {
       const sel = document.getElementById(id);
       return {
         id,

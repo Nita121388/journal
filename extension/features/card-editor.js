@@ -21,7 +21,7 @@ import { actions } from '../state/actions.js';
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
 import { statusOptions, STATUSES } from '../shared/card-schema.js';
-import { renderEditorProps, closePropForm } from './editor-props.js';
+import { renderEditorProps } from './editor-props.js';
 import { applyFields, fieldsWithValues, resolveFields } from './editor-fields.js';
 import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
 export let editorEmoji = '';
@@ -463,7 +463,6 @@ export function closeEditor() {
   if (editorMetaEl) editorMetaEl.textContent = '';
   editorProps = {};
   renderEditorProps();
-  closePropForm();
   setEditorEmoji('');
   closeEmojiPicker();
 }

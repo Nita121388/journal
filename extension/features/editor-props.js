@@ -1,51 +1,199 @@
 /**
- * editor-props.js — 编辑器自定义属性（features 层）
-
-属性行渲染、属性控件构建、属性表单（新增/编辑）、属性库复用。
+ * editor-props.js — 卡片编辑器的自定义属性（features 层）
+ *
+ * 2026-11-09 重做：交互与样式**对齐模板构建器**（用户拍板）。
+ * 旧实现是「折叠 details + 属性列表 + 独立表单（名称/图标文本/类型/选项）」三层结构，
+ * 点「添加属性」跳到表单里填字段，与模板构建器完全是两套语言。
+ *
+ * 现在：
+ *   - 平面行：[图标][名称][值控件][✎][✕]，复用 .tpl-prop-row 的视觉与尺寸
+ *   - 「添加属性」= 立刻新建一行并进入**行内命名**（Enter 提交 / Esc 取消）
+ *   - 分割按钮的 caret = 从属性库选择已有定义
+ *   - 点图标 = emoji 选择器（不再是手填 emoji 的文本框）
+ *   - ✎ = 复用「属性定义」弹窗（显示名/图标/类型/选项），与模板构建器同源
+ *   - ✕ = 从当前卡片移除（保留属性库定义）
+ *
+ * 数据形态不变：editorProps[key] = 值，定义存 propLibrary。
  */
 
-import { propForm, propIcon, propKey, propOptions, propType, propsList } from '../components/dom-refs.js';
-import { createPropRow } from '../components/property-row.js';
+import { propsList } from '../components/dom-refs.js';
+import { icon as makeIcon } from '../components/icon.js';
 import { RESERVED_PROPS } from '../shared/model.js';
-import { getPropLibrary, removePropDef, savePropLibrary, upsertPropDef } from '../state/prop-library.js';
-import { pickDialog } from './dialog.js';
-import { runWrite, showToast } from './toast.js';
+import { dedupeKey } from '../shared/prop-infer.js';
+import {
+  getPropLibrary, removePropDef, savePropLibrary, upsertPropDef,
+} from '../state/prop-library.js';
 import { editorProps } from './card-editor.js';
+import { pickDialog } from './dialog.js';
+import { openRowIconPicker } from './template-fields.js';
+import { openPropDefDialog } from './template-menu.js';
+import { openNameEditor } from './template-rows.js';
+import { runWrite, showToast } from './toast.js';
+import { closeTplPropDialog } from './template-builder.js';
 
-export function renderEditorProps() {
-  if (propsList) propsList.replaceChildren();
-  const keys = Object.keys(editorProps);
-  if (!keys.length && propsList) {
-    const hint = document.createElement('div');
-    hint.className = 'props-empty';
-    hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」';
-    propsList.append(hint);
-    return;
-  }
-  for (const [key, val] of Object.entries(editorProps)) {
-    const def = getPropLibrary()[key];
-    // 与内建属性行同一结构（.prop-row > .prop-key + .prop-val），
-    // 只多出编辑/删除两个行尾动作 —— 视觉上两类属性不再割裂。
-    const { row, val: valEl } = createPropRow({
-      key,
-      label: def?.label || key,
-      icon: def?.icon && def.icon !== '•' ? def.icon : undefined,
-      hint: key,
+/** 空态提示（不是死路的「无数据」，给出下一步动作） */
+function renderEmpty() {
+  const hint = document.createElement('div');
+  hint.className = 'props-empty';
+  hint.textContent = '还没有自定义属性，点下方「添加属性」';
+  propsList.append(hint);
+}
+
+/** 渲染一行自定义属性：结构与模板构建器的 .tpl-prop-row 一致 */
+function buildRow(key) {
+  const def = getPropLibrary()[key] || { key, label: key, type: 'text' };
+  const row = document.createElement('div');
+  row.className = 'tpl-prop-row ce-prop-row';
+  row.dataset.key = key;
+
+  // 图标：点开 emoji 选择器（内容 emoji，用户自选）
+  const iconBtn = document.createElement('button');
+  iconBtn.type = 'button';
+  iconBtn.className = 'tpl-prop-icon';
+  iconBtn.title = '点击更换图标';
+  iconBtn.setAttribute('aria-label', `更换属性「${def.label || key}」的图标`);
+  const setIcon = (ch) => { iconBtn.textContent = ch || '•'; };
+  if (def.icon && def.icon !== '•') setIcon(def.icon);
+  else iconBtn.append(makeIcon('tag', { size: 14 }));
+  iconBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openRowIconPicker(iconBtn, def.icon === '•' ? '' : (def.icon || ''), (ch) => {
+      upsertPropDef(key, { ...def, icon: ch });
+      void runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接');
+      setIcon(ch);
     });
-    const ctrl = buildPropControl(key, def, val);
-    const edit = document.createElement('button');
-    edit.type = 'button'; edit.className = 'prop-edit'; edit.textContent = '✎';
-    edit.title = '编辑属性定义（保存到属性库）';
-    edit.setAttribute('aria-label', `编辑属性 ${def?.label || key}`);
-    edit.addEventListener('click', () => openPropForm(key));
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'prop-del'; del.textContent = '✕';
-    del.title = '从当前卡片删除该属性（保留属性库定义）';
-    del.setAttribute('aria-label', `从当前卡片删除属性 ${def?.label || key}`);
-    del.addEventListener('click', () => { delete editorProps[key]; renderEditorProps(); });
-    valEl.append(ctrl, edit, del);
-    propsList.append(row);
+  });
+
+  // 名称：双击行内改名（与模板构建器同一实现）
+  const name = document.createElement('span');
+  name.className = 'tpl-prop-name';
+  name.textContent = def.label || key;
+  name.title = `${key}（双击改名）`;
+  name.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    openNameEditor(row, name, {
+      initial: def.label || key,
+      rerender: renderEditorProps,
+      onCommit: (next) => renameEditorProp(key, next),
+    });
+  });
+
+  const valWrap = document.createElement('div');
+  valWrap.className = 'tpl-prop-value';
+  valWrap.append(buildPropControl(key, def, editorProps[key]));
+
+  // ✎ 打开属性定义弹窗（类型 / 选项 / 显示名 / 图标）
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'tpl-row-act tpl-row-edit';
+  edit.append(makeIcon('pencil', { size: 13 }));
+  edit.title = '编辑属性定义';
+  edit.setAttribute('aria-label', `编辑属性 ${def.label || key}`);
+  edit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPropDefDialog({
+      key,
+      def,
+      submit: (next) => {
+        upsertPropDef(key, { ...next, key });
+        void runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接');
+        closeTplPropDialog();
+        renderEditorProps();
+        showToast(`已更新属性「${next.label || key}」`, 'success');
+      },
+    });
+  });
+
+  // ✕ 从当前卡移除（保留属性库定义）
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'tpl-row-act tpl-row-del';
+  del.append(makeIcon('trash', { size: 13 }));
+  del.title = '从当前卡片删除该属性（保留属性库定义）';
+  del.setAttribute('aria-label', `从当前卡片删除属性 ${def.label || key}`);
+  del.addEventListener('click', (e) => {
+    e.stopPropagation();
+    delete editorProps[key];
+    renderEditorProps();
+  });
+
+  row.append(iconBtn, name, valWrap, edit, del);
+  return row;
+}
+
+/** 渲染当前卡的自定义属性行 */
+export function renderEditorProps() {
+  if (!propsList) return;
+  propsList.replaceChildren();
+  const keys = Object.keys(editorProps);
+  if (!keys.length) { renderEmpty(); return; }
+  for (const key of keys) propsList.append(buildRow(key));
+}
+
+/**
+ * 改名：key 也要跟着迁移（新建属性时 key 就是名字），避免数据断链。
+ * 返回 false = 拒绝提交、保持编辑态（与模板构建器的 openNameEditor 约定一致）。
+ * @param {string} oldKey
+ * @param {string} next
+ * @returns {boolean}
+ */
+function renameEditorProp(oldKey, next) {
+  if (RESERVED_PROPS.has(next)) { showToast(`「${next}」是保留字段，换个名字`, 'error'); return false; }
+  if (next !== oldKey && next in editorProps) { showToast(`「${next}」已存在`, 'error'); return false; }
+  if (next === oldKey) {
+    upsertPropDef(oldKey, { ...(getPropLibrary()[oldKey] || {}), key: oldKey, label: next });
+  } else {
+    editorProps[next] = editorProps[oldKey];
+    delete editorProps[oldKey];
+    const def = getPropLibrary()[oldKey] || {};
+    removePropDef(oldKey);
+    upsertPropDef(next, { ...def, key: next, label: next });
   }
+  void runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接');
+  return true;
+}
+
+/**
+ * 「添加属性」主按钮：立刻新建一行 + 行内命名。
+ * 与模板构建器的 startAddProp 同一节奏，不再弹出独立表单。
+ */
+export function addEditorProp() {
+  const key = dedupeKey('新属性', [...Object.keys(editorProps)]);
+  editorProps[key] = '';
+  upsertPropDef(key, { key, label: '新属性', icon: '•', type: 'text' });
+  void runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接');
+  renderEditorProps();
+  const row = propsList
+    ? [...propsList.querySelectorAll('.ce-prop-row')].find(r => r.dataset.key === key)
+    : null;
+  const name = row?.querySelector('.tpl-prop-name');
+  if (row && name) {
+    openNameEditor(row, name, {
+      initial: '新属性',
+      rerender: renderEditorProps,
+      onCommit: (next) => renameEditorProp(key, next),
+    });
+  }
+}
+
+/** 从属性库复用属性到当前卡（分割按钮的 caret 入口） */
+export async function openPropLibrary() {
+  const lib = getPropLibrary();
+  const keys = Object.keys(lib).filter(k => !(k in editorProps));
+  if (!keys.length) { showToast('属性库为空（或已全部添加）', ''); return; }
+  const picked = await pickDialog({
+    title: '从属性库添加',
+    items: keys.map((k) => `${lib[k].icon && lib[k].icon !== '•' ? lib[k].icon + ' ' : ''}${lib[k].label || k}`),
+    multi: true,
+    okLabel: '添加',
+  });
+  if (!Array.isArray(picked) || !picked.length) return;
+  for (const i of picked) {
+    const k = keys[i];
+    if (k && !(k in editorProps)) editorProps[k] = '';
+  }
+  renderEditorProps();
+  showToast(`已添加 ${picked.length} 个属性`, 'success');
 }
 
 /** 按属性类型构建编辑控件，改动即写回 editorProps */
@@ -87,70 +235,4 @@ export function buildPropControl(key, def, val) {
     editorProps[key] = input.type === 'number' ? Number(input.value) : input.value;
   });
   return input;
-}
-
-let propEditKey = null;
-
-/** 打开属性表单；defKey 传人则编辑属性库中既有定义 */
-export function openPropForm(defKey = null) {
-  if (!propForm) return;
-  propEditKey = defKey;
-  const d = defKey ? getPropLibrary()[defKey] : null;
-  if (propKey) propKey.value = d?.key ?? '';
-  if (propIcon) propIcon.value = d?.icon && d.icon !== '•' ? d.icon : '';
-  if (propType) propType.value = d?.type ?? 'text';
-  if (propOptions) propOptions.value = (d?.options || []).join(',');
-  const wrap = propOptions?.closest('.prop-options-wrap');
-  if (wrap) wrap.classList.toggle('hidden', d?.type !== 'select' && d?.type !== 'multi');
-  propForm.classList.remove('hidden');
-  propKey?.focus();
-}
-export function closePropForm() {
-  if (propForm) propForm.classList.add('hidden');
-  propEditKey = null;
-}
-
-/** 添加/编辑属性：校验保留字 → 加入当前卡（自动保存到属性库，便于复用/编辑） */
-export async function onPropFormOk() {
-  const key = (propKey.value || '').trim().replace(/\s+/g, '_');
-  if (!key) { showToast('属性名不能为空', 'error'); return; }
-  if (RESERVED_PROPS.has(key)) { showToast(`「${key}」是保留字段，不能用作属性名`, 'error'); return; }
-  const opts = propOptions.value ? propOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
-  const def = { key, label: key, icon: propIcon.value || '•', type: propType.value, ...(opts.length ? { options: opts } : {}) };
-  if (propEditKey && propEditKey !== key) {
-    // 编辑且改名：迁移库定义 + 迁移当前卡值
-    const oldKey = propEditKey;
-    if (oldKey in editorProps) { editorProps[key] = editorProps[oldKey]; delete editorProps[oldKey]; }
-    removePropDef(oldKey);
-  }
-  if (!(key in editorProps)) editorProps[key] = '';
-  upsertPropDef(key, def);
-  // 属性库落 host；失败时明确告知“本机已生效但未持久化”，不谎报成功
-  const res = await runWrite(() => savePropLibrary(), '属性库保存失败：本机服务未连接（本次已在本机生效）');
-  const wasEdit = propEditKey !== null;
-  renderEditorProps();
-  closePropForm();
-  propKey.value = ''; propIcon.value = ''; propOptions.value = ''; propType.value = 'text';
-  if (!res.ok) return;
-  showToast(wasEdit ? `已更新属性「${key}」` : `已添加属性「${key}」（已入库）`, 'success');
-}
-
-/** 从属性库复用属性到当前卡 */
-export async function openPropLibrary() {
-  const lib = getPropLibrary();
-  const keys = Object.keys(lib);
-  if (!keys.length) { showToast('属性库为空', ''); return; }
-  const picked = await pickDialog({
-    title: '从属性库添加',
-    items: keys.map((k) => `${lib[k].icon || ''} ${lib[k].label || k}`),
-    multi: true,
-    okLabel: '添加',
-  });
-  if (!Array.isArray(picked) || !picked.length) return;
-  for (const i of picked) {
-    const k = keys[i];
-    if (!(k in editorProps)) editorProps[k] = '';
-  }
-  renderEditorProps();
-  showToast(`已添加 ${picked.length} 个属性`, 'success');
 }

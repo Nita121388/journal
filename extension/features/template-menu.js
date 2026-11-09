@@ -17,7 +17,7 @@ import { editingCardId, openEditor } from './card-editor.js';
 import { confirmDialog, pickDialog, promptDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { runWrite, showToast } from './toast.js';
-import { REQUIRED_DEFS, closeTemplateBuilder, closeTplPropDialog, findPropDef, isBuiltinKey, normalizeTemplateFields, openTemplateBuilder, openTplPropDialog, renderTemplateBuilder, tplBuilderCleanup, tplBuilderEmoji, tplBuilderName, tplBuilderPicker, tplBuilderState, tplEditKey, tplEditingId, tplNpIcon, tplNpIconPreview, tplNpKey, tplNpLabel, tplNpOk, tplNpOptions, tplNpType } from './template-builder.js';
+import { REQUIRED_DEFS, setTplBuilderState, setTplEditKey, closeTemplateBuilder, closeTplPropDialog, findPropDef, isBuiltinKey, normalizeTemplateFields, openTemplateBuilder, openTplPropDialog, renderTemplateBuilder, tplBuilderCleanup, tplBuilderEmoji, tplBuilderName, tplBuilderPicker, tplBuilderState, tplEditKey, tplEditingId, tplNpIcon, tplNpIconPreview, tplNpKey, tplNpLabel, tplNpOk, tplNpOptions, tplNpType } from './template-builder.js';
 import { defaultTplValue } from './template-fields.js';
 
 export async function saveTemplateBuilder() {
@@ -62,7 +62,7 @@ export async function saveTemplateBuilder() {
 export function prefillTemplateFromCard() {
   const card = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) : null;
   if (!card) { showToast('没有正在编辑的卡片', ''); return; }
-  tplBuilderState = { name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, extra: [], values: {}, reqOv: {} };
+  setTplBuilderState({ name: tplBuilderState.name, emoji: card.emoji || tplBuilderState.emoji, extra: [], values: {}, reqOv: {} });
   const putReq = (key, value) => { if (value !== undefined && value !== null && value !== '') tplBuilderState.values[key] = value; };
   const putOpt = (key, value) => {
     if (value !== undefined && value !== null && value !== '' && !tplBuilderState.extra.some(x => x.key === key)) {
@@ -88,9 +88,10 @@ export function prefillTemplateFromCard() {
 /** 构建器内新建属性（打开表单） */
 /** 编辑可选属性的定义（内建=仅此模板覆盖；自定义=写回属性库） */
 export function openTplEditProp(key) {
+  propDefSubmit = null; // 任何模板构建器自己的编辑入口都先清掉外部接管
   const entry = tplBuilderState.extra.find(x => x.key === key);
   if (!entry) return;
-  tplEditKey = key;
+  setTplEditKey(key);
   const isBuiltin = isBuiltinKey(key);
   const disp = entry.def.label && entry.def.label !== key ? entry.def.label : '';
   if (tplNpLabel) tplNpLabel.value = disp;
@@ -106,8 +107,52 @@ export function openTplEditProp(key) {
   tplNpLabel?.focus();
 }
 
+/**
+ * 外部消费者（卡片编辑器）复用同一个「属性定义」弹窗时的提交回调。
+ * 非空时 onTplNewPropOk 把表单值交给它，不碰模板构建器状态。
+ * @type {((def: object) => void)|null}
+ */
+let propDefSubmit = null;
+
+/**
+ * 打开属性定义弹窗（通用入口，卡片编辑器与模板构建器共用同一套表单与交互）。
+ * @param {object} opts
+ * @param {string} opts.key 属性 key（不可改，避免断链）
+ * @param {object} [opts.def] 现有定义 {label, icon, type, options}
+ * @param {(def: object) => void} opts.submit 提交回调
+ */
+export function openPropDefDialog({ key, def = {}, submit }) {
+  if (tplNpLabel) tplNpLabel.value = def.label || key;
+  if (tplNpIcon) tplNpIcon.value = def.icon && def.icon !== '•' ? def.icon : '';
+  if (tplNpIconPreview) tplNpIconPreview.textContent = tplNpIcon.value || '•';
+  if (tplNpType) tplNpType.value = def.type || 'text';
+  if (tplNpOptions) tplNpOptions.value = (def.options || []).join(',');
+  if (tplNpKey) { tplNpKey.value = key; tplNpKey.disabled = true; }
+  const wrap = tplNpOptions?.closest('.prop-options-wrap');
+  if (wrap) wrap.classList.toggle('hidden', !['select', 'multi'].includes(def.type || 'text'));
+  if (tplNpOk) tplNpOk.textContent = '保存';
+  propDefSubmit = typeof submit === 'function' ? submit : null;
+  openTplPropDialog(`编辑属性「${def.label || key}」`);
+  tplNpLabel?.focus();
+}
+
 /** 新建/编辑属性提交 */
 export function onTplNewPropOk() {
+  // 外部消费者（卡片编辑器）接管时：只把表单值交给它，不动模板构建器状态
+  if (propDefSubmit) {
+    const submit = propDefSubmit;
+    propDefSubmit = null;
+    const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];
+    const key = tplNpKey?.value || '';
+    submit({
+      key,
+      label: tplNpLabel?.value.trim() || key,
+      icon: tplNpIcon?.value || '•',
+      type: tplNpType?.value || 'text',
+      options: opts,
+    });
+    return;
+  }
   if (tplEditKey) {
     const key = tplEditKey;
     const opts = tplNpOptions?.value ? tplNpOptions.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) : [];

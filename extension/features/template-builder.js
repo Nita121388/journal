@@ -77,6 +77,14 @@ export let tplEditingId = null;   // 编辑既有模板时的 id
 export let tplEditKey = null;     // 编辑属性定义时的 key
 export let tplDragKey = null;     // 排序拖拽中的 key
 
+/**
+ * 写入 setter：ESM 的 import 绑定是**只读视图**，别处 `tplEditKey = x` 会在运行时抛
+ * `TypeError: Assignment to constant variable`（实测：模板构建器点「编辑属性」没反应、
+ * 「从当前卡预填」也失效，两个都是这个原因）。跨模块改状态一律走 setter。
+ */
+export function setTplBuilderState(next) { tplBuilderState = next; }
+export function setTplEditKey(next) { tplEditKey = next; }
+
 /** 找属性定义：统一走注册表（内建 + 属性库） */
 export function findPropDef(key) { return getFieldDef(key); }
 
