@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "对照反模式清单逐条检查：残留 emoji、backdrop-filter、内联 style、--prio-* 消费点"}
+{"file": ".trellis/tasks/11-08-visual-p5-dialogs-pages/prd.md", "reason": "验收标准 1-8 逐条核对（含版本显示与部署核验）"}
+{"file": ".trellis/tasks/11-08-visual-p5-dialogs-pages/design.md", "reason": "契约核对：data-field 行集、图标映射、按钮 variant/size、版本单一真值"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "确认新模块不越层（editor-fields 属 features，version-badge 属 components）"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "editor 场景是否按规范注册、断言失败是否非 0 退出"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/test 门禁与键盘可达性（模板切换行必须可 Tab 到）"}

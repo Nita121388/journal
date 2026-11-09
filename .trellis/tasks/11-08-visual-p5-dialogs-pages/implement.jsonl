@@ -1,0 +1,10 @@
+{"file": ".trellis/tasks/11-08-visual-p5-dialogs-pages/prd.md", "reason": "本任务需求 R1-R11、默认属性集决策、验收标准"}
+{"file": ".trellis/tasks/11-08-visual-p5-dialogs-pages/design.md", "reason": "属性集契约（data-field / resolveFields / openEditor 第5参）、图标映射表、违例收口细则、版本模块"}
+{"file": ".trellis/tasks/11-08-visual-p5-dialogs-pages/implement.md", "reason": "S0-S4 阶段顺序、每阶段门禁命令与回滚点"}
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/design.md", "reason": "父任务 §3 图标/按钮基元、§7 零合成层、§1.4 圆角标尺 —— 本任务继续适用"}
+{"file": ".trellis/tasks/11-08-visual-redesign-quiet-desk/prd.md", "reason": "R3/R4/R6/R11 的原始措辞，避免二次解读"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "token 分层与反模式清单（硬编码 hex / 内联 style / 功能 emoji）"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "components/ 基元规范与 DOM 契约（button/icon/chip/seg 怎么用）"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "features/ vs components/ vs views/ 的职责边界，editor-fields.js 落位依据"}
+{"file": ".trellis/spec/frontend/dev-loop.md", "reason": "新增 scenarios/editor.mjs 必须遵守的场景与断言写法"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/test/对比度/键盘可达门禁"}

@@ -142,7 +142,7 @@
 | 筛选 Chip | 高 24px、`--r-full`；默认≤5 个，多余进「筛选」弹层；active=accent 实心 |
 | 标签 chip（`components/chip.js`） | 小方角 `--r-sm`（非胶囊）、`--color-hover` 底 + 1px 边框；`×` 只在 hover/focus-visible 显示且必须是独立 `.chip-x` 元素（不得拼进文本，否则读屏念「乘号」）；只读态加 `is-static` |
 | 分段胶囊 `.seg`（`components/seg.js`） | **弱底语义**：常态透明底 + 透明边框；hover = `--color-hover`；选中 `is-active` = `--color-hover-strong` + 1px 边框 + 文字色（**不整块染高饱和色**）。彩色只能出现在 `.seg-dot`（8px 圆点，`--prio-*`）。DOM 契约：`button.seg` + `data-<key>` + `is-active`（dev-loop 依赖） |
-| 属性行 `.prop-row`（`components/property-row.js`） | Notion 式两列：`.ce-props { grid-template-columns: 76px minmax(0,1fr) }`，`.prop-row { display: contents }` 让 `.prop-key`/`.prop-val` 直接落进网格列。键列 muted 11.5px + 图标；值列正文色、`min-height:26px`、hover 弱底。内建属性与自定义属性**共用同一结构** |
+| 属性行 `.prop-row`（`components/property-row.js`） | Notion 式两列：`.ce-props { grid-template-columns: 76px minmax(0,1fr) }`，`.prop-row { display: contents }` 让 `.prop-key`/`.prop-val` 直接落进网格列。键列 muted 11.5px + 图标；值列正文色、`min-height:26px`、hover 弱底。内建属性与自定义属性**共用同一结构**。**可见性由字段集驱动**（见 §10） |
 | 状态徽标 | 文字+色（不只色）；尺寸 11px |
 | 进度条 | 高 3–4px、`--r-full`；轨道 surface；值 accent；旁标百分比 |
 | 空状态 | 图标/emoji + 一句原因 + **一个行动按钮**（如「新建卡片」「清除筛选」） |
@@ -161,6 +161,26 @@
 - 默认跟随系统：`@media (prefers-color-scheme: dark)` 映射暗色 token；用户显式选择时 `[data-theme]` 覆盖（JS 现状已支持）。
 - 暗色 today 单元格：accent 提亮 + 深字或白字，确保 ≥4.5:1。
 - 暗色下阴影改用更深的 `--sh`（或以边框替代），避免「黑上加黑」。
+
+## 10. 编辑器属性集（模板驱动，2026-11 起）
+
+**产品原则**：默认只给少量必要属性，其余由用户自建模板按需引入。
+
+| 概念 | 位置 | 说明 |
+|---|---|---|
+| 默认最小集 | `features/editor-fields.js: BASE_FIELDS` | `status` / `tags` —— 状态供卡片池筛选，标签在注册表是 `required`（搜索依赖） |
+| 固定顺序 | `features/editor-fields.js: FIELD_ORDER` | 模板只能决定「显示哪些」，**不能**打乱顺序 |
+| 解析 | `resolveFields(templateKeys)` | 默认集 ∪ 模板字段；过滤属性库已删 key；自定义属性不进属性区 |
+| 应用 | `applyFields(container, keys)` | 只改可见性 + 顺序，**不重建节点**（`dom-refs` 的 id 必须存活） |
+| 编辑已有卡 | `fieldsWithValues(card)` | 把已填字段拉出来，避免模板收敛把旧数据藏掉 |
+| 入口 | `openEditor(card, time, date, assignedDate, { templateId, templateName, fields })` | 第 5 参缺省 = 默认集 |
+
+**DOM 契约**：`.prop-row[data-field="<key>"]`；隐藏用 `hidden` 属性，**禁止内联 style**。
+必须显式写 `.prop-row[hidden] { display: none }` —— `.prop-row` 的 `display: contents`
+会盖过 UA 的 `[hidden]` 规则（这条已踩过）。
+
+**逃生口**：模板下拉末项「显示全部属性」一次性展开全部内建属性（不建模板、不改数据）。
+无模板时用户仍能填优先级/排程，不必先造一个模板。
 
 ## 8. 反模式（Code Review 拦截项）
 

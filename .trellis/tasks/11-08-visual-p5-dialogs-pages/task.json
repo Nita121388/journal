@@ -3,7 +3,7 @@
   "name": "visual-p5-dialogs-pages",
   "title": "P5 弹窗与附属页换皮：编辑器 / 模板构建器 / options / select",
   "description": "卡片编辑器与模板构建器保留 Notion 式属性行结构但统一键图标与控件高度；app-dialog 统一；options.html 与 select 页同步换皮，使三页视觉一致。验收：options 与 select 场景 dev-loop 全绿。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -12,7 +12,7 @@
   "assignee": "chemclin",
   "createdAt": "2026-11-08",
   "completedAt": null,
-  "branch": null,
+  "branch": "dev/local",
   "base_branch": "main",
   "worktree_path": null,
   "commit": null,
@@ -21,6 +21,6 @@
   "children": [],
   "parent": "11-08-visual-redesign-quiet-desk",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "## 进度 2026-11-09\n\nS0 版本可见（d2357b2）：manifest 0.2.0 + version_name；components/version-badge.js（单一真值=runtime.getManifest）；\n侧栏/options header 显示 v0.2.0。**部署核验**：dev 部署目录 5 文件 md5 与仓库逐字节一致，读回 version=0.2.0。\n教训：Chrome 侧栏不会随扩展重载自动刷新 DOM，用户需在侧栏内 Ctrl+R（用户实测反馈「只有设置页显示版本号」的根因）。\n\nS1 属性集（432e7ff）：features/editor-fields.js + editor-template-picker.js；openEditor 第 5 参；\n空白新建可见行 = status/tags；编辑已有卡按 fieldsWithValues 拉出已填字段。\n坑：.prop-row{display:contents} 会盖过 UA 的 [hidden]{display:none}，必须显式写规则。\n\nS2 图标与违例（8ac5e3f）：icon.js 新增 gauge/flag/clock/play/note；弹窗 17 处功能 emoji → SVG；\n删 sidepanel/options 两处 backdrop-filter；优先级圆点改单色（选中 --accent）；页脚按钮接 .btn 基元（data-variant/data-size）；\ndialog.js 同步（app-dialog 按钮）。\n\nS3 回归（a7a6605）：dev-loop/scenarios/editor.mjs 12 断言 × 320/400；smoke 适配属性集变更。\n门禁：editor 12/12 · smoke 52/52 · shell 22/22 · tpl 17/17 · select 46/46 · options 10/10 · lint 0 · 327 单测通过。\n\n## 待决议（阻塞 R8 完成）\noptions 页仍是旧「成长绿」体系（tokens-options.css：#5bb974 + 径向渐变）。已完成的部分：\nemoji → SVG（7 处）、去 header backdrop-filter。未做：整套配色/圆角/控件高度对齐 Quiet Desk。\n冲突点：tokens-options.css 文件头写明「设置页与侧栏是不同页面身份（成长绿 vs 看板绿）」，\n而父任务 R9/R8 要求三页视觉一致 —— 需要用户拍板：设置页是否也收进单蓝 Quiet Desk。\n\n## 未推进（非本任务范围）\nprod 部署仍是 2026-11-07 旧包，需从 main 分支走 deploy-prod-host.bat 流程发布。",
   "meta": {}
 }
