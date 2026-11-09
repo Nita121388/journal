@@ -182,6 +182,23 @@
 **逃生口**：模板下拉末项「显示全部属性」一次性展开全部内建属性（不建模板、不改数据）。
 无模板时用户仍能填优先级/排程，不必先造一个模板。
 
+## 12. 状态词唯一真值（2026-11-09）
+
+卡片状态只有 4 个 key：`none|todo|doing|done`（`shared/card-schema.js:STATUSES`），
+中文名同样只在那里定义：`STATUS_LABELS` / `statusLabel(v)` / `statusOptions()`。
+
+- 编辑器状态胶囊由 `features/card-editor.js:ensureStatusButtons()` 从 `statusOptions()`
+  渲染，**HTML 里不再硬编码标签**。
+- 卡片池筛选与徽标（`views/pool.js`）用同一个 `statusLabel()`，不再自带文案。
+- 模板构建器的默认值下拉对 `behavior === 'status'` 用中文显示、值仍存 key
+  （否则模板里看到 `none`、编辑器里看到「纯记录」）。
+- `shared/prop-infer.js` 的「状态/阶段」关键词推断也取同一组 4 项。
+
+**Gotcha：`''` 不是 `nullish`。** `writeValueToCard` 曾用 `value ?? empty`，
+模板字段默认值留空（`''`）会被原样写进 `card.status`，于是卡片池
+`statusMatches(card,'none')` 匹配不到 —— 卡在「纯记录」筛选下凭空消失，
+而编辑器又把它显示成「纯记录」。一级字段现在把 `''` 视为未填、走 `empty` 兜底。
+
 ## 11. 两个页面共用一套 token 值（2026-11-09）
 
 `styles/tokens.css`（侧栏）与 `styles/tokens-options.css`（设置页）**值必须逐项同源**，
