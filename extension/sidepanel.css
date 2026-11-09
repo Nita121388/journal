@@ -2621,9 +2621,9 @@ textarea.prop-input {
 /* 值列纵向堆叠（状态 = 分段 + 自定义输入） */
 .prop-val--stack { flex-direction: column; align-items: stretch; gap: 4px; }
 .prop-val--wrap { flex-wrap: wrap; }
-/* 渐进披露：进度只对「任务」有意义（纯记录/想法不展示，减少噪音） */
-.ce-props[data-type="text"] .prop-row[data-key="progress"],
-.ce-props[data-type="idea"] .prop-row[data-key="progress"] { display: none; }
+/* 属性行可见性只由 features/editor-fields.js 的字段集决定（默认集 ∪ 模板字段）。
+ * 旧的「按卡片类型隐藏进度」规则已删除：它会让「显示全部属性」/含进度的模板在
+ * 纯记录卡上仍然看不到进度，形成两套互相打架的可见性来源。 */
 /* 属性区与正文之间的唯一分隔线 */
 .prop-divider {
   border: none;

@@ -57,18 +57,7 @@ function closeEmojiPicker() {
 editorType?.addEventListener('change', () => {
   // 未设置自定义 emoji 时，预览跟随类型默认图标
   if (!editorEmoji && emojiPreview) emojiPreview.textContent = typeIcon(editorType.value);
-  syncTypeVisibility();
 });
-
-/**
- * 按类型做渐进披露：进度只对「任务」有意义。
- * ⚠… 2026-11 起属性行可见性改由 `editor-fields.js`（默认集 + 模板字段）统一决定，
- * 这里只保留 `data-type` 供 CSS/调试读取，**不再**隐藏任何行（否则会与模板字段打架）。
- */
-function syncTypeVisibility() {
-  const props = document.getElementById('card-editor-props');
-  if (props) props.dataset.type = editorType?.value ?? 'text';
-}
 // 点击外部关闭 picker（用 composedPath 判断，避免 tab 点击引发 render 重建 DOM
 // 后被点击元素脱离文档导致 closest() 失效、误关 picker）
 editorOverlay?.addEventListener('click', (e) => {
@@ -188,7 +177,6 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
     editorDate.title = d ? '' : '未安排（保存在卡片池）';
   }
   editorType.value = card?.type ?? 'text';
-  syncTypeVisibility();
   editorContent.value = card?.content ?? '';
   // 阶段 C：标题 / 状态 / 进度 / 优先级 / 时长 / 自定义属性
   if (editorTitle) editorTitle.value = card?.title ?? '';
