@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setPort } from '../platform/index.js';
 import { makePort, apiOk } from '../test-helpers.mjs';
 import * as repo from './repository.js';
-import { pullFromHost, startHostSync } from './sync-bridge.js';
+import { pullFromHost, getSyncState, startHostSync } from './sync-bridge.js';
 
 let port;
 beforeEach(() => {
@@ -35,6 +35,19 @@ describe('pullFromHost', () => {
     const r = await pullFromHost();
     expect(r.pulled).toBe(false);
     expect(repo.getAllCards().map((c) => c.id)).toEqual(['cached']);
+    expect(getSyncState()).toBe('offline');
+  });
+
+  it('拉取成功后同步状态为 baseline（观测，不改行为）', async () => {
+    pushPullResponses([{ id: 'a' }]);
+    await pullFromHost();
+    expect(getSyncState()).toBe('baseline');
+  });
+
+  it('初始同步状态为 idle（首次 pull 前）', async () => {
+    vi.resetModules();
+    const fresh = await import('./sync-bridge.js');
+    expect(fresh.getSyncState()).toBe('idle');
   });
 });
 
@@ -59,6 +72,24 @@ describe('startHostSync', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(repo.getAllCards().map((c) => c.id)).toEqual(['a', 'b']);
+    expect(getSyncState()).toBe('baseline');
+
+    clearInterval(id);
+    vi.useRealTimers();
+  });
+
+  it('同步状态跟随轮询分支：首轮建基线、host 离线 → offline', async () => {
+    vi.useFakeTimers();
+    const id = startHostSync(() => {}, 1000);
+
+    // 无响应 → host 离线：保留真源，状态 offline
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(getSyncState()).toBe('offline');
+
+    // 首轮成功 → 只建基线，状态 baseline
+    pushPullResponses([{ id: 'a' }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(getSyncState()).toBe('baseline');
 
     clearInterval(id);
     vi.useRealTimers();
@@ -72,6 +103,7 @@ describe('startHostSync', () => {
     await vi.advanceTimersByTimeAsync(1000);   // 无响应 → 离线
     expect(repo.getAllCards().map((c) => c.id)).toEqual(['keep']);
     expect(onChange).not.toHaveBeenCalled();
+    expect(getSyncState()).toBe('offline');
     clearInterval(id);
     vi.useRealTimers();
   });

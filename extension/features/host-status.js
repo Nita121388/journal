@@ -12,6 +12,44 @@ import { ROUTES } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
 import { pullFromHost } from '../state/sync-bridge.js';
 import { withBusy } from './busy.js';
+import { assertMachine, defineMachine, transition } from '../shared/fsm.js';
+
+/**
+ * host 连接状态机（P5 收编「stringly if 链」）。
+ *
+ * 转移表按**现有调用路径**定：健康探测（checkHostHealth）在任何状态下都可能
+ * 落 ONLINE/OFFLINE（host 可能被外部杀掉或拉起，UI 必须无条件跟随）；
+ * STARTING 来自 startHost（状态灯/离线横幅的点击都不判当前状态），
+ * 所以 online 也必须允许 STARTING —— 否则点状态灯启动会出现「状态灯不更新」。
+ * 自环（同事件重复发）合法且无操作，保证重复探测幂等。
+ */
+export const HOST_MACHINE = defineMachine({
+  id: 'host',
+  initial: 'unknown',
+  states: {
+    unknown: { ONLINE: 'online', OFFLINE: 'offline', STARTING: 'starting' },
+    online: { ONLINE: 'online', OFFLINE: 'offline', STARTING: 'starting' },
+    offline: { OFFLINE: 'offline', STARTING: 'starting' },
+    starting: { ONLINE: 'online', OFFLINE: 'offline' },
+  },
+});
+
+// 开发期自检：转移表写错（漏 initial / 悬空目标）只留痕，不阻断侧栏启动。
+for (const err of assertMachine(HOST_MACHINE)) console.error('[journal]', err);
+
+/** 对外状态字符串 → 事件名（setHostStatus 的入参是状态名，见下方兼容说明）。 */
+const STATUS_EVENT = { online: 'ONLINE', offline: 'OFFLINE', starting: 'STARTING' };
+
+/** 当前 host 状态（模块内单一真源；DOM 上的 `data-host-state` 是它的只读镜像）。 */
+let hostState = HOST_MACHINE.initial;
+
+/**
+ * 当前 host 状态（unknown|online|offline|starting）—— dev-loop / 调试断言用。
+ * @returns {string}
+ */
+export function getHostState() {
+  return hostState;
+}
 
 export async function checkHostHealth() {
   try {
@@ -27,10 +65,26 @@ export async function checkHostHealth() {
   }
 }
 
-/** 切换 header 右上角 host 状态按钮外观 + 离线持久横幅 */
+/**
+ * 切换 host 状态。对外签名保持「传状态名」(online|offline|starting)，
+ * 内部映射成事件并经 {@link HOST_MACHINE} 转移，再渲染结果态。
+ * 行为等价：现有调用路径的转移全部在表里，渲染逻辑逐字搬自旧实现。
+ * @param {'online'|'offline'|'starting'} status
+ */
 export function setHostStatus(status) {
+  const event = STATUS_EVENT[status];
+  hostState = event
+    ? transition(HOST_MACHINE, hostState, event).state
+    : 'unknown'; // 非约定状态名 = 尚未判定，走 unknown 渲染（与旧代码同一分支）
+  renderHostStatus(hostState);
+}
+
+/** 把状态渲染到状态灯 + 离线横幅（唯一 DOM 写入口）。 */
+function renderHostStatus(status) {
   const btn = els.hostStatusBtn;
   if (!btn) return;
+  // 观测约定：dev-loop 可断言 `[data-host-state]`，不必去猜 class 组合
+  btn.dataset.hostState = status;
   btn.classList.toggle('is-online', status === 'online');
   btn.classList.toggle('is-offline', status === 'offline');
   btn.classList.toggle('is-starting', status === 'starting');

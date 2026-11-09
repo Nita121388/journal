@@ -46,11 +46,16 @@ export async function runSmoke({ page }) {
     return {
       online: !!btn && btn.classList.contains('is-online'),
       offline: !!btn && btn.classList.contains('is-offline'),
+      // P5 观测约定：data-host-state 是内部状态机的只读镜像（必须与类名一致）
+      dataState: btn?.dataset?.hostState || '',
       bannerHidden: !banner || banner.classList.contains('hidden'),
     };
   });
   add('host 状态灯已判定', hostState.online || hostState.offline, JSON.stringify(hostState));
   add('离线横幅与状态灯一致', hostState.offline !== hostState.bannerHidden, JSON.stringify(hostState));
+  add('data-host-state 与状态灯类名一致',
+    hostState.dataState === (hostState.online ? 'online' : hostState.offline ? 'offline' : ''),
+    JSON.stringify(hostState));
 
   // 3b) 窄侧栏布局硬约束（320–500px 是侧边栏的常态宽度）
   const layout = await page.evaluate(() => {

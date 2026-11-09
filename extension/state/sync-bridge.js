@@ -15,6 +15,28 @@ import * as host from './host-client.js';
 import * as repo from './repository.js';
 
 /**
+ * 同步循环的可观测状态（只读快照，不参与任何转移判定）。
+ *
+ * 这台机器是全项目最敏感的一台（writeSeq 守卫 + lastSig 基线，见 tick），
+ * 所以本模块**只加观测、不改转移**：
+ *   - 'idle'      启动 pull 之前；
+ *   - 'syncing'   一轮 fetch 在途；
+ *   - 'baseline'  基线已建立、真源与 host 一致的稳态（首轮 tick / 首次 pull 成功后）；
+ *   - 'offline'   host 不可达（pull 已回退缓存 / tick 保留当前真源）。
+ *
+ * @type {'idle'|'syncing'|'baseline'|'offline'}
+ */
+let syncState = 'idle';
+
+/**
+ * 当前同步状态（dev-loop / console 调试断言用）。
+ * @returns {'idle'|'syncing'|'baseline'|'offline'}
+ */
+export function getSyncState() {
+  return syncState;
+}
+
+/**
  * 拉取 host 全量数据。
  * - 成功：灌入真源 + 覆盖缓存，返回 `{pulled:true}`
  * - host 离线：回退缓存（含旧格式迁移），返回 `{pulled:false}`
@@ -23,6 +45,7 @@ import * as repo from './repository.js';
  * @returns {Promise<{pulled:boolean}>}
  */
 export async function pullFromHost() {
+  syncState = 'syncing';
   const [cards, journals, todos] = await Promise.all([
     host.listCards(),
     host.listJournals(),
@@ -31,12 +54,14 @@ export async function pullFromHost() {
 
   if (cards === null || journals === null || todos === null) {
     console.debug('[sync-bridge] host offline → fallback to cache');
+    syncState = 'offline';
     await repo.hydrateFromCache();
     return { pulled: false };
   }
 
   repo.hydrate(cards);
   await getPort().storageSet({ cards, journals, todos });
+  syncState = 'baseline';
   return { pulled: true };
 }
 
@@ -52,6 +77,7 @@ export function startHostSync(onChange, intervalMs = 20000) {
   let lastSig = null;
 
   const tick = async () => {
+    syncState = 'syncing';
     // 先记下写入代（本地写 / 迁移都会自增）：请求在途期间若发生过本地写入，
     // 本次响应就是陈旧快照，不能拿它覆盖真源（否则刚保存的卡会被回退 20s 前的样子）。
     const seq = repo.getWriteSeq();
@@ -60,17 +86,24 @@ export function startHostSync(onChange, intervalMs = 20000) {
       host.listJournals(),
       host.listTodos(),
     ]);
-    if (cards === null || journals === null || todos === null) return; // host 离线：保留当前真源
-    if (repo.getWriteSeq() !== seq) return; // 期间本地写过 → 丢弃陈旧响应
+    if (cards === null || journals === null || todos === null) {
+      syncState = 'offline';
+      return; // host 离线：保留当前真源
+    }
+    if (repo.getWriteSeq() !== seq) {
+      syncState = 'baseline';
+      return; // 期间本地写过 → 丢弃陈旧响应（真源仍以本地写入为准）
+    }
 
     const sig = JSON.stringify([cards, journals, todos]);
     // 首轮只建基线，不触发渲染（避免与 init 的首次全量渲染重复）
-    if (lastSig === null) { lastSig = sig; return; }
-    if (sig === lastSig) return;
+    if (lastSig === null) { lastSig = sig; syncState = 'baseline'; return; }
+    if (sig === lastSig) { syncState = 'baseline'; return; }
 
     lastSig = sig;
     repo.hydrate(cards);
     await getPort().storageSet({ cards, journals, todos });
+    syncState = 'baseline';
     onChange();
   };
 
