@@ -3,6 +3,7 @@
  */
 
 import { listFieldDefs } from '../shared/field-registry.js';
+import { statusLabel } from '../shared/card-schema.js';
 import { PROP_TYPES, defaultValueForType, inferProp } from '../shared/prop-infer.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
@@ -286,7 +287,9 @@ export function buildTplDefaultEditor(def) {
   if (def.type === 'status' || def.type === 'select') {
     const sel = document.createElement('select'); sel.className = 'prop-input';
     sel.append(new Option('', ''));
-    for (const o of def.options || []) sel.append(new Option(o, o));
+    // 内建状态的值是 key（none/todo/doing/done），必须显成中文：
+    // 否则模板构建器里选的是 none，编辑器里看到的是「纯记录」——同一字段两套词。
+    for (const o of def.options || []) sel.append(new Option(def.behavior === 'status' ? statusLabel(o) : o, o));
     sel.value = cur ?? '';
     sel.addEventListener('change', () => set(sel.value));
     return sel;

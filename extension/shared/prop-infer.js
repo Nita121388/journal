@@ -10,6 +10,19 @@
    ================================================================ */
 
 import { searchEmojis } from './emoji-search.js';
+import { statusLabel, STATUSES } from './card-schema.js';
+
+/**
+ * 自定义属性名为「状态/阶段」时的候选值。
+ *
+ * 取值必须与卡片内建状态同一套词（`shared/card-schema.js`）——
+ * 2026-11-09 前这里另有一份只有 3 项的拷贝（缺「纯记录」），
+ * 于是用户新建一个叫「状态」的属性时得到的选项比内建状态少一档。
+ * @returns {string[]}
+ */
+function statusLabels() {
+  return STATUSES.map(statusLabel);
+}
 
 /**
  * 关键词规则表。first-match-wins：按数组顺序匹配 name。
@@ -34,7 +47,7 @@ const RULES = [
   // ── 选择类 ──────────────────────────────────────────────
   { kws: ['优先级', '优先', 'priority', '重要度', '紧急度', '重要程度'], type: 'select', icon: '⭐️', opts: ['高', '中', '低'] },
   { kws: ['风险', 'risk'], type: 'select', icon: '⚠️', opts: ['高', '中', '低', '无'] },
-  { kws: ['状态', '阶段', 'status', 'state'], type: 'select', icon: '📌', opts: ['未开始', '进行中', '已完成'] },
+  { kws: ['状态', '阶段', 'status', 'state'], type: 'select', icon: '📌', opts: statusLabels() },
   { kws: ['负责人', '责任人', '执行人', 'owner', 'assignee', '负责', '参与者', '成员'], type: 'text', icon: '👤' },
   { kws: ['类型', '类别', '分类', '级别', '等级', '部门', '来源', 'type', 'category'], type: 'select', icon: '🏷️' },
 

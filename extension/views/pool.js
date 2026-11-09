@@ -8,6 +8,7 @@
  */
 
 import { currentTime, snapUpToQuarter, addMinutes, cardMatchesQuery } from '../shared/model.js';
+import { statusLabel, statusOptions } from '../shared/card-schema.js';
 import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
 import { shortDate, typeIcon, cardPrimaryText } from '../shared/format.js';
 import { els } from '../components/dom-refs.js';
@@ -17,16 +18,13 @@ import { actions } from '../state/actions.js';
 
 // 术语统一（评审 P1-5）：`待办` 曾同时指「一个筛选集」「一个状态」「一个类型」
 // 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「未开始/进行中/已完成/纯记录」。
+// 状态词只从 shared/card-schema.js 的 STATUS_LABELS 取：
+// 2026-11-09 之前这里存了第二份中文标签拷贝（还带功能 emoji），与编辑器胶囊各说一词。
 const STATUS_OPTIONS = [
   { value: '', label: '全部' },
-  { value: 'active', label: '⏳ 未完成' },
-  { value: 'todo', label: '📌 未开始' },
-  { value: 'doing', label: '🔥 进行中' },
-  { value: 'done', label: '✅ 已完成' },
-  { value: 'none', label: '📝 纯记录' },
+  { value: 'active', label: '未完成' },
+  ...statusOptions(),
 ];
-/** 与筛选条共用同一套词，避免同一状态两个名字 */
-const STATUS_LABEL = { todo: '未开始', doing: '进行中', done: '已完成', none: '纯记录' };
 
 /** 状态匹配：active = todo ∪ doing（待办视图） */
 function statusMatches(card, f) {
@@ -187,7 +185,7 @@ export async function renderCardPool() {
     // 键盘可达：卡片可 Tab 聚焦，Enter/空格打开编辑器
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
-    li.setAttribute('aria-label', `${cardPrimaryText(card, '空卡片')}${statusVal && statusVal !== 'none' ? '，' + (STATUS_LABEL[statusVal] || statusVal) : ''}`);
+    li.setAttribute('aria-label', `${cardPrimaryText(card, '空卡片')}${statusVal && statusVal !== 'none' ? '，' + statusLabel(statusVal) : ''}`);
     // 支持拖拽到今日时间线（HTML5 DnD）
     li.draggable = true;
     let cardDragged = false; // 真拖拽后抑制 click 打开编辑器
@@ -222,7 +220,7 @@ export async function renderCardPool() {
       if (b !== 'status' && b !== 'priority' && b !== 'progress') continue;
       const v = readValueFromCard(card, def.key);
       if (b === 'status') {
-        metaRow.append(chipSpan('cardpool-status-badge', STATUS_LABEL[v] || v || '纯记录'));
+        metaRow.append(chipSpan('cardpool-status-badge', statusLabel(v)));
       } else if (b === 'priority') {
         if (v && v !== 'medium') metaRow.append(chipSpan('cardpool-prio', v === 'high' ? '🔴' : '🟢'));
       } else if (b === 'progress') {

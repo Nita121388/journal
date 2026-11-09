@@ -232,12 +232,9 @@
           <div class="prop-row" data-key="status" data-field="status">
             <div class="prop-key"><i class="prop-key-icon" data-icon="pin" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">状态</span></div>
             <div class="prop-val prop-val--stack">
-              <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
-                <button type="button" class="seg is-active" role="radio" aria-checked="true" data-status="none">纯记录</button>
-                <button type="button" class="seg" role="radio" aria-checked="false" data-status="todo">未开始</button>
-                <button type="button" class="seg" role="radio" aria-checked="false" data-status="doing">进行中</button>
-                <button type="button" class="seg" role="radio" aria-checked="false" data-status="done">已完成</button>
-              </div>
+              <!-- 状态胶囊由 features/card-editor.js 的 ensureStatusButtons() 从
+                   shared/card-schema.js 的 statusOptions() 渲染（文案唯一真值，勿在此硬编码） -->
+              <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态"></div>
               <input id="card-editor-status-custom" type="text" maxlength="20" placeholder="自定义状态，如：等待反馈" aria-label="自定义状态" autocomplete="off" />
             </div>
           </div>

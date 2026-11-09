@@ -20,6 +20,7 @@ import { actions } from '../state/actions.js';
 
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
+import { statusOptions, STATUSES } from '../shared/card-schema.js';
 import { renderEditorProps, closePropForm } from './editor-props.js';
 import { applyFields, fieldsWithValues, resolveFields } from './editor-fields.js';
 import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
@@ -336,8 +337,28 @@ export function onEditorStatusChange() {
   updateEditorProgressLabel();
 }
 
-const STATUS_PRESETS = ['none', 'todo', 'doing', 'done'];
+const STATUS_PRESETS = STATUSES;
 const PRIORITY_PRESETS = ['high', 'medium', 'low'];
+
+/**
+ * 状态胶囊的文案与值来自 `shared/card-schema.js` 的 `statusOptions()`（唯一真值）。
+ * 2026-11-09 之前这 4 个按钮的标签硬编码在 sidepanel.html 里，卡片池又存了另一份拷贝，
+ * 导致「同一张卡」在不同入口可能有两个名字。
+ */
+function ensureStatusButtons() {
+  if (!editorStatusSeg) return;
+  if (editorStatusSeg.querySelector('.seg')) return; // 已渲染（幂等）
+  for (const { value, label } of statusOptions()) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'seg';
+    btn.dataset.status = value;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', 'false');
+    btn.textContent = label;
+    editorStatusSeg.append(btn);
+  }
+}
 
 /**
  * 两组分段胶囊的控制器（状态 / 优先级）。
@@ -348,6 +369,7 @@ const PRIORITY_PRESETS = ['high', 'medium', 'low'];
 const segGroups = { status: null, priority: null };
 
 function ensureSegGroups() {
+  ensureStatusButtons();
   if (!segGroups.status && editorStatusSeg) {
     segGroups.status = createSegGroup(editorStatusSeg, {
       dataKey: 'status',

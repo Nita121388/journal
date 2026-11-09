@@ -61,6 +61,15 @@ describe('writeValueToCard / readValueFromCard', () => {
     writeValueToCard(c, 'title', null);
     expect(c.title).toBe('');
   });
+  it('空字符串按 empty 兜底（模板字段默认值未填时的回归）', () => {
+    // 模板里「状态」默认值留空 → 旧逻辑会把 '' 原样写进 card.status，
+    // 于是卡片池 statusMatches(card,'none') 匹配不到，卡在「纯记录」筛选下消失。
+    const c = {};
+    writeValueToCard(c, 'status', '');
+    expect(c.status).toBe('none');
+    writeValueToCard(c, 'priority', '');
+    expect(c.priority).toBe('medium');
+  });
   it('schedule 展开为 start/end/duration', () => {
     const c = {};
     writeValueToCard(c, 'schedule', { start: '09:00', end: '10:00', duration: 60 });

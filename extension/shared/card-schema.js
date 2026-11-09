@@ -21,6 +21,38 @@ export const PRIORITIES = Object.freeze(['high', 'medium', 'low']);
 /** 状态全集（默认由 type+done 推导） */
 export const STATUSES = Object.freeze(['none', 'todo', 'doing', 'done']);
 
+/**
+ * 状态显示名（**唯一真值**）。
+ *
+ * 2026-11-09 之前这些中文名散落在三处：`sidepanel.html` 的状态胶囊硬编码、
+ * `views/pool.js` 的筛选与徽标、以及 `shared/prop-infer.js` 的一份 3 项变体，
+ * 于是「同一张卡」在不同入口有两个名字。现在一律从这里取。
+ */
+export const STATUS_LABELS = Object.freeze({
+  none: '纯记录',
+  todo: '未开始',
+  doing: '进行中',
+  done: '已完成',
+});
+
+/**
+ * 取状态显示名（未知值原样返回，便于自定义状态兼容）。
+ * @param {string|null|undefined} status
+ * @returns {string}
+ */
+export function statusLabel(status) {
+  if (!status) return STATUS_LABELS.none;
+  return STATUS_LABELS[status] ?? String(status);
+}
+
+/**
+ * 内建状态的「值 + 显示名」列表（编辑器胶囊、模板默认值下拉、筛选条共用）。
+ * @returns {Array<{value: string, label: string}>}
+ */
+export function statusOptions() {
+  return STATUSES.map(value => ({ value, label: STATUS_LABELS[value] }));
+}
+
 /** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖一级字段 */
 export const RESERVED_PROPS = new Set([
   'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime',

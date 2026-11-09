@@ -158,7 +158,11 @@ export function writeValueToCard(card, key, value) {
   // card 一级字段
   const fields = st.fields || {};
   if (fields.value !== undefined) {
-    let v = value ?? empty;
+    // 空字符串一律视为「未填」：走 empty 兜底。
+    // 反例（已修）：模板把状态默认值留成 '' 时，旧逻辑 `value ?? empty` 会把 `''`
+    // 原样写进 card.status，使卡片池的 statusMatches(card,'none') 匹配不到 → 卡在
+    // 「纯记录」筛选下凭空消失，而编辑器又把它显示成「纯记录」。
+    let v = (value === '' || value === undefined || value === null) ? empty : value;
     if (def.type === 'tags') v = Array.isArray(value) ? value : (value ?? empty);
     card[fields.value] = v;
     return true;
