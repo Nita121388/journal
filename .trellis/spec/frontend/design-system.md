@@ -182,6 +182,14 @@
 **逃生口**：模板下拉末项「显示全部属性」一次性展开全部内建属性（不建模板、不改数据）。
 无模板时用户仍能填优先级/排程，不必先造一个模板。
 
+## 11. 两个页面共用一套 token 值（2026-11-09）
+
+`styles/tokens.css`（侧栏）与 `styles/tokens-options.css`（设置页）**值必须逐项同源**，
+只册因为 options.html 不加载 `dist/sidepanel.css` 才物理分开，不是两套视觉语言。
+「设置页 = 成长绿独立身份」的旧主张已作废。
+旧变量名（`--color-text-2` / `--color-border-strong` / `--color-accent-deep` / `--color-code-bg`）
+作为别名保留，新增样式一律用新 token。改一处必须同步另一处，并跑 `options` 场景验收。
+
 ## 8. 反模式（Code Review 拦截项）
 
 - ❌ 硬编码 hex（必须语义 token）

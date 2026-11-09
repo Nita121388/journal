@@ -47,7 +47,7 @@ extension/
 │   └── milkdown-entry.js  #   产物入口（只导出 mountReadonly/unmount/liveCount/version）
 ├── styles/
 │   ├── tokens.css         # ✦ 主界面设计 token 的唯一定义处
-│   └── tokens-options.css # ✦ 设置页 token 的唯一定义处
+│   └── tokens-options.css # ✦ 设置页 token 的唯一定义处（值须与 tokens.css 同源）
 │
 ├── entries/               # 组合根：唯一选择端口 + 注入依赖 + 启动
 │   ├── sidepanel.js       #   启动引导（13 行，只 import app.js:init）
