@@ -53,3 +53,6 @@ coverage/
 
 # 一次性备份快照（重构前代码副本，不入库）
 _backup_*/
+
+# 生成的答案页（am render 产物，单文件数百 KB，不入库）
+docs/answers/
