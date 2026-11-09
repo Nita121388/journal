@@ -361,8 +361,10 @@ export async function runSelectOptions({ page, extId }) {
   });
   add('sync-provider 已增强', r.exists && r.enhanced, r.exists ? `size=${r.size}` : 'missing');
   add('sync-provider 为 md 尺寸档', r.size === 'md', r.size);
-  add('sync-provider 触发器 md 样式（13px/38px/12px）',
-    r.fontSize === '13px' && r.height === '38px' && r.radius === '12px',
+  // 圆角 10px = Quiet Desk 的 --r-ctl-lg（原 12px 是重构前的取值）：
+  // 圆角 ≈ 0.3 × 控件高，38px 高控件落在 10–12 之间，取 10 与侧栏同档一致。
+  add('sync-provider 触发器 md 样式（13px/38px/10px）',
+    r.fontSize === '13px' && r.height === '38px' && r.radius === '10px',
     `${r.fontSize}/${r.height}/${r.radius}`);
   add('sync-provider 触发器显示选中值', !!r.text && r.text !== '请选择', r.text);
   add('sync-provider 触发器可访问名取自 label 文本', r.aria === '同步方式', r.aria);

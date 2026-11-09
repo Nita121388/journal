@@ -1,62 +1,112 @@
 /**
  * tokens-options.css — 设置页设计 token 唯一定义处
  *
- * 设置页与侧栏是不同"页面身份"（成长绿 vs 看板绿），故 token 值各自独立，
- * 但语义命名（--color-bg/surface/text/muted/border/accent/danger/warn…）保持同一契约。
+ * 2026-11-09 起：设置页**收进 Quiet Desk 单一视觉语言**（用户拍板，方案 A）。
+ * 原「设置页 = 成长绿独立页面身份」的主张作废 —— 全站只有一套 token 值，
+ * 两个文件各自定义只是为了让 options.html 不必加载侧栏专属样式（dist/sidepanel.css 未被它引入）。
+ *
+ * 因此本文件的值必须与 `styles/tokens.css` **逐项同源**；改一处必须同步另一处。
+ * 语义命名（--color-bg/surface/text/muted/border/accent/danger/warn…）保持同一契约，
+ * 旧名（--color-text-2 / --color-border-strong / --color-accent-deep / --color-code-bg…）
+ * 一律作为别名指向新 token，保证 options.css 零改动仍能工作。
+ *
  * 顺序要求：在 options.css 之前引入（见 options.html）。
+ * 约束：本文件是设置页**唯一**允许出现 hex 的地方。
  */
 
 :root {
-  --color-bg: #f6f8f7;
-  --color-surface: #ffffff;
-  --color-surface-2: #f0f5f2;
-  --color-text: #1f2a25;
-  --color-text-2: #5a6b63;
-  --color-muted: #8ba098;
-  --color-border: #e4ebe7;
-  --color-border-strong: #cfdcd5;
-  --color-accent: #5bb974;
-  --color-accent-deep: #3e9b58;
-  --color-accent-soft: #e7f4ec;
-  --color-coral: #f2908f;
-  --color-danger: #e5534b;
-  --color-warn: #b7791f;                   /* 提示文字（field-hint） */
-  --color-code-bg: #eef3ef;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  /* 1. 表面（三层） */
+  --canvas: #fbfbfc;
+  --surface: #ffffff;
+  --sunken: #f1f3f6;
+
+  /* 2. 文字 */
+  --ink: #14161a;
+  --ink-soft: #5a616d;
+  --ink-weak: #696f7c;
+
+  /* 3. 描边 */
+  --line: #e9eaef;
+  --line-2: #dcdfe6;
+
+  /* 4. 主色（唯一；只出现在主操作/选中/焦点环） */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff4ff;
+  --on-accent: #ffffff;
+
+  /* 5. 语义 */
+  --danger: #dc2626;
+  --warn: #b45309;
+  --success: #12805c;
+
+  /* 6. 尺寸标尺（与 styles/tokens.css 同源） */
+  --font: -apple-system, "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
     "Microsoft YaHei", sans-serif;
-  --shadow-card: 0 1px 2px rgba(31, 42, 37, 0.04),
-    0 6px 20px rgba(31, 42, 37, 0.05);
-  --radius-lg: 16px;
-  --radius-md: 10px;
-  --radius-sm: 8px;
-  /* 自建下拉框（select.css）：BoardUI 风格令牌，见 sidepanel.css 同名定义 */
-  --select-radius-sm: 10px;
-  --select-radius-md: 12px;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --radius-lg: 12px;                        /* = --r-card */
+  --radius-md: 8px;                         /* = --r-ctl-md */
+  --radius-sm: 6px;                         /* = --r-chip */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);              /* = --shadow-1 */
+  --shadow-popover: 0 8px 24px rgba(16, 24, 40, 0.08);          /* = --shadow-2 */
+
+  /* ═══ 旧名别名（指向新 token，保持 options.css 零改动） ═══ */
+  --color-bg: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--sunken);
+  --color-text: var(--ink);
+  --color-text-2: var(--ink-soft);
+  --color-muted: var(--ink-weak);
+  --color-border: var(--line);
+  --color-border-strong: var(--line-2);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-hover: color-mix(in srgb, var(--ink) 6%, transparent);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-success: var(--success);
+  /* 原「成长绿」体系里的过渡色：设置页不再有独立语义，统一并入危险/警示色 */
+  --color-coral: var(--danger);
+  --color-code-bg: var(--sunken);
+  --color-focus: var(--accent);
+
+  /* 自建下拉框（select.css）：与侧栏同一标尺，设置页控件更高一档 */
+  --select-radius-sm: 8px;
+  --select-radius-md: 10px;
   --select-h-sm: 32px;
   --select-h-md: 38px;   /* 与本页 .field input 的 min-height 视觉对齐 */
-  --select-shadow: 0 1px 2px rgba(31, 42, 37, 0.05);
-  --select-pop-shadow: 0 6px 20px rgba(31, 42, 37, 0.10);
-  --select-hover-border: var(--color-border-strong);
+  --select-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --select-pop-shadow: 0 8px 24px rgba(16, 24, 40, 0.08);
+  --select-hover-border: var(--line-2);
   --select-dur: 200ms;
   --select-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --color-focus: color-mix(in srgb, var(--color-accent) 70%, #000);
 }
 
+/* 暗色（深石板，非纯黑）：与 styles/tokens.css 的 [data-theme="dark"] 同源 */
 [data-theme="dark"] {
-  --color-bg: #141a17;
-  --color-surface: #1e2622;
-  --color-surface-2: #232e28;
-  --color-text: #e4ede7;
-  --color-text-2: #a7b8af;
-  --color-muted: #6d7f76;
-  --color-border: #2c3831;
-  --color-border-strong: #3a4a41;
-  --color-accent: #6cc585;
-  --color-accent-deep: #83d69b;
-  --color-accent-soft: #1f3327;
-  --color-coral: #e88d8b;
-  --color-danger: #f0645c;
-  --color-code-bg: #27342c;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 8px 24px rgba(0, 0, 0, 0.35);
+  --canvas: #0f1115;
+  --surface: #171a20;
+  --sunken: #13161b;
+  --raised: #1e232b;
+
+  --ink: #edeff3;
+  --ink-soft: #a2a8b4;
+  --ink-weak: #8b93a1;
+
+  --line: #262a32;
+  --line-2: #333945;
+
+  --accent: #5b8dff;
+  --accent-hover: #7fa8ff;
+  --accent-soft: #1b2740;
+  --on-accent: #0b1220;
+
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --success: #4ade80;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
 }

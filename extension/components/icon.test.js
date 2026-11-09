@@ -16,7 +16,7 @@ const REQUIRED = [
   'timeline', 'chevronLeft', 'chevronRight', 'chevronDown', 'flame', 'search', 'filter',
   'template', 'save', 'copy', 'tag', 'folder', 'close', 'check', 'more', 'pin', 'sparkle', 'trash',
   'layout', 'list', 'grid',
-  'gauge', 'flag', 'clock', 'play', 'note',
+  'gauge', 'flag', 'clock', 'play', 'note', 'sync',
 ];
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

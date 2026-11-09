@@ -1,6 +1,8 @@
 /* options.css — Journal 设置页样式
-   视觉语言：成长绿 #5BB974 · 圆润 · 克制留白 · Twemoji 质感
-   对齐项目设计规范（见 09-21-design-project-icon） */
+   视觉语言：Quiet Desk（2026-11-09 起设置页收进全站单一体系，与侧栏同源）。
+   token 见 styles/tokens-options.css（本文件不写 hex：提示色走 --color-warn / --color-on-accent）。 */
+
+/* 页面底：纯 canvas（原「成长绿」径向渐变已移除 —— 装饰性渐变不参与层级，只增噪） */
 
 * { box-sizing: border-box; }
 
@@ -11,10 +13,7 @@ html, body {
 }
 
 body {
-  background:
-    radial-gradient(1100px 480px at 12% -8%, rgba(91, 185, 116, 0.10), transparent 60%),
-    radial-gradient(900px 420px at 100% 0%, rgba(242, 144, 143, 0.06), transparent 55%),
-    var(--color-bg);
+  background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font);
   display: flex;
@@ -231,8 +230,8 @@ h3:first-of-type { margin-top: 10px; }
 }
 
 .host-status-card .section-icon {
-  background: #fff4df;
-  color: #c27b22;
+  background: color-mix(in srgb, var(--color-warn) 12%, var(--color-surface));
+  color: var(--color-warn);
 }
 
 .eyebrow {
@@ -374,10 +373,8 @@ h3:first-of-type { margin-top: 10px; }
 
 .btn:hover {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  transform: translateY(-1px);
 }
 
 .btn:active { transform: translateY(0); }
@@ -400,10 +397,10 @@ h3:first-of-type { margin-top: 10px; }
   margin-top: 10px;
 }
 
-/* 主按钮：实心绿（AI 区保存配置用） */
+/* 主按钮：实心主色（AI 区保存配置用） */
 .btn-primary {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
 }
 
@@ -488,7 +485,7 @@ h3:first-of-type { margin-top: 10px; }
 
 .btn-row .btn#sync-now {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   border-color: var(--color-accent);
 }
 
@@ -585,8 +582,8 @@ h3:first-of-type { margin-top: 10px; }
   top: 2px; left: 2px;
   width: 18px; height: 18px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(31, 42, 37, 0.25);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s ease;
 }
 .switch-input:checked + .switch-track { background: var(--color-accent); }
