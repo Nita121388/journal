@@ -59,11 +59,11 @@ node dev-loop/dev-loop.mjs --scenario select
 - [ ] `views/heatmap.js` / `views/calendar.js` / `views/skills.js` 对齐新标尺
 - **出口**：面板抽屉在 320px 下不挤压主区
 
-## P5 弹窗与附属页
+## P5 弹窗与附属页 ✅（2026-11-09 完成，子任务已归档）
 
-- [ ] `sidepanel.html` 卡片编辑器/模板构建器/app-dialog：属性行图标换 SVG、控件高度统一
-- [ ] `options.html` + `options.css` + `styles/tokens-options.css`：同步纸感
-- [ ] `select.css`：圆角/高度/焦点环对齐新标尺（两页共享）
+- [x] `sidepanel.html` 卡片编辑器/模板构建器/app-dialog：属性行图标换 SVG、控件高度统一
+- [x] `options.html` + `options.css` + `styles/tokens-options.css`：同步 Quiet Desk（单蓝，值同源）
+- [x] `select.css`：圆角/高度/焦点环对齐新标尺（两页共享；弹窗内触发器 28px）
 - **出口**：`options` / `select` / `tpl` / `llm` 场景全绿
 
 ## P6 签名细节与收口

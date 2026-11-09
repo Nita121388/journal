@@ -29,6 +29,6 @@
   ],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "\n## P5 完成 2026-11-09（4/7）\n子任务 11-08-visual-p5-dialogs-pages 已归档（archive/2026-11/）。\n内容：编辑器属性集改模板驱动（默认只给状态/标签）+ 弹窗功能 emoji 清零 + 0 合成层 +\n按钮接基元 + 版本徽标进 UI + 设置页收进 Quiet Desk 单蓝 + 新增 dev-loop editor 场景。\n顺带修用户实测发现的 4 个缺陷：状态词三处定义/模板默认值把 status 写成空串/\n弹窗两层边框与矮下拉/「编辑属性」点了没反应（blur 竞态 + ESM 只读绑定）。\n剩余阶段：p0 方向样张（已定稿可关）、p4 面板与卡片池、p6 收口。\n",
   "meta": {}
 }
