@@ -48,6 +48,8 @@ export function createChromePort() {
 
     sendMessage: (msg) => chrome.runtime.sendMessage(msg),
     openOptionsPage: () => chrome.runtime.openOptionsPage(),
+    /** manifest 元信息（版本 / 名称 / version_name）—— 版本徽标的单一真值。 */
+    getManifest: () => chrome.runtime.getManifest(),
     hostFetch,
 
     // 同步偏好（扩展页可用 localStorage）：供 UI 视图状态等同步读取的小偏好。

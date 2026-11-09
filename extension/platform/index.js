@@ -16,6 +16,7 @@
  * @property {(cb: (changes: Record<string, {newValue?: unknown, oldValue?: unknown}>) => void) => (() => void)} storageSubscribe
  * @property {(msg: object) => Promise<object>} sendMessage
  * @property {() => void} openOptionsPage
+ * @property {() => {version?: string, version_name?: string, name?: string}} getManifest
  * @property {(key: string) => string|null} prefGet
  * @property {(key: string, value: string) => void} prefSet
  * @property {(key: string) => void} prefRemove

@@ -66,6 +66,11 @@ export function createWebPort() {
     }),
 
     openOptionsPage: () => { window.location.href = 'options.html'; },
+    /**
+     * web 端口没有 chrome.runtime：由宿主（dev-loop / 测试）注入 `__JOURNAL_MANIFEST__`，
+     * 保证版本徽标与真 manifest 同源，不在代码里再写一份常量。
+     */
+    getManifest: () => globalThis.__JOURNAL_MANIFEST__ ?? { version: '0.0.0' },
     hostFetch,
 
     // 同步偏好（web 即 localStorage）。

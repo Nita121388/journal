@@ -12,6 +12,7 @@ import { autoEnhance as enhanceSelects } from '../features/select.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 import { getPort } from '../platform/index.js';
 import { cardsToMarkdown } from '../shared/md-export.js';
+import { renderVersionBadge } from '../components/version-badge.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
 
@@ -584,3 +585,6 @@ async function init() {
 }
 
 init();
+
+// 版本徽标：单一真值 = manifest（“我装的是哪个包”在页面上可见）
+renderVersionBadge(document.getElementById('app-version'), getPort().getManifest?.());

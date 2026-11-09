@@ -9,5 +9,11 @@
  */
 
 import { init } from './app.js';
+import { renderVersionBadge } from '../components/version-badge.js';
+import { getPort } from '../platform/index.js';
+
+// 版本先渲染，再走 init：host 离线 / init 抛错时用户仍能确认装的是哪个包
+// （2026-11-09“改了看不到”的直接解药）。
+renderVersionBadge(document.getElementById('app-version'), getPort().getManifest?.());
 
 init().catch(err => console.error('[journal] init failed:', err));

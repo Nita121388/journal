@@ -64,6 +64,18 @@ header#header {
   margin-top: 1px;
 }
 
+/* 版本徽标（components/version-badge.js）：与侧栏同一契约，只在配色上跟随设置页 token */
+.app-version {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--color-muted);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.app-version[hidden] { display: none; }
+
 /* ─── 主体 ─────────────────────────────── */
 
 main {

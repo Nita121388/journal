@@ -30,6 +30,7 @@ header#header {
 }
 
 #header-left { display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1 1 auto; }
+
 #app-title {
   display: inline-flex;
   align-items: center;
@@ -53,6 +54,20 @@ header#header {
   font-weight: 700;
   line-height: 1;
 }
+
+/* 版本徽标（components/version-badge.js）：发丝级信息，不参与层级。
+ * R11：不用主色、不加背景 —— 它只回答“我装的是哪个包”。 */
+.app-version {
+  font-size: var(--fs-10-5);
+  font-weight: 500;
+  color: var(--ink-weak);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.app-version[hidden] { display: none; }
+
 #today-display {
   font-size: 11.5px;
   color: var(--ink-weak);
