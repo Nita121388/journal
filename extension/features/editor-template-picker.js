@@ -10,12 +10,14 @@
 
 import { icon } from '../components/icon.js';
 import { FIELD_ORDER } from './editor-fields.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 import { getHostMeta } from '../state/host-client.js';
 
 const MENU_ID = 'editor-template-menu';
 
 /** 关闭下拉（幂等） */
 export function closeTemplatePicker() {
+  popLayer(MENU_ID);
   document.getElementById(MENU_ID)?.remove();
 }
 
@@ -99,15 +101,6 @@ export async function openTemplatePicker(anchor, { onPick, activeId = null } = {
   menu.style.top = `${rect.bottom + 4}px`;
   menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 240))}px`;
   document.body.append(menu);
-
-  // 点外部关闭：延后注册，避免本次点击立刻关掉
-  setTimeout(() => {
-    const handler = (e) => {
-      if (!menu.contains(e.target)) {
-        menu.remove();
-        document.removeEventListener('click', handler);
-      }
-    };
-    document.addEventListener('click', handler);
-  }, 0);
+  // 登记：菜单类浮层，Esc / 外点（点锚点除外）只关它自己，不动编辑器
+  pushLayer({ id: MENU_ID, el: menu, close: closeTemplatePicker, ignore: [anchor] });
 }

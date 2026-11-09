@@ -7,6 +7,7 @@ import { statusLabel } from '../shared/card-schema.js';
 import { PROP_TYPES, defaultValueForType, inferProp } from '../shared/prop-infer.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 import {
   REQUIRED_DEFS, renderTemplateBuilder, tplBuilderState, tplPropList, typeLabel,
 } from './template-builder.js';
@@ -16,13 +17,11 @@ import {
 import { openTplEditProp } from './template-menu.js';
 
 export let fieldPickerEl = null;
-let fieldPickerCleanup = null;
 
 export function closeFieldPicker() {
-  fieldPickerCleanup?.();
-  fieldPickerCleanup = null;
   fieldPickerEl?.remove();
   fieldPickerEl = null;
+  popLayer('tpl-field-picker');
 }
 
 /** 模板里已占用的 key（必选锁定行 + 已加入的 extra） */
@@ -92,16 +91,8 @@ export function openFieldPicker(anchor) {
   const r = anchor.getBoundingClientRect();
   menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
   menu.style.top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)) + 'px';
-  const onDown = (e) => { if (!menu.contains(e.target) && e.target !== anchor) closeFieldPicker(); };
-  const onKey = (e) => { if (e.key === 'Escape') closeFieldPicker(); };
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-  }, 0);
-  fieldPickerCleanup = () => {
-    document.removeEventListener('mousedown', onDown);
-    document.removeEventListener('keydown', onKey);
-  };
+  // Esc / 外点由 layer-stack 统一派发（点锚点不关，兼容「点添加行重开」）
+  pushLayer({ id: 'tpl-field-picker', el: menu, close: closeFieldPicker, ignore: [anchor] });
 }
 
 /** 新增属性：先给一个默认行，再进入命名编辑（输入即自动推断） */
@@ -163,13 +154,11 @@ function changePropType(key, type) {
 /* ── 行右键菜单 ───────────────────────────────────────────── */
 
 export let propRowMenuEl = null;
-let propRowMenuCleanup = null;
 
 export function closePropRowMenu() {
-  propRowMenuCleanup?.();
-  propRowMenuCleanup = null;
   propRowMenuEl?.remove();
   propRowMenuEl = null;
+  popLayer('tpl-prop-menu');
 }
 function menuSep() { const s = document.createElement('div'); s.className = 'tpl-ctx-sep'; return s; }
 function ctxItem(text, onClick, cls = '') {
@@ -228,16 +217,8 @@ export function openPropRowMenu(row, key, def, locked, x, y) {
   document.body.append(menu);
   menu.style.left = Math.max(8, Math.min(x, window.innerWidth - menu.offsetWidth - 8)) + 'px';
   menu.style.top = Math.max(8, Math.min(y, window.innerHeight - menu.offsetHeight - 8)) + 'px';
-  const onDown = (e) => { if (!menu.contains(e.target)) closePropRowMenu(); };
-  const onKey = (e) => { if (e.key === 'Escape') closePropRowMenu(); };
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-  }, 0);
-  propRowMenuCleanup = () => {
-    document.removeEventListener('mousedown', onDown);
-    document.removeEventListener('keydown', onKey);
-  };
+  // Esc / 外点由 layer-stack 统一派发（右键菜单无锚点，点菜单外任何地方都关）
+  pushLayer({ id: 'tpl-prop-menu', el: menu, close: closePropRowMenu });
 }
 
 /* ── 行内图标选择器（浮层） ───────────────────────────────── */
@@ -250,6 +231,7 @@ export function closeRowIconPicker() {
   rowIconCleanup = null;
   rowIconPop?.remove();
   rowIconPop = null;
+  popLayer('tpl-row-icon');
 }
 
 export function openRowIconPicker(anchor, current, onPick) {
@@ -263,20 +245,12 @@ export function openRowIconPicker(anchor, current, onPick) {
     onPick(char);
     closeRowIconPicker();
   }, { selected: current || '' });
+  rowIconCleanup = pickerCleanup; // renderEmojiPicker 的清理函数（清空 innerHTML）
   const r = anchor.getBoundingClientRect();
   pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
   pop.style.top = Math.min(r.bottom + 4, Math.max(8, window.innerHeight - pop.offsetHeight - 8)) + 'px';
-  const onDown = (e) => { if (!pop.contains(e.target) && !anchor.contains(e.target)) closeRowIconPicker(); };
-  const onKey = (e) => { if (e.key === 'Escape') closeRowIconPicker(); };
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-  }, 0);
-  rowIconCleanup = () => {
-    pickerCleanup?.();
-    document.removeEventListener('mousedown', onDown);
-    document.removeEventListener('keydown', onKey);
-  };
+  // Esc / 外点由 layer-stack 统一派发（点瓦片重开）
+  pushLayer({ id: 'tpl-row-icon', el: pop, close: closeRowIconPicker, ignore: [anchor] });
 }
 
 /** 按属性类型构建默认值编辑器，改动写入 tplBuilderState.values */

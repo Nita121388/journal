@@ -11,6 +11,7 @@
 import {
   appDialog, appDialogTitle, appDialogBody, appDialogActions, appDialogClose,
 } from '../components/dom-refs.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 
 /** @type {((v:any)=>void)|null} */
 let resolveCurrent = null;
@@ -23,6 +24,7 @@ function settle(value) {
   resolveCurrent = null;
   detach?.();
   detach = null;
+  popLayer('app-dialog');
   if (appDialog) appDialog.classList.add('hidden');
   if (appDialogBody) appDialogBody.replaceChildren();
   if (appDialogActions) appDialogActions.replaceChildren();
@@ -73,21 +75,20 @@ export function openDialog({ title, render, actions }) {
 
   appDialog.classList.remove('hidden');
 
-  // Esc 取消：capture 阶段抢先，避免编辑器等既有 Esc 处理同时响应
-  const onKey = (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      settle(null);
-    }
-  };
+  // Esc 取消：由 features/layer-stack.js 统一派发（浮层唯一所有者）。
+  // dialog 是模态：外点语义由下面的 **遮罩自身 click** 承担（点内容区不关），
+  // 所以注册时 dismissOnOutsideClick=false，栈里 Esc 只关栈顶这一层。
+  pushLayer({
+    id: 'app-dialog',
+    el: appDialog,
+    close: () => settle(null),
+    dismissOnOutsideClick: false,
+  });
   const onOverlay = (e) => { if (e.target === appDialog) settle(null); };
   const onClose = () => settle(null);
-  document.addEventListener('keydown', onKey, true);
   appDialog.addEventListener('click', onOverlay);
   appDialogClose?.addEventListener('click', onClose);
   detach = () => {
-    document.removeEventListener('keydown', onKey, true);
     appDialog.removeEventListener('click', onOverlay);
     appDialogClose?.removeEventListener('click', onClose);
   };

@@ -4,7 +4,7 @@
 保存模板、从当前卡预填、模板菜单（新建/管理/删除）、从模板建卡。
  */
 
-import { els } from '../components/dom-refs.js';
+import { els, tplBuilderTile } from '../components/dom-refs.js';
 import { icon } from '../components/icon.js';
 import { writeValueToCard } from '../shared/field-registry.js';
 import { RESERVED_PROPS, currentTime } from '../shared/model.js';
@@ -16,8 +16,9 @@ import { vs } from '../state/view-state.js';
 import { editingCardId, openEditor } from './card-editor.js';
 import { confirmDialog, pickDialog, promptDialog } from './dialog.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
+import { pushLayer } from './layer-stack.js';
 import { runWrite, showToast } from './toast.js';
-import { REQUIRED_DEFS, setTplBuilderState, setTplEditKey, closeTemplateBuilder, closeTplPropDialog, findPropDef, isBuiltinKey, normalizeTemplateFields, openTemplateBuilder, openTplPropDialog, renderTemplateBuilder, tplBuilderCleanup, tplBuilderEmoji, tplBuilderName, tplBuilderPicker, tplBuilderState, tplEditKey, tplEditingId, tplNpIcon, tplNpIconPreview, tplNpKey, tplNpLabel, tplNpOk, tplNpOptions, tplNpType } from './template-builder.js';
+import { REQUIRED_DEFS, setTplBuilderState, setTplEditKey, closeTemplateBuilder, closeTplBuilderPicker, closeTplPropDialog, findPropDef, isBuiltinKey, normalizeTemplateFields, openTemplateBuilder, openTplPropDialog, renderTemplateBuilder, tplBuilderCleanup, tplBuilderEmoji, tplBuilderName, tplBuilderPicker, tplBuilderState, tplEditKey, tplEditingId, tplNpIcon, tplNpIconPreview, tplNpKey, tplNpLabel, tplNpOk, tplNpOptions, tplNpType } from './template-builder.js';
 import { defaultTplValue } from './template-fields.js';
 
 export async function saveTemplateBuilder() {
@@ -187,15 +188,22 @@ export function addTplNewProp() {
 /** 构建器默认图标选择器 */
 export function toggleTplBuilderPicker() {
   if (!tplBuilderPicker) return;
-  if (!tplBuilderPicker.classList.contains('hidden')) { tplBuilderPicker.classList.add('hidden'); return; }
+  if (!tplBuilderPicker.classList.contains('hidden')) { closeTplBuilderPicker(); return; }
   tplBuilderPicker.classList.remove('hidden');
   tplBuilderCleanup?.();
   tplBuilderCleanup = renderEmojiPicker(tplBuilderPicker, (char) => {
     tplBuilderState.emoji = char;
     if (tplBuilderEmoji) tplBuilderEmoji.textContent = char;
     recordRecentEmoji(char);
-    tplBuilderPicker.classList.add('hidden');
+    closeTplBuilderPicker();
   }, { selected: tplBuilderState.emoji });
+  // 登记：构建器之上的一层，Esc / 外点（点瓦片除外）只关 picker 不关构建器
+  pushLayer({
+    id: 'tpl-builder-emoji',
+    el: tplBuilderPicker,
+    close: closeTplBuilderPicker,
+    ignore: [tplBuilderTile].filter(Boolean),
+  });
 }
 
 /* ─── 模板菜单（阶段 D 完善） ──────────────────────────── */

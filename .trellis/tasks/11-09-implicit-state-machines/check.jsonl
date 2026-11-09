@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查清单：验证命令、回归门槛"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "检查数据流与单一真源是否被破坏"}

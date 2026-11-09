@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { cardEditorAddField, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
@@ -28,6 +28,7 @@ import { addEditorProp, renderEditorProps } from './editor-props.js';
 import { applyFields, fieldsWithValues, isLockedField, resolveFields } from './editor-fields.js';
 import { closeEditorFieldPicker, openEditorFieldPicker } from './editor-field-picker.js';
 import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 export let editorEmoji = '';
 let emojiPickerCleanup = null;
 
@@ -56,9 +57,12 @@ export function openEmojiPicker() {
     recordRecentEmoji(char);
     closeEmojiPicker();
   }, { selected: editorEmoji });
+  // 登记：编辑器之上的一层，Esc / 外点（点瓦片除外）只关这个 picker，不动编辑器
+  pushLayer({ id: 'editor-emoji', el: emojiPicker, close: closeEmojiPicker, ignore: [btnEmojiTile] });
 }
 
 function closeEmojiPicker() {
+  popLayer('editor-emoji');
   if (emojiPicker) emojiPicker.classList.add('hidden');
   emojiPickerCleanup?.();
   emojiPickerCleanup = null;
@@ -300,6 +304,14 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
   }
 
   editorOverlay.classList.remove('hidden');
+  // 登记进浮层栈：编辑器是模态层（外点不关，遮罩点击由 bind-editor 的遮罩 handler 负责）。
+  // Esc 关闭走栈派发 → requestCloseEditor（脏检查确认也在 close 回调里，语义不变）。
+  pushLayer({
+    id: 'card-editor',
+    el: editorOverlay,
+    close: () => { void requestCloseEditor(); },
+    dismissOnOutsideClick: false,
+  });
   // 初始焦点：标题是新建卡片时第一个要填的字段（Notion 也是标题优先）。
   // 曾经聚焦正文 → 打开就出现正文焦点环，且标题要多点一次才能输入。
   (editorTitle || editorContent)?.focus();
@@ -515,6 +527,7 @@ function updateEditorProgressLabel() {
 
 export function closeEditor() {
   editorOverlay.classList.add('hidden');
+  popLayer('card-editor');
   editorSnapshot = '';
   editingCardId = null;
   editorTypeValue = 'text';

@@ -13,18 +13,17 @@ import { icon } from '../components/icon.js';
 import { getFieldDef } from '../shared/field-registry.js';
 import { getPropLibrary } from '../state/prop-library.js';
 import { BUILTIN_FIELD_ICONS, OPTIONAL_BUILTIN_FIELDS } from './editor-fields.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 
 const PICKER_ID = 'editor-field-picker';
 
 let pickerEl = null;
-let pickerCleanup = null;
 
 /** 关闭浮层（幂等） */
 export function closeEditorFieldPicker() {
-  pickerCleanup?.();
-  pickerCleanup = null;
   pickerEl?.remove();
   pickerEl = null;
+  popLayer(PICKER_ID);
 }
 
 function groupTitle(text) {
@@ -145,18 +144,7 @@ export function openEditorFieldPicker(anchor, {
   document.body.append(menu);
   place(menu, anchor);
 
-  const onDown = (e) => {
-    if (!menu.contains(e.target) && e.target !== anchor) closeEditorFieldPicker();
-  };
-  const onKey = (e) => {
-    if (e.key === 'Escape') closeEditorFieldPicker();
-  };
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-  }, 0);
-  pickerCleanup = () => {
-    document.removeEventListener('mousedown', onDown);
-    document.removeEventListener('keydown', onKey);
-  };
+  // 登记：Esc / 外点（点锚点除外）由 layer-stack 统一派发。
+  // 注册发生在 click 之后，而外点用 mousedown 判定 —— 打开的这次点击不会自己关掉自己。
+  pushLayer({ id: PICKER_ID, el: menu, close: closeEditorFieldPicker, ignore: [anchor] });
 }

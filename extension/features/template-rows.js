@@ -13,6 +13,7 @@ import { savePropLibrary, upsertPropDef } from '../state/prop-library.js';
 import { getSettings } from '../state/settings.js';
 import { inferPropWithLLM } from './prop-llm.js';
 import { showToast } from './toast.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 import {
   buildTplDefaultEditor, openFieldPicker, openPropRowMenu, openRowIconPicker,
   removeExtra, reorderExtra, startAddProp,
@@ -126,9 +127,12 @@ export function openNameEditor(row, nameEl, { initial, onCommit, onCancel, onInp
     done = true;
     const next = input.value.trim();
     if (commit && next && next !== initial) {
-      // onCommit 返回 false 表示拒绝（保留字等），保持编辑态不重建
+      // onCommit 返回 false 表示拒绝（保留字等），保持编辑态不重建。
+      // 注意：不能提前出栈 —— 拒绝后编辑还在进行，层要继续留在栈里挡 Esc，
+      // 否则 Esc 会穿透关掉宿主（模板构建器 / 卡片编辑器）。
       if (onCommit?.(next) === false) { done = false; return; }
     } else onCancel?.();
+    popLayer('tpl-name-edit');
     rerender();
   };
   input.addEventListener('keydown', (e) => {
@@ -139,6 +143,11 @@ export function openNameEditor(row, nameEl, { initial, onCommit, onCancel, onInp
   // 延迟到本次点击序列结束：blur 常由「点行尾按钮」触发，同步重建会吞掉那次 click
   input.addEventListener('blur', () => { setTimeout(() => finish(true), 0); });
   if (onInput) input.addEventListener('input', () => onInput(input.value));
+  // 登记为浮层栈的一层：Esc（layer-stack 统一派发）只取消这次改名，
+  // 不再穿透关掉宿主（模板构建器 / 卡片编辑器）—— 此前靠 input 自己的
+  // stopPropagation 挡宿主的 document 监听，但 window capture 的栈派发比它更早，
+  // 不登记就会被误关。外点不关（blur 才是「点外面 = 提交」的既有语义）。
+  pushLayer({ id: 'tpl-name-edit', el: input, close: () => finish(false), dismissOnOutsideClick: false });
   nameEl.replaceWith(input);
   input.focus();
   input.select();

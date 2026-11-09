@@ -6,6 +6,7 @@
  */
 
 import { GAP, MARGIN, MIN_H, TYPEAHEAD_MS, isPrintable, nextId } from './select.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 
 /** 当前打开的实例（同一时刻只允许一个 popover 打开） */
 let openState = null;
@@ -162,10 +163,20 @@ export function openPop(st) {
   window.addEventListener('scroll', onViewportChange, { capture: true, passive: true });
   window.addEventListener('resize', onViewportChange);
   document.addEventListener('pointerdown', onDocPointerDown, true);
+  // 登记进浮层栈：Esc 只关最上层（不再依赖焦点恰好在触发器上）；
+  // 外点双保险 —— 栈的 mousedown 派发与下方 pointerdown 派发幂等，两者保留一个即可，
+  // 但删除自有路径的回归面更大，按「双关是幂等的」原则两者共存。
+  pushLayer({
+    id: 'select-pop',
+    el: pop,
+    close: () => close(st),
+    ignore: [trigger, st.wrapper],
+  });
 }
 
 export function close(st) {
   if (!st.open) return;
+  popLayer('select-pop');
   const { trigger, pop } = st;
   st.open = false;
   if (openState === st) openState = null;

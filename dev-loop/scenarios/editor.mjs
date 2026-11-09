@@ -132,6 +132,18 @@ export async function runEditor({ page, width, hostPort }) {
   const fieldPicker = page.locator('#editor-field-picker');
   await fieldPicker.waitFor({ state: 'visible', timeout: 3000 });
   add('「＋ 添加属性」浮层可打开', await fieldPicker.isVisible());
+
+  // ── P2 缺陷 3 回归：Esc 只关最上层浮层，编辑器本体不动 ──
+  // 旧 bug：Esc 优先级靠 bind-editor 手写 if 链，浮层漏插队时 Esc 直接关掉
+  // 编辑器，丢掉整份未保存表单。现在由 features/layer-stack.js 统一派发。
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  add('Esc 只关字段选择浮层', !(await fieldPicker.isVisible()));
+  add('Esc 后编辑器仍开（不丢表单）', await overlay.isVisible());
+
+  // 重新打开浮层，继续下面的属性断言
+  await page.locator('#card-editor-add-field').click();
+  await fieldPicker.waitFor({ state: 'visible', timeout: 3000 });
   add(
     '浮层含内建可选（优先级）',
     await fieldPicker.getByRole('button', { name: /优先级/ }).count() === 1,

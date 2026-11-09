@@ -19,11 +19,7 @@ import {
   requestCloseEditor,
 } from '../features/card-editor.js';
 import { addEditorProp, openPropLibrary } from '../features/editor-props.js';
-import { tplPropOverlay, closeTplPropDialog, closeTemplateBuilder } from '../features/template-builder.js';
-import {
-  fieldPickerEl, closeFieldPicker, propRowMenuEl, closePropRowMenu,
-  rowIconPop, closeRowIconPicker,
-} from '../features/template-fields.js';
+import { closeTemplateBuilder, closeTplPropDialog } from '../features/template-builder.js';
 import {
   saveTemplateBuilder, prefillTemplateFromCard, onTplNewPropOk, toggleTplBuilderPicker,
   saveEditorAsTemplate,
@@ -32,25 +28,13 @@ import {
 /** 绑定编辑器与模板构建器的事件。 */
 export function bindEditor() {
   // ── 键盘快捷键（Esc 关闭 / ⌘⏎ 保存） ──
+  // Esc 的「只关最上层浮层」已由 features/layer-stack.js 统一派发（修缺陷 3：手写
+  // 优先级链漏插队时，Esc 会穿透关掉编辑器丢表单）。编辑器/构建器本体也登记在栈里，
+  // 栈在时这里的 Esc 分支不会触发；保留它是零成本的兜底（栈意外为空时仍可关闭）。
   document.addEventListener('keydown', (e) => {
     const cardOpen = editorOverlay && !editorOverlay.classList.contains('hidden');
     const tplOpen = tplBuilderOverlay && !tplBuilderOverlay.classList.contains('hidden');
     if (!cardOpen && !tplOpen) return;
-    // 属性行右键菜单 / 图标浮层 / 字段选择浮层开着时，Esc 只关浮层
-    if (propRowMenuEl && e.key === 'Escape') {
-      e.preventDefault(); closePropRowMenu(); return;
-    }
-    if (fieldPickerEl && e.key === 'Escape') {
-      e.preventDefault(); closeFieldPicker(); return;
-    }
-    if (rowIconPop && e.key === 'Escape') {
-      e.preventDefault(); closeRowIconPicker(); return;
-    }
-    // 属性编辑弹窗开着时，Esc 先关弹窗
-    const propOpen = tplPropOverlay && !tplPropOverlay.classList.contains('hidden');
-    if (propOpen && e.key === 'Escape') {
-      e.preventDefault(); closeTplPropDialog(); return;
-    }
     if (e.key === 'Escape') {
       e.preventDefault();
       if (tplOpen) closeTemplateBuilder(); else void requestCloseEditor();

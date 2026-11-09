@@ -16,6 +16,7 @@ import {
 } from '../components/dom-refs.js';
 import { editorEmoji } from './card-editor.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
+import { popLayer, pushLayer } from './layer-stack.js';
 import { buildPropRow, buildAddRow, tplUserTouched } from './template-rows.js';
 import {
   closeFieldPicker, closePropRowMenu, closeRowIconPicker, defaultTplValue,
@@ -45,23 +46,49 @@ function openTplNpIconPicker() {
     recordRecentEmoji(char);
     closeTplNpIconPicker();
   }, { selected: tplNpIcon?.value || '' });
+  // 登记：属性定义弹窗之上的一层，Esc / 外点（点瓦片除外）只关 picker 不关弹窗
+  pushLayer({
+    id: 'tpl-np-icon',
+    el: tplNpIconPicker,
+    close: closeTplNpIconPicker,
+    ignore: [tplNpIconTile],
+  });
 }
 function closeTplNpIconPicker() {
+  popLayer('tpl-np-icon');
   tplNpIconPicker?.classList.add('hidden');
   tplNpIconCleanup?.();
   tplNpIconCleanup = null;
 }
 tplNpIconTile?.addEventListener('click', openTplNpIconPicker);
 
+/** 关闭构建器默认图标选择器（emoji picker，幂等） */
+export function closeTplBuilderPicker() {
+  popLayer('tpl-builder-emoji');
+  if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
+  tplBuilderCleanup?.();
+  tplBuilderCleanup = null;
+}
+
 /** 打开属性编辑弹窗（新建 / 编辑共用） */
 export function openTplPropDialog(title) {
   if (!tplPropOverlay) return;
   if (tplPropDialogTitle) tplPropDialogTitle.textContent = title;
   tplPropOverlay.classList.remove('hidden');
+  // 登记：模态弹窗，外点不关（遮罩点击由下方 overlay click handler 承担）
+  pushLayer({
+    id: 'tpl-prop-dialog',
+    el: tplPropOverlay,
+    close: closeTplPropDialog,
+    dismissOnOutsideClick: false,
+  });
 }
 
 /** 关闭属性编辑弹窗 */
 export function closeTplPropDialog() {
+  popLayer('tpl-prop-dialog');
+  // 属性弹窗内的图标 picker 若还开着，一并出栈（避免栈里留下已隐藏的层）
+  closeTplNpIconPicker();
   if (tplPropOverlay) tplPropOverlay.classList.add('hidden');
   tplEditKey = null;
 }
@@ -144,16 +171,25 @@ export function openTemplateBuilder(existing = null) {
   if (tplBuilderEmoji) tplBuilderEmoji.textContent = tplBuilderState.emoji;
   renderTemplateBuilder();
   tplBuilderOverlay?.classList.remove('hidden');
+  // 登记：模态层（外点不关，遮罩点击由 bind-editor 的遮罩 handler 负责）。
+  // Esc 关闭走栈派发 → closeTemplateBuilder（连带关掉构建器内的全部子浮层）。
+  pushLayer({
+    id: 'template-builder',
+    el: tplBuilderOverlay,
+    close: closeTemplateBuilder,
+    dismissOnOutsideClick: false,
+  });
   tplBuilderName?.focus();
   tplBuilderName?.select();
 }
 export function closeTemplateBuilder() {
+  popLayer('template-builder');
   tplBuilderOverlay?.classList.add('hidden');
   closePropRowMenu();
   closeRowIconPicker();
   closeTplPropDialog();
-  if (tplBuilderPicker) tplBuilderPicker.classList.add('hidden');
-  tplBuilderCleanup?.();
+  closeTplNpIconPicker();
+  closeTplBuilderPicker();
   tplEditingId = null;
   tplEditKey = null;
   tplUserTouched.clear();
