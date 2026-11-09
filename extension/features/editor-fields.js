@@ -1,8 +1,12 @@
 /**
  * editor-fields.js — 编辑器属性集解析与渲染（features 层）
  *
- * 产品原则（2026-11-09 用户拍板）：**默认只给少量必要属性，其余由用户自建模板按需引入。**
- * 编辑器的属性行不再固定 9 组全上，而是「默认最小集 ∪ 当前模板声明的字段」。
+ * 产品原则（2026-11-09 拍板，2026-11-10 放宽）：**默认只给少量必要属性，其余按需引入。**
+ * 编辑器的属性行不是固定 9 组全上，而是「默认最小集 ∪ 模板字段 ∪ 本次手动加入的字段」。
+ *
+ * 2026-11-10 之前内建可选字段只能经「模板」引入：想用一次「优先级」也要先建模板，
+ * 或者「显示全部属性」全有或全无 —— 而属性库字段在编辑器里反而随时可加。
+ * 现在属性区有「＋ 添加属性」，逐个引入（仅影响本卡可见性，不写模板/属性库/偏好）。
  *
  * 边界（重要）：
  *   - 本模块只决定「哪些属性行可见、按什么顺序」；
@@ -24,6 +28,22 @@ export const BASE_FIELDS = ['status', 'tags'];
 
 /** 可选属性行的固定顺序（= 属性区的视觉顺序，模板不能打乱） */
 export const FIELD_ORDER = ['status', 'priority', 'progress', 'assignedDate', 'schedule', 'tags', 'project'];
+
+/**
+ * 可以在编辑器里**临时**加入当前卡片的内建可选字段（顺序 = FIELD_ORDER）。
+ *
+ * 2026-11-10：此前内建可选字段只能经由「模板」引入 —— 想用一次优先级也得先去建模板，
+ * 或者「显示全部属性」全有或全无；而自定义属性（属性库）在编辑器里反而随时可加。
+ * 现在属性区有「＋ 添加属性」入口，逐个引入这些字段，仅影响本卡的可见性。
+ *
+ * 不含 BASE_FIELDS：状态/标签是卡片池筛选与搜索的一等字段，恒定显示（锁定行）。
+ */
+export const OPTIONAL_BUILTIN_FIELDS = FIELD_ORDER.filter(k => !BASE_FIELDS.includes(k));
+
+/** 是否是锁定行（不允许从属性区隐藏）：BASE_FIELDS 恒显示 */
+export function isLockedField(key) {
+  return BASE_FIELDS.includes(key);
+}
 
 /**
  * 内建字段 → icon.js 图标名（模板构建器的属性行图标）。
@@ -123,10 +143,13 @@ export function applyFields(container, keys) {
   const rows = [...container.querySelectorAll('.prop-row[data-field]')];
   const byField = new Map(rows.map(row => [row.dataset.field, row]));
   for (const row of rows) row.hidden = !visible.has(row.dataset.field);
-  // 重排：按 FIELD_ORDER 依次 append，未知行（未来新增）保持尾随
+  // 重排：按 FIELD_ORDER 依次插回，未知行（未来新增）保持尾随。
+  // 必须 insertBefore(…, 添加按钮) 而不是 append：属性区末尾常驻「＋ 添加属性」，
+  // append 会把它顶到属性行之前（实测会变成“添加属性在状态行上面”）。
+  const addEntry = container.querySelector('.ce-add-field');
   for (const key of FIELD_ORDER) {
     const row = byField.get(key);
-    if (row) container.append(row);
+    if (row) container.insertBefore(row, addEntry);
   }
   container.dataset.fields = (keys ?? []).join(',');
 }

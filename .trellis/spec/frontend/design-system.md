@@ -162,32 +162,47 @@
 - 暗色 today 单元格：accent 提亮 + 深字或白字，确保 ≥4.5:1。
 - 暗色下阴影改用更深的 `--sh`（或以边框替代），避免「黑上加黑」。
 
-## 10. 编辑器属性集（模板驱动，2026-11 起）
+## 10. 编辑器属性集（模板驱动 + 按字段临时加入，2026-11 起）
 
-**产品原则**：默认只给少量必要属性，其余由用户自建模板按需引入。
+**产品原则**：默认只给少量必要属性，其余按需引入 —— **可以**先建模板，也**可以**在编辑器里
+逐个临时加入（2026-11-10 放宽：此前只能用模板，想用一次优先级也得先造模板）。
 
 | 概念 | 位置 | 说明 |
 |---|---|---|
 | 默认最小集 | `features/editor-fields.js: BASE_FIELDS` | `status` / `tags` —— 状态供卡片池筛选，标签在注册表是 `required`（搜索依赖） |
-| 固定顺序 | `features/editor-fields.js: FIELD_ORDER` | 模板只能决定「显示哪些」，**不能**打乱顺序 |
-| 解析 | `resolveFields(templateKeys)` | 默认集 ∪ 模板字段；过滤属性库已删 key；自定义属性不进属性区 |
+| 可临时加入 | `features/editor-fields.js: OPTIONAL_BUILTIN_FIELDS` | `FIELD_ORDER` 去掉锁定行；`isLockedField(key)` 判断能否隐藏 |
+| 固定顺序 | `features/editor-fields.js: FIELD_ORDER` | 模板与手动都只能决定「显示哪些」，**不能**打乱顺序 |
+| 解析 | `resolveFields(templateKeys)` | 默认集 ∪ 模板字段 ∪ 手动字段；过滤属性库已删 key；自定义属性不进属性区 |
 | 应用 | `applyFields(container, keys)` | 只改可见性 + 顺序，**不重建节点**（`dom-refs` 的 id 必须存活） |
 | 编辑已有卡 | `fieldsWithValues(card)` | 把已填字段拉出来，避免模板收敛把旧数据藏掉 |
 | 入口 | `openEditor(card, time, date, assignedDate, { templateId, templateName, fields })` | 第 5 参缺省 = 默认集 |
+| 手动加入 ≠ 模板 | `features/card-editor.js: manualFieldKeys` | **只本次**语义：不写模板 / 属性库 / 偏好，`openEditor` 时重置；切模板不丢 |
+| 添加入口 | `#card-editor-add-field` + `features/editor-field-picker.js` | 一个浮层三组：内建可选 / 属性库 / 新建自定义属性 |
+| 隐藏入口 | `.prop-key-hide`（hover 显形） | 只改可见性、**不清值**；锁定行不注入 |
 
 **DOM 契约**：`.prop-row[data-field="<key>"]`；隐藏用 `hidden` 属性，**禁止内联 style**。
 必须显式写 `.prop-row[hidden] { display: none }` —— `.prop-row` 的 `display: contents`
 会盖过 UA 的 `[hidden]` 规则（这条已踩过）。
+另：`.ce-add-field` 是属性区末尾的常驻按钮，`applyFields` 重排时必须用
+`insertBefore(row, addEntry)` 而不是 `append`，否则添加按钮会被顶到属性行之前。
+
+**两个「添加」不能同名**：属性区 = 「＋ 添加属性」（内建可选 / 属性库 / 新建）；
+正文下方自定义属性区 = 「＋ 新建自定义属性」（立刻建行 + 行内命名）。同名会让用户分不清边界。
 
 **逃生口**：模板下拉末项「显示全部属性」一次性展开全部内建属性（不建模板、不改数据）。
 无模板时用户仍能填优先级/排程，不必先造一个模板。
+
+**数据影响**：可见性只决定显示。`saveEditor()` 无条件写全部内建字段，所以「加了没填」
+最多落字段默认值（priority=medium / progress=0），与既有行为一致；「隐藏」也不清值，
+有值的字段在下次打开时由 `fieldsWithValues` 重新拉出来显示。
 
 ## 13. 自定义属性交互（卡片编辑器 = 模板构建器，2026-11-09）
 
 卡片编辑器的自定义属性区**复用模板构建器的行结构与交互**，不再有自己的表单语言：
 
 - 行结构 `.tpl-prop-row`：`[图标][名称][值控件][pencil][trash]`，图标与动作按钮一律 SVG。
-- 「添加属性」是**分割按钮**：主体 = 立刻新建一行并进入行内命名；caret = 从属性库选择。
+- 「添加属性」是**分割按钮**：主体 = 立刻新建一行并进入行内命名（按钮文案「新建自定义属性」，
+  以免与属性区上方的「＋ 添加属性」同名）；caret = 从属性库选择。
 - 图标点击走 emoji 选择器；名称双击行内改名；pencil 打开**同一个**属性定义弹窗
   （`features/template-menu.js:openPropDefDialog({key,def,submit})`，用 submit 回调隔离构建器状态）；
   trash 只从当前卡移除，保留属性库定义。

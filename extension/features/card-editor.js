@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
@@ -16,14 +16,16 @@ import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
 import { formatProvenance } from '../shared/format.js';
 import { addMinutes, getCardEndTime, getCardStartTime, snapToQuarter, snapUpToQuarter, timeToMinutes } from '../shared/model.js';
+import { getFieldDef } from '../shared/field-registry.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
 
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
 import { CARD_TYPES, statusOptions, STATUSES } from '../shared/card-schema.js';
-import { renderEditorProps } from './editor-props.js';
-import { applyFields, fieldsWithValues, resolveFields } from './editor-fields.js';
+import { addEditorProp, renderEditorProps } from './editor-props.js';
+import { applyFields, fieldsWithValues, isLockedField, resolveFields } from './editor-fields.js';
+import { closeEditorFieldPicker, openEditorFieldPicker } from './editor-field-picker.js';
 import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
 export let editorEmoji = '';
 let emojiPickerCleanup = null;
@@ -75,15 +77,93 @@ export let editingCardId = null;
 /** 当前编辑器所选模板（null = 空白/默认属性集）。仅影响可见性，不影响数据形态。 */
 let editorTemplate = { id: null, name: '空白', keys: [] };
 
-/** 把模板选中结果应用到属性区 + 头部标签 */
+/**
+ * 本次编辑器会话里「手动加入」的内建可选字段 key（2026-11-10）。
+ *
+ * 与模板字段分开存：切模板时不丢（模板只决定默认集），关编辑器时随 openEditor 重置。
+ * 只影响可见性：saveEditor() 本就无条件写全部内建字段，加了没填最多落字段默认值。
+ */
+let manualFieldKeys = [];
+
+/** 当前应显示的属性行（模板字段 ∪ 手动字段，恒按 FIELD_ORDER 排序） */
+function editorVisibleKeys() {
+  return resolveFields([...editorTemplate.keys, ...manualFieldKeys]);
+}
+
+/** 把模板选中结果应用到属性区 + 头部标签（不重置手动加入的字段） */
 function applyEditorTemplate({ id = null, name = '空白', keys = [] } = {}) {
-  editorTemplate = { id, name, keys };
-  applyFields(document.getElementById('card-editor-props'), resolveFields(keys));
+  editorTemplate = { id, name, keys: keys ?? [] };
+  applyFields(document.getElementById('card-editor-props'), editorVisibleKeys());
   const label = document.getElementById('card-editor-template-name');
   if (label) label.textContent = name || '空白';
   const btn = document.getElementById('card-editor-template');
   if (btn) btn.title = `当前模板：${name || '空白'}（点选切换）`;
 }
+
+/** 临时加入一个内建可选字段（仅本卡可见性，不写模板/属性库） */
+function addEditorField(key) {
+  if (!key || editorVisibleKeys().includes(key)) return;
+  manualFieldKeys = [...manualFieldKeys, key];
+  applyFields(document.getElementById('card-editor-props'), editorVisibleKeys());
+  const row = document.querySelector(`#card-editor-props .prop-row[data-field="${key}"]`);
+  row?.scrollIntoView({ block: 'nearest' });
+  row?.querySelector('input:not([type="hidden"]), select, textarea, button')?.focus();
+}
+
+/** 从属性区隐藏一个字段（不清值；status/tags 锁定行不可隐藏） */
+function removeEditorField(key) {
+  if (!key || isLockedField(key)) return;
+  editorTemplate = { ...editorTemplate, keys: editorTemplate.keys.filter(k => k !== key) };
+  manualFieldKeys = manualFieldKeys.filter(k => k !== key);
+  applyFields(document.getElementById('card-editor-props'), editorVisibleKeys());
+}
+
+/** 绑定「＋ 添加属性」入口（内建可选 / 属性库 / 新建，同一个浮层） */
+function bindAddFieldEntry() {
+  if (!cardEditorAddField) return;
+  cardEditorAddField.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEditorFieldPicker(cardEditorAddField, {
+      visibleBuiltinKeys: editorVisibleKeys(),
+      onPickBuiltin: (def) => addEditorField(def.key),
+      existingUserKeys: Object.keys(editorProps),
+      onPickUser: (key) => {
+        if (!(key in editorProps)) editorProps[key] = '';
+        renderEditorProps();
+      },
+      onPickNew: () => {
+        addEditorProp();
+        document.getElementById('card-editor-props-list')?.scrollIntoView({ block: 'nearest' });
+      },
+    });
+  });
+}
+
+/** 给可隐藏的属性行注入「✕」小按钮（锁定行 status/tags 不注入） */
+function decoratePropRows() {
+  const container = document.getElementById('card-editor-props');
+  if (!container) return;
+  for (const row of container.querySelectorAll('.prop-row[data-field]')) {
+    const field = row.dataset.field;
+    if (isLockedField(field)) continue;
+    const keyCell = row.querySelector('.prop-key');
+    if (!keyCell || keyCell.querySelector('.prop-key-hide')) continue;
+    const label = getFieldDef(field)?.label || field;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'prop-key-hide';
+    btn.title = `隐藏「${label}」（已填内容不会被清空）`;
+    btn.setAttribute('aria-label', `从当前卡片隐藏属性「${label}」`);
+    btn.append(icon('close', { size: 10 }));
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeEditorField(field);
+    });
+    keyCell.append(btn);
+  }
+}
+decoratePropRows();
+bindAddFieldEntry();
 
 /** 编辑器头部的「切换模板」入口：只改可见性，不清空已填内容 */
 function bindTemplateSwitch() {
@@ -196,7 +276,9 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
 
   // 属性集：默认最小集 ∪ 模板字段 ∪ 卡片上已填的字段
   // 已有卡片要把已填属性拉出来，否则“模板收敛”会把旧卡的优先级/项目藏掉。
+  // 手动加入的字段随会话重置（“只本次”语义，与「显示全部属性」一致）。
   const visibleKeys = [...(opts.fields ?? []), ...fieldsWithValues(card)];
+  manualFieldKeys = [];
   applyEditorTemplate({
     id: opts.templateId ?? null,
     name: opts.templateName ?? '空白',
@@ -436,6 +518,8 @@ export function closeEditor() {
   editingCardId = null;
   editorTypeValue = 'text';
   closeTemplatePicker();
+  closeEditorFieldPicker();
+  manualFieldKeys = [];
   applyEditorTemplate({ id: null, name: '空白', keys: [] });
   editorContent.value = '';
   editorTags = [];

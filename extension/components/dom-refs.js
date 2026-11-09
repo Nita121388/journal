@@ -81,6 +81,7 @@ export const editorTagChips = document.getElementById('card-editor-tag-chips');
 export const btnEmojiTile = document.getElementById('btn-emoji-tile');
 export const editorDurationMin = document.getElementById('card-editor-duration-min');
 export const propsList = document.getElementById('card-editor-props-list');
+export const cardEditorAddField = document.getElementById('card-editor-add-field');
 export const btnAddProp = document.getElementById('btn-add-prop');
 export const btnPropLib = document.getElementById('btn-prop-lib');
 export const saveTemplateBtn = document.getElementById('card-editor-save-template');

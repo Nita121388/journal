@@ -4,7 +4,9 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyFields, BASE_FIELDS, FIELD_ORDER, resolveFields } from './editor-fields.js';
+import {
+  applyFields, BASE_FIELDS, FIELD_ORDER, isLockedField, OPTIONAL_BUILTIN_FIELDS, resolveFields,
+} from './editor-fields.js';
 
 describe('resolveFields', () => {
   it('无模板时只给默认最小集（状态 / 标签）', () => {
@@ -29,6 +31,28 @@ describe('resolveFields', () => {
   it('空值/非数组不抛错', () => {
     expect(resolveFields(null)).toEqual(['status', 'tags']);
     expect(resolveFields(undefined)).toEqual(['status', 'tags']);
+  });
+});
+
+describe('可选内建字段与锁定行', () => {
+  it('可临时加入的内建可选 = FIELD_ORDER 去掉锁定行', () => {
+    expect(OPTIONAL_BUILTIN_FIELDS).toEqual(['priority', 'progress', 'assignedDate', 'schedule', 'project']);
+    for (const k of BASE_FIELDS) expect(OPTIONAL_BUILTIN_FIELDS).not.toContain(k);
+  });
+
+  it('status / tags 是锁定行，其余可隐藏', () => {
+    expect(isLockedField('status')).toBe(true);
+    expect(isLockedField('tags')).toBe(true);
+    expect(isLockedField('priority')).toBe(false);
+    expect(isLockedField('project')).toBe(false);
+    expect(isLockedField('unknown-field')).toBe(false);
+  });
+
+  it('手动加入的字段与模板字段并集可见（去重）', () => {
+    expect(resolveFields([...[], ...['priority', 'schedule']]))
+      .toEqual(['status', 'priority', 'schedule', 'tags']);
+    expect(resolveFields([...['progress'], ...['progress', 'project']]))
+      .toEqual(['status', 'progress', 'tags', 'project']);
   });
 });
 
@@ -73,5 +97,17 @@ describe('applyFields', () => {
 
   it('容器为 null 时静默返回', () => {
     expect(() => applyFields(null, ['status'])).not.toThrow();
+  });
+
+  it('「＋ 添加属性」始终排在全部属性行之后（不被重排顶到前面）', () => {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'ce-add-field';
+    addBtn.id = 'card-editor-add-field';
+    container.append(addBtn);
+    applyFields(container, resolveFields(['project', 'priority']));
+    const kids = [...container.children];
+    expect(kids[kids.length - 1]).toBe(addBtn);
+    expect(kids.filter(el => el.classList.contains('prop-row')).map(el => el.dataset.field))
+      .toEqual(FIELD_ORDER);
   });
 });

@@ -7,7 +7,8 @@
  *
  * 现在：
  *   - 平面行：[图标][名称][值控件][✎][✕]，复用 .tpl-prop-row 的视觉与尺寸
- *   - 「添加属性」= 立刻新建一行并进入**行内命名**（Enter 提交 / Esc 取消）
+ *   - 「新建自定义属性」= 立刻新建一行并进入**行内命名**（Enter 提交 / Esc 取消）
+ *     （2026-11-10 改名：属性区上方另有「＋ 添加属性」，两个同名按钮会让用户分不清边界）
  *   - 分割按钮的 caret = 从属性库选择已有定义
  *   - 点图标 = emoji 选择器（不再是手填 emoji 的文本框）
  *   - ✎ = 复用「属性定义」弹窗（显示名/图标/类型/选项），与模板构建器同源
@@ -35,7 +36,7 @@ import { closeTplPropDialog } from './template-builder.js';
 function renderEmpty() {
   const hint = document.createElement('div');
   hint.className = 'props-empty';
-  hint.textContent = '还没有自定义属性，点下方「添加属性」';
+  hint.textContent = '还没有自定义属性，点下方「新建自定义属性」';
   propsList.append(hint);
 }
 
@@ -154,7 +155,7 @@ function renameEditorProp(oldKey, next) {
 }
 
 /**
- * 「添加属性」主按钮：立刻新建一行 + 行内命名。
+ * 「新建自定义属性」主按钮：立刻新建一行 + 行内命名。
  * 与模板构建器的 startAddProp 同一节奏，不再弹出独立表单。
  */
 export function addEditorProp() {

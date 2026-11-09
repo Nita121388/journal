@@ -17,9 +17,9 @@
 const DEFAULT_VISIBLE = ['status', 'tags'];
 
 /**
- * @param {{ page: import('playwright').Page, width: number }} ctx
+ * @param {{ page: import('playwright').Page }} ctx
  */
-export async function runEditor({ page, width }) {
+export async function runEditor({ page }) {
   /** @type {Array<[string, boolean, string]>} */
   const checks = [];
   const add = (name, ok, detail = '') => checks.push([name, Boolean(ok), String(detail)]);
@@ -112,6 +112,43 @@ export async function runEditor({ page, width }) {
   });
   add('版本徽标 = manifest.version', version.text === `v${version.manifest}`, `${version.text} vs ${version.manifest}`);
   add('版本徽标可见（非 display:none）', version.display !== 'none' && version.text !== '', version.display);
+
+  // ── ①c 内建可选字段可在编辑器里按需加入 / 隐藏（2026-11-10）──
+  // 守住：新建卡片不再必须“先建模板”才能用优先级；默认集不变（上面已断言）。
+  await page.locator('#card-editor-add-field').click();
+  const fieldPicker = page.locator('#editor-field-picker');
+  await fieldPicker.waitFor({ state: 'visible', timeout: 3000 });
+  add('「＋ 添加属性」浮层可打开', await fieldPicker.isVisible());
+  add(
+    '浮层含内建可选（优先级）',
+    await fieldPicker.getByRole('button', { name: /优先级/ }).count() === 1,
+  );
+  await fieldPicker.getByRole('button', { name: /优先级/ }).click();
+  const afterAdd = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#card-editor-props .prop-row')];
+    return rows.filter((r) => !r.hidden).map((r) => r.dataset.field);
+  });
+  add('选中「优先级」后本卡可见', afterAdd.includes('priority'), afterAdd.join(','));
+  add(
+    '添加按钮仍在属性行之后',
+    await page.evaluate(() => {
+      const kids = [...document.getElementById('card-editor-props').children];
+      return kids[kids.length - 1]?.id === 'card-editor-add-field';
+    }),
+  );
+  // 锁定行不注入隐藏按钮
+  add(
+    'status/tags 无隐藏按钮（锁定行）',
+    await page.evaluate(() =>
+      !document.querySelector('#card-editor-props [data-field="status"] .prop-key-hide')
+      && !document.querySelector('#card-editor-props [data-field="tags"] .prop-key-hide')),
+  );
+  await page.locator('#card-editor-props [data-field="priority"] .prop-key-hide').click();
+  const afterHide = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('#card-editor-props .prop-row')];
+    return rows.filter((r) => !r.hidden).map((r) => r.dataset.field);
+  });
+  add('可隐藏刚加入的「优先级」', !afterHide.includes('priority'), afterHide.join(','));
 
   // ── 模板切换入口（只改可见性，不清空已填内容） ──
   await page.locator('#card-editor-template').click();

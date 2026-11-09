@@ -287,6 +287,14 @@
               <div id="card-editor-meta" class="card-editor-meta"></div>
             </div>
           </div>
+
+          <!-- 「＋ 添加属性」：内建可选字段按需临时加入本卡（2026-11-10）。
+               之前想用一次优先级也得先建模板，或「显示全部属性」全有或全无。
+               选中的行仅本卡可见（不写模板/属性库/偏好）；顺序由 editor-fields.applyFields
+               用 insertBefore 保证它在全部属性行之后。 -->
+          <button id="card-editor-add-field" type="button" class="ce-add-field">
+            <i data-icon="plus" data-icon-size="12" aria-hidden="true"></i><span>添加属性</span>
+          </button>
         </div>
 
         <hr class="prop-divider" />
@@ -300,8 +308,8 @@
         <div class="ce-custom-props">
           <div id="card-editor-props-list" class="props-list"></div>
           <div class="props-add-row-wrap">
-            <button id="btn-add-prop" type="button" class="props-add-main" aria-label="添加属性">
-              <i data-icon="plus" data-icon-size="12" aria-hidden="true"></i><span>添加属性</span>
+            <button id="btn-add-prop" type="button" class="props-add-main" aria-label="新建自定义属性">
+              <i data-icon="plus" data-icon-size="12" aria-hidden="true"></i><span>新建自定义属性</span>
             </button>
             <button id="btn-prop-lib" type="button" class="props-add-caret" title="从属性库选择" aria-label="从属性库选择" data-icon="chevronDown" data-icon-size="12"></button>
           </div>
