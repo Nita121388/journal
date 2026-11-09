@@ -321,6 +321,20 @@ export async function runSmoke({ page }) {
   }
   add('时间线拖动框选可建卡（range-select）', rangeOk, rangeDetail);
 
+  // P4 手势收敛回归：框选（一次真实拖拽路径）结束后，全局手势标志必须已清
+  // （dataset.gesture 与迁移期旧 body class 均不残留；离线分支也覆盖到）。
+  {
+    const gAfter = await page.evaluate(() => ({
+      g: document.body.dataset.gesture ?? '',
+      dragging: document.body.classList.contains('is-dragging'),
+      resizing: document.body.classList.contains('is-resizing'),
+      tpl: document.body.classList.contains('tpl-dragging'),
+    }));
+    add('框选结束后手势标志已清（不残留）',
+      !gAfter.g && !gAfter.dragging && !gAfter.resizing && !gAfter.tpl,
+      JSON.stringify(gAfter));
+  }
+
   // 17) 建卡主路径。**按 host 是否在线分两支** —— 离线时保存必然失败，
   //     此时正确的产品行为是「明确报错 + 保留草稿」，而不是把卡存下去。
   //     （第一轮曾漏掉这一支，导致 --host-mode off 门禁实际是崩的。）
@@ -363,17 +377,121 @@ export async function runSmoke({ page }) {
     add('卡片默认图标为 note 线稿（非 📝/☑️/💡）', titleOnly.iconIsSvg && titleOnly.iconText === '',
       `svg=${titleOnly.iconIsSvg} text="${titleOnly.iconText}"`);
 
+    // P4 手势收敛回归：对一张真实定时卡做一次 resize 手柄拖动与卡片本体拖动，
+    // 断言「拖中置位（dataset.gesture 可观测）、拖后即清（旧 class 也不残留）」。
+    // 建卡走真实路径：框选预填起止时间 → 填标题 → 保存。
+    {
+      const tlBox2 = await page.locator('#timeline-container').boundingBox();
+      let dragOk = false;
+      let dragDetail = '无法定位时间线容器';
+      let dragCardEl = null;
+      // 悬停落定：is-short 卡片 :hover 会撑高（CSS 过渡 200ms），不等待就会按下在
+      // 已移位的元素上（实测 pointerdown 落在 .card-footer，拖拽根本不启动）。
+      const hoverSettle = async (x, y, ms = 320) => {
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(ms);
+      };
+      if (tlBox2) {
+        const cx = tlBox2.x + tlBox2.width / 2;
+        const cy0 = tlBox2.y + 160;
+        await page.mouse.move(cx, cy0);
+        await page.mouse.down();
+        await page.mouse.move(cx, cy0 + 90, { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(350);
+        await page.locator('#card-editor-title').fill('拖拽回归用卡');
+        await page.locator('#card-editor-save').click();
+        await page.waitForTimeout(900);
+        dragCardEl = page.locator('#timeline-container .timeline-card', { hasText: '拖拽回归用卡' }).first();
+        const found = (await dragCardEl.count()) > 0;
+        if (!found) {
+          dragDetail = '框选建卡失败，无定时卡可拖';
+        }
+        // ① resize 手柄拖动：拖中 dataset.gesture==='resize'，拖后清除
+        if (found) {
+          const cBox0 = await dragCardEl.boundingBox();
+          if (cBox0) await hoverSettle(cBox0.x + cBox0.width * 0.4, cBox0.y + 10);
+          let hBox = await dragCardEl.locator('.card-resize-handle').boundingBox();
+          if (hBox) {
+            let hx = hBox.x + hBox.width / 2;
+            let hy = hBox.y + hBox.height / 2;
+            await hoverSettle(hx, hy, 120);
+            hBox = await dragCardEl.locator('.card-resize-handle').boundingBox();
+            hx = hBox.x + hBox.width / 2;
+            hy = hBox.y + hBox.height / 2;
+            await page.mouse.move(hx, hy);
+            await page.mouse.down();
+            await page.mouse.move(hx, hy + 45, { steps: 3 });
+            const midResize = await page.evaluate(() => document.body.dataset.gesture ?? '');
+            await page.mouse.up();
+            await page.waitForTimeout(600);
+            const afterResize = await page.evaluate(() => ({
+              g: document.body.dataset.gesture ?? '',
+              resizing: document.body.classList.contains('is-resizing'),
+              dragging: document.body.classList.contains('is-dragging'),
+            }));
+            dragOk = midResize === 'resize' && !afterResize.g
+              && !afterResize.resizing && !afterResize.dragging;
+            dragDetail = `resize拖中=${midResize} 拖后=${JSON.stringify(afterResize)}`;
+          } else {
+            dragDetail = 'resize 手柄不可定位';
+          }
+        }
+        // ② 卡片本体拖动：拖中 dataset.gesture==='drag'，拖后清除
+        if (dragOk) {
+          const cBox = await dragCardEl.boundingBox();
+          if (cBox) {
+            const px = cBox.x + cBox.width * 0.35;
+            const py = cBox.y + 10; // header 区（避开页脚按钮与右下缩放手柄）
+            await hoverSettle(px, py);
+            await page.mouse.move(px, py);
+            await page.mouse.down();
+            await page.mouse.move(px, py + 30, { steps: 3 });
+            const midDrag = await page.evaluate(() => document.body.dataset.gesture ?? '');
+            await page.mouse.up();
+            await page.waitForTimeout(600);
+            const afterDrag = await page.evaluate(() => ({
+              g: document.body.dataset.gesture ?? '',
+              dragging: document.body.classList.contains('is-dragging'),
+              resizing: document.body.classList.contains('is-resizing'),
+              tpl: document.body.classList.contains('tpl-dragging'),
+            }));
+            dragOk = midDrag === 'drag' && !afterDrag.g
+              && !afterDrag.dragging && !afterDrag.resizing && !afterDrag.tpl;
+            dragDetail += ` | move拖中=${midDrag} 拖后=${JSON.stringify(afterDrag)}`;
+          } else {
+            dragOk = false;
+            dragDetail += ' | 拖动后卡片不可定位';
+          }
+        }
+      }
+      add('拖拽/缩放中 dataset.gesture 置位、结束后清除不残留', dragOk, dragDetail);
+      // suppressNextClick 语义回归：拖拽后浏览器合成的 click 不得误开编辑器。
+      // 若误开，记录失败后复位，避免后续步骤被 30s 超时卡死。
+      const editorAfterDrag = await page.locator('#card-editor-overlay').isVisible().catch(() => false);
+      add('拖拽后的合成 click 未误开编辑器（suppressNextClick）', !editorAfterDrag);
+      if (editorAfterDrag) {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(400);
+        if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+          await page.locator('#app-dialog-actions [data-variant="solid"]').click();
+          await page.waitForTimeout(400);
+        }
+      }
+    }
     // 清理：删掉本场景创建的卡片，否则后续宽度会带着它跑，
     // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
-    await page.evaluate(() => {
-      const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
-        .find((el) => (el.textContent || '').includes('只填标题的卡'));
-      hit?.querySelector('button[aria-label="删除卡片"]')?.click();
-    });
-    await page.waitForTimeout(400);
-    if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
-      await page.locator('#app-dialog-actions [data-variant="solid"]').click();
-      await page.waitForTimeout(600);
+    for (const name of ['拖拽回归用卡', '只填标题的卡']) {
+      await page.evaluate((nm) => {
+        const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
+          .find((el) => (el.textContent || '').includes(nm));
+        hit?.querySelector('button[aria-label="删除卡片"]')?.click();
+      }, name);
+      await page.waitForTimeout(400);
+      if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
+        await page.locator('#app-dialog-actions [data-variant="solid"]').click();
+        await page.waitForTimeout(600);
+      }
     }
     const cleaned = await page.evaluate(
       () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,

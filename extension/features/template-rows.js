@@ -14,6 +14,7 @@ import { getSettings } from '../state/settings.js';
 import { inferPropWithLLM } from './prop-llm.js';
 import { showToast } from './toast.js';
 import { popLayer, pushLayer } from './layer-stack.js';
+import { beginGesture, endGesture } from '../views/gesture.js';
 import {
   buildTplDefaultEditor, openFieldPicker, openPropRowMenu, openRowIconPicker,
   removeExtra, reorderExtra, startAddProp,
@@ -76,8 +77,10 @@ export function buildPropRow(key, def, locked) {
 
 function attachDragHandlers(row, key) {
   const clearOver = () => row.classList.remove('is-drag-over');
-  row.addEventListener('dragstart', (e) => { tplDragKey = key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); document.body.classList.add('tpl-dragging'); });
-  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); document.body.classList.remove('tpl-dragging'); document.querySelectorAll('.tpl-extra-row').forEach(r => r.classList.remove('is-drag-over')); });
+  // body 全局标志（tpl-dragging）统一由 views/gesture.js 写（迁移期它同时维护旧 class）；
+  // 排序状态变量 tplDragKey 仍归构建器（本模块）自己所有。
+  row.addEventListener('dragstart', (e) => { tplDragKey = key; e.dataTransfer.effectAllowed = 'move'; row.classList.add('is-dragging'); beginGesture('tpl-drag'); });
+  row.addEventListener('dragend', () => { tplDragKey = null; row.classList.remove('is-dragging'); endGesture('tpl-drag'); document.querySelectorAll('.tpl-extra-row').forEach(r => r.classList.remove('is-drag-over')); });
   row.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; row.classList.add('is-drag-over'); });
   row.addEventListener('dragleave', clearOver);
   row.addEventListener('drop', (e) => { e.preventDefault(); clearOver(); if (tplDragKey && tplDragKey !== key) reorderExtra(tplDragKey, key); });

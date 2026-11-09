@@ -12,6 +12,7 @@ import { actions } from '../state/actions.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
+import { bindPointerDrag } from './gesture.js';
 import { toggleCardDetail } from './card-expand.js';
 
 const ORIGIN_ICON = { human: '👤', 'agent-assisted': '🤖', 'agent-auto': '⚙️' };
@@ -123,12 +124,11 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
   // Footer
   const footer = buildCardFooter(card);
 
-  // 点击卡片编辑（拖拽后抑制一次；阻止冒泡到 canvas，避免二次打开空编辑器）
-  let suppressClick = false;
+  // 点击卡片编辑（拖拽后由 gesture 的 suppressNextClick 吞掉一次；
+  // 阻止冒泡到 canvas，避免二次打开空编辑器）
   const openFromCard = () => actions.openEditor(card, getCardStartTime(card) ?? currentTime(), dateOverride ?? vs.selectedDate);
   el.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (suppressClick) { suppressClick = false; return; }
     openFromCard();
   });
   // 键盘可达：与卡片池项一致（Tab 聚焦 + Enter/Space 打开）
@@ -143,133 +143,119 @@ export function renderTimelineCard(card, lane = null, allday = false, dateOverri
     }
   });
 
-  // 非全天卡片：底部 resize 手柄调整结束时间
+  // 非全天卡片：底部 resize 手柄调整结束时间。
+  // 拖拽内核归 views/gesture.js（body is-resizing 标志 + suppressClick + finally 自愈），
+  // 吸附/钳制/高度反推等业务逻辑留在这里。
   if (!allday && lane) {
     const handle = document.createElement('div');
     handle.className = 'card-resize-handle';
     handle.title = '拖动调整时长（15 分钟吸附）';
-    let dragging = false;
-    const onMove = (e) => {
-      if (!dragging) return;
-      e.preventDefault();
-      const rect = el.parentElement.getBoundingClientRect();
-      const rawMins = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
-      let endMin = Math.round(rawMins / 15) * 15;
-      const startMin = timeToMinutes(getCardStartTime(card));
-      endMin = Math.max(startMin + 15, endMin);
-      endMin = Math.min(vs.viewEndMin, endMin);
-      const end = minutesToTime(endMin);
-      const dur = endMin - startMin;
-      el.dataset.end = end;
-      el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
-      const time = el.querySelector('.card-time');
-      const isShort = el.classList.contains('is-short');
-      if (time) time.textContent = isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${end}`;
-      const meta = el.querySelector('.card-meta');
-      if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
-    };
-    const onUp = async () => {
-      if (!dragging) return;
-      dragging = false;
-      handle.removeEventListener('pointermove', onMove);
-      handle.removeEventListener('pointerup', onUp);
-      handle.removeEventListener('pointercancel', onUp);
-      document.body.classList.remove('is-resizing');
-      suppressClick = true;
-      const start = getCardStartTime(card);
-      // 若 pointerup 未经过 pointermove（如只点了 handle），从当前高度反推结束时间
-      let end = el.dataset.end;
-      if (!end) {
-        const heightPx = el.getBoundingClientRect().height || SLOT_HEIGHT;
-        const dur = Math.max(15, Math.round((heightPx / SLOT_HEIGHT) * 15 / 15) * 15);
-        end = minutesToTime(timeToMinutes(start) + dur);
-      }
-      if (start && end) {
-        await patchCard(
-          card.id,
-          { time: start, startTime: start, endTime: end },
-          '缩放保存失败：本机服务未连接',
-        );
-      }
-    };
-    handle.addEventListener('pointerdown', (e) => {
-      dragging = true;
-      document.body.classList.add('is-resizing');
-      handle.setPointerCapture(e.pointerId);
-      handle.addEventListener('pointermove', onMove);
-      handle.addEventListener('pointerup', onUp);
-      handle.addEventListener('pointercancel', onUp);
+    bindPointerDrag(handle, {
+      gestureKind: 'resize',
+      suppressClickOnEnd: true,
+      // 吞的是**卡片本体**上的 click（不是手柄）：click 目标是 mousedown/mouseup
+      // 命中元素的公共祖先，拖到卡片内部抬起时就是卡片；而「点卡片 = 打开编辑器」
+      // 也挂在卡片上 —— 与原实现的 suppressClick 作用域一致。
+      suppressClickTarget: el,
+      onStart: (e) => {
+        handle.setPointerCapture(e.pointerId);
+      },
+      onMove: (e) => {
+        e.preventDefault();
+        const rect = el.parentElement.getBoundingClientRect();
+        const rawMins = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15;
+        let endMin = Math.round(rawMins / 15) * 15;
+        const startMin = timeToMinutes(getCardStartTime(card));
+        endMin = Math.max(startMin + 15, endMin);
+        endMin = Math.min(vs.viewEndMin, endMin);
+        const end = minutesToTime(endMin);
+        const dur = endMin - startMin;
+        el.dataset.end = end;
+        el.style.height = `${(dur / 15) * SLOT_HEIGHT}px`;
+        const time = el.querySelector('.card-time');
+        const isShort = el.classList.contains('is-short');
+        if (time) time.textContent = isShort ? getCardStartTime(card) : `${getCardStartTime(card)}–${end}`;
+        const meta = el.querySelector('.card-meta');
+        if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
+      },
+      onEnd: () => {
+        const start = getCardStartTime(card);
+        // 若 pointerup 未经过 pointermove（如只点了 handle），从当前高度反推结束时间
+        let end = el.dataset.end;
+        if (!end) {
+          const heightPx = el.getBoundingClientRect().height || SLOT_HEIGHT;
+          const dur = Math.max(15, Math.round((heightPx / SLOT_HEIGHT) * 15 / 15) * 15);
+          end = minutesToTime(timeToMinutes(start) + dur);
+        }
+        if (start && end) {
+          void patchCard(
+            card.id,
+            { time: start, startTime: start, endTime: end },
+            '缩放保存失败：本机服务未连接',
+          );
+        }
+      },
     });
     el.append(handle);
   }
 
-  // 非全天卡片：拖动主体（header/body 区域）纵向移动，改变开始时间、时长不变
-  // 15 分钟吸附、钳制到画布范围，拖放后持久化并刷新（lane 自动重排）
+  // 非全天卡片：拖动主体（header/body 区域）纵向移动，改变开始时间、时长不变。
+  // 15 分钟吸附、钳制到画布范围，拖放后持久化并刷新（lane 自动重排）；
+  // 阈值（4px）与「纯点击保持编辑」判定是本地逻辑，留在这里。
   if (!allday && lane) {
     const startMin = timeToMinutes(getCardStartTime(card));
     const endMin = timeToMinutes(getCardEndTime(card) ?? addMinutes(getCardStartTime(card), 15));
     const dur = Math.max(15, endMin - startMin);
-    let dragging = false;
     let moved = false;
     let grabOffsetMin = 0;
     let startY = 0;
     const MOVE_THRESHOLD_PX = 4; // 忽略点击时的微小抖动，避免误判为拖动
-    const onMove = (e) => {
-      if (!dragging) return;
-      if (!moved && Math.abs(e.clientY - startY) < MOVE_THRESHOLD_PX) return;
-      e.preventDefault();
-      moved = true;
-      const rect = el.parentElement.getBoundingClientRect();
-      const rawMins = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15 - grabOffsetMin;
-      const snappedMin = Math.round(rawMins / 15) * 15;
-      // 钳制：开始时间 ∈ [视图上界, 视图下界 - dur]，保证卡片始终在画布内
-      const newStartMin = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin - dur, snappedMin));
-      const newStart = minutesToTime(newStartMin);
-      const newEnd = minutesToTime(newStartMin + dur);
-      el.dataset.start = newStart;
-      el.dataset.end = newEnd;
-      el.style.top = `${scheduleHeight(newStartMin)}px`;
-      const time = el.querySelector('.card-time');
-      const isShort = el.classList.contains('is-short');
-      if (time) time.textContent = isShort ? newStart : `${newStart}–${newEnd}`;
-      const meta = el.querySelector('.card-meta');
-      if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
-    };
-    const onUp = async () => {
-      if (!dragging) return;
-      dragging = false;
-      el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onUp);
-      document.body.classList.remove('is-dragging');
-      el.classList.remove('is-dragging');
-      // 仅在真正发生位移时才抑制点击并持久化；纯点击保持编辑功能
-      if (!moved) return;
-      suppressClick = true;
-      const newStart = el.dataset.start;
-      const newEnd = el.dataset.end;
-      if (newStart && newEnd) {
-        await patchCard(
-          card.id,
-          { time: newStart, startTime: newStart, endTime: newEnd },
-          '拖动保存失败：本机服务未连接',
-        );
-      }
-    };
-    el.addEventListener('pointerdown', (e) => {
+    bindPointerDrag(el, {
+      gestureKind: 'drag',
       // 不拦截 footer 按钮与 resize 手柄的交互
-      if (e.target.closest('.card-footer, .card-resize-handle')) return;
-      dragging = true;
-      moved = false;
-      startY = e.clientY;
-      const grabY = e.clientY - el.getBoundingClientRect().top;
-      grabOffsetMin = (grabY / SLOT_HEIGHT) * 15;
-      document.body.classList.add('is-dragging');
-      el.classList.add('is-dragging');
-      el.setPointerCapture(e.pointerId);
-      el.addEventListener('pointermove', onMove);
-      el.addEventListener('pointerup', onUp);
-      el.addEventListener('pointercancel', onUp);
+      shouldStart: (e) => !e.target.closest('.card-footer, .card-resize-handle'),
+      suppressClickOnEnd: () => moved, // 仅真拖动后吞一次 click；纯点击保持编辑功能
+      onStart: (e) => {
+        moved = false;
+        startY = e.clientY;
+        const grabY = e.clientY - el.getBoundingClientRect().top;
+        grabOffsetMin = (grabY / SLOT_HEIGHT) * 15;
+        el.classList.add('is-dragging');
+        el.setPointerCapture(e.pointerId);
+      },
+      onMove: (e) => {
+        if (!moved && Math.abs(e.clientY - startY) < MOVE_THRESHOLD_PX) return;
+        e.preventDefault();
+        moved = true;
+        const rect = el.parentElement.getBoundingClientRect();
+        const rawMins = vs.viewStartMin + ((e.clientY - rect.top) / SLOT_HEIGHT) * 15 - grabOffsetMin;
+        const snappedMin = Math.round(rawMins / 15) * 15;
+        // 钳制：开始时间 ∈ [视图上界, 视图下界 - dur]，保证卡片始终在画布内
+        const newStartMin = Math.max(vs.viewStartMin, Math.min(vs.viewEndMin - dur, snappedMin));
+        const newStart = minutesToTime(newStartMin);
+        const newEnd = minutesToTime(newStartMin + dur);
+        el.dataset.start = newStart;
+        el.dataset.end = newEnd;
+        el.style.top = `${scheduleHeight(newStartMin)}px`;
+        const time = el.querySelector('.card-time');
+        const isShort = el.classList.contains('is-short');
+        if (time) time.textContent = isShort ? newStart : `${newStart}–${newEnd}`;
+        const meta = el.querySelector('.card-meta');
+        if (meta) meta.textContent = isShort ? '' : `${dur} 分钟`;
+      },
+      onEnd: () => {
+        el.classList.remove('is-dragging');
+        if (!moved) return; // 纯点击（<4px）不持久化，交由 click 打开编辑
+        const newStart = el.dataset.start;
+        const newEnd = el.dataset.end;
+        if (newStart && newEnd) {
+          void patchCard(
+            card.id,
+            { time: newStart, startTime: newStart, endTime: newEnd },
+            '拖动保存失败：本机服务未连接',
+          );
+        }
+      },
     });
   }
 

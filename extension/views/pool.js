@@ -16,6 +16,7 @@ import { els } from '../components/dom-refs.js';
 import { vs } from '../state/view-state.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { actions } from '../state/actions.js';
+import { beginGesture, endGesture } from './gesture.js';
 
 // 术语统一（评审 P1-5）：`待办` 曾同时指「一个筛选集」「一个状态」「一个类型」
 // 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「未开始/进行中/已完成/纯记录」。
@@ -193,11 +194,13 @@ export async function renderCardPool() {
     li.addEventListener('dragstart', (e) => {
       e.dataTransfer.setData('text/plain', card.id);
       e.dataTransfer.effectAllowed = 'move';
-      li.classList.add('is-dragging');
+      li.classList.add('is-dragging'); // li 自身的视觉态（opacity），非全局标志
+      beginGesture('pool-drag');       // 全局手势标志唯一写者（views/gesture.js）
       cardDragged = false;
     });
     li.addEventListener('dragend', () => {
       li.classList.remove('is-dragging');
+      endGesture('pool-drag');
       cardDragged = true;
       setTimeout(() => { cardDragged = false; }, 0);
     });

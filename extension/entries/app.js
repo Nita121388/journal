@@ -46,7 +46,13 @@ export async function init() {
   }
   await checkHostHealth();
   startHostSync(() => {
-    // 拖拽/缩放中不打断；其余情况外部变化就全量重渲染
+    // 拖拽/缩放中不打断；其余情况外部变化就全量重渲染。
+    // ⚠️ 迁移期双读：dataset.gesture 优先（views/gesture.js 是 body 标志的唯一写者），
+    // 旧 body class（is-dragging/is-resizing）兼容读 —— 等 CSS 里的 body.is-* 选择器
+    // 退场后删除旧读（gesture P4 迁移期约定）。
+    // 只跳过会打断画布手势的 drag/resize；tpl-drag/pool-drag 历史上不阻断渲染，保持不变。
+    const g = document.body.dataset.gesture;
+    if (g === 'drag' || g === 'resize') return;
     if (document.body.classList.contains('is-dragging') ||
         document.body.classList.contains('is-resizing')) return;
     refreshAll();

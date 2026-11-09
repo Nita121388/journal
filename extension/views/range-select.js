@@ -15,6 +15,7 @@
 
 import { vs } from '../state/view-state.js';
 import { SLOT_HEIGHT, scheduleHeight } from './timeline.js';
+import { suppressNextClick } from './gesture.js';
 
 /** 默认忽略的选择器（在其上按下不开始框选） */
 const DEFAULT_IGNORE = '.timeline-card, .timeline-now-marker, .schedule-grid-label, .card-add-btn, .timeline-empty-hint';
@@ -34,7 +35,6 @@ export function bindRangeSelect(el, onRange, opts = {}) {
   const ignore = opts.ignore ?? DEFAULT_IGNORE;
   /** @type {{startM:number, overlay:HTMLElement, dragging:boolean, endM?:number}|null} */
   let sel = null;
-  let suppressClick = false;
 
   /** 鼠标 Y → 视图内的分钟数（钳制到可视范围） */
   const minuteAt = (clientY) => {
@@ -79,7 +79,9 @@ export function bindRangeSelect(el, onRange, opts = {}) {
     const { startM, dragging } = sel;
     removeSel();
     if (!dragging) return; // 纯点击 → 交给调用方的 click（单格创建）
-    suppressClick = true;
+    // 轮完框选后吞掉这一次 click：交给 views/gesture.js 统一语义
+    // （document capture 一次即失效；旧实现是 el 上的 capture 监听 + 布尔，行为等价）
+    suppressNextClick(el);
     // 对齐 15 分钟网格、最小 15 分钟、不越界
     let s = Math.floor(Math.min(startM, minuteAt(e.clientY)) / 15) * 15;
     let eSlot = Math.ceil(Math.max(startM, minuteAt(e.clientY)) / 15) * 15;
@@ -89,24 +91,16 @@ export function bindRangeSelect(el, onRange, opts = {}) {
     onRange(s, eSlot);
   };
 
-  // capture 阶段抢在单格 click 之前抑制一次
-  const onClickCapture = (e) => {
-    if (suppressClick) {
-      suppressClick = false;
-      e.stopPropagation();
-    }
-  };
-
+  // 注意：这里不再自己挂「capture 一次 click」的监听 —— 抑制语义统一交给
+  // gesture.suppressNextClick（document capture），见 onUp。
   el.addEventListener('mousedown', onDown);
   el.addEventListener('mousemove', onMove);
   el.addEventListener('mouseup', onUp);
-  el.addEventListener('click', onClickCapture, true);
 
   return () => {
     el.removeEventListener('mousedown', onDown);
     el.removeEventListener('mousemove', onMove);
     el.removeEventListener('mouseup', onUp);
-    el.removeEventListener('click', onClickCapture, true);
     removeSel();
   };
 }
