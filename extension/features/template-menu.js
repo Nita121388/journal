@@ -173,7 +173,11 @@ export async function createFromTemplate(tpl) {
   }
   const card = await createCardEntry(patch);
   await actions.refreshAll();
-  openEditor(card, currentTime(), null, null);
+  openEditor(card, currentTime(), null, null, {
+    templateId: tpl.id ?? null,
+    templateName: tpl.name || '模板',
+    fields: fields.map(f => f?.key).filter(Boolean),
+  });
 }
 
 /** 渲染模板下拉菜单（空白 + 模板 + 管理） */

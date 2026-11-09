@@ -214,6 +214,10 @@
               <option value="task">☑️ 任务</option>
               <option value="idea">💡 想法</option>
             </select>
+            <button id="card-editor-template" type="button" class="ce-template-btn" title="切换模板" aria-haspopup="menu">
+              <i data-icon="template" data-icon-size="12" aria-hidden="true"></i>
+              <span id="card-editor-template-name" class="ce-template-name">空白</span>
+            </button>
           </div>
         </div>
         <button id="card-editor-close" class="card-editor-close-btn" aria-label="关闭">✕</button>
@@ -225,7 +229,7 @@
           <input type="hidden" id="card-editor-status" value="none" />
           <input type="hidden" id="card-editor-priority" value="medium" />
 
-          <div class="prop-row" data-key="status">
+          <div class="prop-row" data-key="status" data-field="status">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">⚙️</span><span class="prop-key-label">状态</span></div>
             <div class="prop-val prop-val--stack">
               <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态">
@@ -238,7 +242,7 @@
             </div>
           </div>
 
-          <div class="prop-row" data-key="progress">
+          <div class="prop-row" data-key="progress" data-field="progress">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📊</span><span class="prop-key-label">进度</span></div>
             <div class="prop-val">
               <input type="range" id="card-editor-progress" min="0" max="100" step="5" aria-label="进度" />
@@ -247,7 +251,7 @@
             </div>
           </div>
 
-          <div class="prop-row" data-key="priority">
+          <div class="prop-row" data-key="priority" data-field="priority">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">🚩</span><span class="prop-key-label">优先级</span></div>
             <div class="prop-val">
               <div class="prio-seg" id="card-editor-priority-seg" role="radiogroup" aria-label="优先级">
@@ -258,14 +262,14 @@
             </div>
           </div>
 
-          <div class="prop-row" data-key="date">
+          <div class="prop-row" data-key="date" data-field="assignedDate">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📅</span><span class="prop-key-label">日期</span></div>
             <div class="prop-val">
               <input type="date" id="card-editor-date" class="card-editor-date" aria-label="日期" />
             </div>
           </div>
 
-          <div class="prop-row" data-key="schedule">
+          <div class="prop-row" data-key="schedule" data-field="schedule">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">⏱️</span><span class="prop-key-label">排程</span></div>
             <div class="prop-val card-editor-times">
               <label class="ce-time-field"><span>开始</span><input type="time" id="card-editor-start" step="900" /></label>
@@ -275,7 +279,7 @@
             </div>
           </div>
 
-          <div class="prop-row" data-key="tags">
+          <div class="prop-row" data-key="tags" data-field="tags">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">#</span><span class="prop-key-label">标签</span></div>
             <div class="prop-val prop-val--wrap">
               <div id="card-editor-tag-chips" class="tag-chips"></div>
@@ -283,7 +287,7 @@
             </div>
           </div>
 
-          <div class="prop-row" data-key="project">
+          <div class="prop-row" data-key="project" data-field="project">
             <div class="prop-key"><span class="prop-key-icon" aria-hidden="true">📁</span><span class="prop-key-label">项目</span></div>
             <div class="prop-val">
               <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/primary/projects/journal" aria-label="项目目录" />

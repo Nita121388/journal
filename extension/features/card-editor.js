@@ -21,6 +21,8 @@ import { actions } from '../state/actions.js';
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
 import { renderEditorProps, closePropForm } from './editor-props.js';
+import { applyFields, fieldsWithValues, resolveFields } from './editor-fields.js';
+import { closeTemplatePicker, openTemplatePicker } from './editor-template-picker.js';
 export let editorEmoji = '';
 let emojiPickerCleanup = null;
 
@@ -59,8 +61,8 @@ editorType?.addEventListener('change', () => {
 
 /**
  * 按类型做渐进披露：进度只对「任务」有意义。
- * 用 `.ce-props` 上的 data-type 而非内联 style（design-system 反模式：禁内联 style）。
- * 数据不受影响 —— 纯记录卡也能存 progress，只是不展示控件。
+ * ⚠… 2026-11 起属性行可见性改由 `editor-fields.js`（默认集 + 模板字段）统一决定，
+ * 这里只保留 `data-type` 供 CSS/调试读取，**不再**隐藏任何行（否则会与模板字段打架）。
  */
 function syncTypeVisibility() {
   const props = document.getElementById('card-editor-props');
@@ -77,12 +79,41 @@ editorOverlay?.addEventListener('click', (e) => {
 /** 正在编辑的卡片 ID（null = 新建模式） */
 export let editingCardId = null;
 
+/** 当前编辑器所选模板（null = 空白/默认属性集）。仅影响可见性，不影响数据形态。 */
+let editorTemplate = { id: null, name: '空白', keys: [] };
+
+/** 把模板选中结果应用到属性区 + 头部标签 */
+function applyEditorTemplate({ id = null, name = '空白', keys = [] } = {}) {
+  editorTemplate = { id, name, keys };
+  applyFields(document.getElementById('card-editor-props'), resolveFields(keys));
+  const label = document.getElementById('card-editor-template-name');
+  if (label) label.textContent = name || '空白';
+  const btn = document.getElementById('card-editor-template');
+  if (btn) btn.title = `当前模板：${name || '空白'}（点选切换）`;
+}
+
+/** 编辑器头部的「切换模板」入口：只改可见性，不清空已填内容 */
+function bindTemplateSwitch() {
+  const btn = document.getElementById('card-editor-template');
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openTemplatePicker(btn, {
+      activeId: editorTemplate.id,
+      onPick: pick => applyEditorTemplate(pick),
+    });
+  });
+}
+bindTemplateSwitch();
+
 /**
  * 打开卡片编辑器
  * @param {object|null} card — null = 新建，否则编辑
  * @param {string|null} time — HH:MM（新建时作为开始时间的种子；null/空 = 不排具体时间）
  * @param {string|null} date — YYYY-MM-DD
  * @param {string|null} [assignedDate] — 新建时指定安排日期；null = 未安排（卡片池）
+ * @param {{templateId?: string|null, templateName?: string, fields?: string[]}} [opts]
+ *        opts.fields = 模板声明的字段 key（缺省 = 默认最小集）
  */
 let editorTags = [];
 
@@ -129,7 +160,7 @@ function renderProjectSuggest() {
   }
 }
 
-export function openEditor(card, time, date, assignedDate = undefined) {
+export function openEditor(card, time, date, assignedDate = undefined, opts = {}) {
   editingCardId = card?.id ?? null;
   // 正在编辑的卡片在真源里的快照：项目预填与来源展示共用（只查一次）
   const existing = editingCardId ? vs.allCardsCache.find(c => c.id === editingCardId) ?? null : null;
@@ -169,6 +200,16 @@ export function openEditor(card, time, date, assignedDate = undefined) {
   renderEditorProps();
   setEditorEmoji(card?.emoji ?? '');
   closeEmojiPicker();
+  closeTemplatePicker();
+
+  // 属性集：默认最小集 ∪ 模板字段 ∪ 卡片上已填的字段
+  // 已有卡片要把已填属性拉出来，否则“模板收敛”会把旧卡的优先级/项目藏掉。
+  const visibleKeys = [...(opts.fields ?? []), ...fieldsWithValues(card)];
+  applyEditorTemplate({
+    id: opts.templateId ?? null,
+    name: opts.templateName ?? '空白',
+    keys: visibleKeys,
+  });
 
   // 项目：优先沿用卡片已记录的（先看修改者、再看创建者），否则用上次填过的
   const recordedProject = existing?.meta?.updatedBy?.project ?? existing?.meta?.createdBy?.project ?? null;
@@ -381,6 +422,8 @@ export function closeEditor() {
   editorOverlay.classList.add('hidden');
   editorSnapshot = '';
   editingCardId = null;
+  closeTemplatePicker();
+  applyEditorTemplate({ id: null, name: '空白', keys: [] });
   editorContent.value = '';
   editorTags = [];
   renderEditorTags();
