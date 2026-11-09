@@ -9,6 +9,7 @@
  */
 
 import { icon } from '../components/icon.js';
+import { FIELD_ORDER } from './editor-fields.js';
 import { getHostMeta } from '../state/host-client.js';
 
 const MENU_ID = 'editor-template-menu';
@@ -91,6 +92,8 @@ export async function openTemplatePicker(anchor, { onPick, activeId = null } = {
     const keys = templateFieldKeys(tpl);
     addItem(tpl.id, tpl.name || '未命名模板', keys, keys.length ? `${keys.length} 个属性` : '无额外属性');
   }
+  // 没有合适模板时的逃生口：一次性显示全部内建属性（不建模板、不改数据）
+  addItem(null, '显示全部属性', FIELD_ORDER, '一次性');
 
   const rect = anchor.getBoundingClientRect();
   menu.style.top = `${rect.bottom + 4}px`;
