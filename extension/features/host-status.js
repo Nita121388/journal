@@ -11,6 +11,7 @@ import { getPort } from '../platform/index.js';
 import { ROUTES } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
 import { pullFromHost } from '../state/sync-bridge.js';
+import { withBusy } from './busy.js';
 
 export async function checkHostHealth() {
   try {
@@ -78,7 +79,16 @@ export async function waitForHost(timeoutMs = 15000) {
   return false;
 }
 
-export async function startHost() {
+/**
+ * 启动 host（withBusy 入口守卫 + 按钮 disabled 双保险：
+ * disabled 挡鼠标连点，withBusy 挡绕过 disabled 的直调路径 —— 启动中重复触发
+ * 只会返回进行中的同一个 promise，不会并发跑两遍 native 启动）。
+ */
+export function startHost() {
+  return withBusy('host.start', doStartHost);
+}
+
+async function doStartHost() {
   if (!els.hostStatusBtn) return;
   setHostStatus('starting');
   try {

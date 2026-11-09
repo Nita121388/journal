@@ -17,9 +17,22 @@
 const DEFAULT_VISIBLE = ['status', 'tags'];
 
 /**
- * @param {{ page: import('playwright').Page }} ctx
+ * 数隔离 host 里的卡片（P1 缺陷 1 回归用）。
+ * @param {number} port 隔离 host 端口
+ * @param {string} [title] 给了就只数该标题的卡（同一 host 会被多个宽度复用）
+ * @returns {Promise<number>}
  */
-export async function runEditor({ page }) {
+async function countCards(port, title) {
+  const res = await fetch(`http://127.0.0.1:${port}/api/cards`);
+  const j = await res.json().catch(() => null);
+  const cards = Array.isArray(j?.data) ? j.data : [];
+  return title === undefined ? cards.length : cards.filter((c) => c.title === title).length;
+}
+
+/**
+ * @param {{ page: import('playwright').Page, width: number, hostPort?: number|null }} ctx
+ */
+export async function runEditor({ page, width, hostPort }) {
   /** @type {Array<[string, boolean, string]>} */
   const checks = [];
   const add = (name, ok, detail = '') => checks.push([name, Boolean(ok), String(detail)]);
@@ -161,6 +174,36 @@ export async function runEditor({ page }) {
   const pickerItems = await page.evaluate(() =>
     [...document.querySelectorAll('#editor-template-menu .tpl-item')].map((b) => b.textContent.trim()));
   add('模板下拉含「空白」项', pickerItems.some((t) => t.includes('空白')), pickerItems.join(' | '));
+
+  // ── P1 缺陷 1 回归：快速连点两次保存只创建一张卡（withBusy in-flight 去重） ──
+  // 复现的就是实锤 bug 的路径：鼠标点一下「保存」后紧跟一次 ⌘⏎。
+  // ⌘⏎ 在 bind-editor.js 里**直调** saveEditor（不经过按钮，所以 disabled 挡不住它），
+  // 没有 withBusy 守卫时两次都会走到 createCardEntry → 建出两张卡。
+  if (hostPort) {
+    const title = `连点保存只建一张-${width}`;
+    // 模板下拉可能还开着：点标题会先触发外部点击关闭，再聚焦输入
+    await page.locator('#card-editor-title').click();
+    await page.locator('#card-editor-title').fill(title);
+    const before = await countCards(hostPort);
+    // 两次触发在**同一个任务**里同步派发，保证第二次落在第一次的 in-flight 窗口内
+    await page.evaluate(() => {
+      document.getElementById('card-editor-save').click();
+      document.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', metaKey: true, bubbles: true, cancelable: true,
+      }));
+    });
+    await overlay.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const after = await countCards(hostPort);
+    const sameTitle = await countCards(hostPort, title);
+    add(
+      '快速连点两次保存只创建一张卡',
+      after - before === 1 && sameTitle === 1,
+      `before=${before} after=${after} 同标题=${sameTitle}`,
+    );
+  } else {
+    add('快速连点两次保存只创建一张卡', false, 'skipped：需要 host（--host-mode isolated/write）');
+  }
 
   return { checks };
 }

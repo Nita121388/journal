@@ -6,11 +6,12 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { cardEditorAddField, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
 import { confirmDialog } from './dialog.js';
+import { withBusy } from './busy.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
@@ -542,7 +543,18 @@ export function closeEditor() {
   closeEmojiPicker();
 }
 
-export async function saveEditor() {
+/**
+ * 保存编辑器（withBusy 入口守卫，修缺陷 1：双击/⌘⏎ + 双击重复建卡）。
+ *
+ * 按钮的 disabled 只挡得住鼠标连点；⌘⏎ 在 bind-editor.js 的 keydown 里**直调**
+ * saveEditor，绕过 disabled —— 保存进行中再来一次会并发跑两遍 createCardEntry。
+ * 所以去重必须落在函数入口：同 key 进行中时直接返回同一个 promise，不重复提交。
+ */
+export function saveEditor() {
+  return withBusy('editor.save', doSaveEditor);
+}
+
+async function doSaveEditor() {
   const content = editorContent.value.trim();
   const title = editorTitle?.value?.trim() ?? '';
   // type 已退出 UI：保留编辑中卡片的原 type（旧任务卡不降级），新建恒为 'text'
@@ -569,6 +581,14 @@ export async function saveEditor() {
   // 日期：date input 的值；空 = 未安排（卡片池）
   const assignedDate = editorDate?.value || null;
 
+  // 保存中：按钮禁用 + 文案反馈（与 withBusy 入口守卫双保险 —— disabled 挡鼠标，
+  // withBusy 挡 ⌘⏎ 等绕过 disabled 的直调路径）。finally 复原，失败后可直接重试。
+  const saveBtn = editorSave;
+  const saveLabel = saveBtn?.textContent ?? '保存';
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中…';
+  }
   try {
     // 项目目录：本次填写的（记住供下次预填）
     const project = editorProjectInput?.value?.trim() ?? '';
@@ -598,5 +618,10 @@ export async function saveEditor() {
   } catch (e) {
     console.error('[journal] save card failed:', e);
     showToast(`保存失败：host 服务未连接（${DEFAULT_HOST_BASE}）`, 'error');
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = saveLabel;
+    }
   }
 }
