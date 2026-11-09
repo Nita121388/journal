@@ -10,7 +10,7 @@
 </head>
 <body>
   <header id="header">
-    <span id="app-logo" aria-hidden="true">📓</span>
+    <span id="app-logo" aria-hidden="true" data-icon="note" data-icon-size="16"></span>
     <span id="app-title">Journal<small>扩展设置</small></span>
     <small id="app-version" class="app-version" hidden></small>
   </header>
@@ -20,7 +20,7 @@
     <details id="host-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="host-status-card">
-          <span class="section-icon" aria-hidden="true">⚡</span>
+          <span class="section-icon" aria-hidden="true" data-icon="status" data-icon-size="14"></span>
           <div>
             <div class="eyebrow">LOCAL SERVICE</div>
             <div id="host-status" class="status-row">
@@ -43,7 +43,7 @@
     <details id="ai-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
-          <span class="section-icon" aria-hidden="true">✨</span>
+          <span class="section-icon" aria-hidden="true" data-icon="sparkle" data-icon-size="14"></span>
           <h2>AI 增强</h2>
           <div class="status-row">
             <span id="ai-dot" class="status-dot"></span>
@@ -124,7 +124,7 @@
     <details id="agent-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
-          <span class="section-icon" aria-hidden="true">🤖</span>
+          <span class="section-icon" aria-hidden="true" data-icon="sparkle" data-icon-size="14"></span>
           <h2>Agent 接入</h2>
         </div>
         <span class="collapse-chevron" aria-hidden="true">⌄</span>
@@ -152,7 +152,7 @@
       <h3>复制 Prompt</h3>
       <div class="prompt-box">
         <textarea id="prompt-textarea" readonly rows="10"></textarea>
-        <button id="copy-prompt" class="btn" type="button" title="复制到剪贴板">📋 复制 Prompt</button>
+        <button id="copy-prompt" class="btn" type="button" title="复制到剪贴板" data-icon="copy" data-icon-size="14">复制 Prompt</button>
         <span id="copy-feedback" class="copy-feedback"></span>
       </div>
     </details>
@@ -161,7 +161,7 @@
     <details id="data-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
-          <span class="section-icon" aria-hidden="true">💾</span>
+          <span class="section-icon" aria-hidden="true" data-icon="save" data-icon-size="14"></span>
           <h2>数据</h2>
         </div>
         <span class="collapse-chevron" aria-hidden="true">⌄</span>
@@ -173,8 +173,8 @@
       </label>
       <p class="desc">提醒完全在本机计算，不联网。关掉后不再弹通知。<a href="https://github.com/Nita121388/journal/blob/main/docs/user-guide.md" target="_blank" rel="noopener" id="help-link">使用指南</a></p>
       <p class="desc">从 <b>host 权威库</b>导出全部数据（不是扩展缓存副本）：JSON 可备份/交给 AI，Markdown 便于人读归档。<b>导出文件不含任何密钥</b>。</p>
-      <button id="export-data" class="btn btn-block" type="button" title="从 host 权威库导出全部数据（非扩展缓存副本）">⬇️ 导出全部数据（JSON）</button>
-      <button id="export-md" class="btn btn-block" type="button" title="导出为人类可读的 Markdown">📄 导出为 Markdown</button>
+      <button id="export-data" class="btn btn-block" type="button" title="从 host 权威库导出全部数据（非扩展缓存副本）" data-icon="save" data-icon-size="14">导出全部数据（JSON）</button>
+      <button id="export-md" class="btn btn-block" type="button" title="导出为人类可读的 Markdown" data-icon="note" data-icon-size="14">导出为 Markdown</button>
       <span id="export-feedback" class="copy-feedback"></span>
       </div>
     </details>
@@ -183,7 +183,7 @@
     <details id="sync-section" class="card collapsible">
       <summary class="collapse-header">
         <div class="section-head">
-          <span class="section-icon" aria-hidden="true">☁️</span>
+          <span class="section-icon" aria-hidden="true" data-icon="template" data-icon-size="14"></span>
           <h2>数据同步</h2>
         </div>
         <span class="collapse-chevron" aria-hidden="true">⌄</span>
@@ -230,7 +230,7 @@
       <div class="btn-row">
         <button id="sync-save" class="btn" type="button">保存配置</button>
         <button id="sync-test" class="btn" type="button">连接测试</button>
-        <button id="sync-now" class="btn" type="button">☁️ 立即同步</button>
+        <button id="sync-now" class="btn" type="button" data-icon="template" data-icon-size="14">立即同步</button>
       </div>
       <span id="sync-feedback" class="copy-feedback"></span>
       </div>

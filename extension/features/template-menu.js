@@ -5,6 +5,7 @@
  */
 
 import { els } from '../components/dom-refs.js';
+import { icon } from '../components/icon.js';
 import { writeValueToCard } from '../shared/field-registry.js';
 import { RESERVED_PROPS, currentTime } from '../shared/model.js';
 import { actions } from '../state/actions.js';
@@ -200,7 +201,10 @@ export function renderTemplateMenu(templates) {
     const it = document.createElement('button');
     it.type = 'button'; it.className = 'tpl-item';
     const emoji = document.createElement('span');
-    emoji.textContent = t.emoji || '🗂️';
+    // 模板图标是**内容** emoji（用户自选），允许；未设时用 SVG 占位（功能图标不得用 emoji）
+    if (t.emoji) emoji.textContent = t.emoji;
+    else emoji.append(icon('template', { size: 14 }));
+    emoji.className = 'tpl-item-icon';
     const nm = document.createElement('span');
     nm.textContent = t.name;
     it.append(emoji, nm);
@@ -222,14 +226,16 @@ export function renderTemplateMenu(templates) {
 
   const create = document.createElement('button');
   create.type = 'button'; create.className = 'tpl-item tpl-create' + (!templates.length ? ' tpl-create-cta' : '');
-  create.textContent = '＋ 新建模板' + (templates.length ? '…' : '');
+  create.append(icon('plus', { size: 14 }));
+  create.append(document.createTextNode('新建模板' + (templates.length ? '…' : '')));
   create.addEventListener('click', () => { closeTemplateMenu(); openTemplateBuilder(); });
   menu.append(create);
 
   if (templates.length) {
     const mgmt = document.createElement('button');
     mgmt.type = 'button'; mgmt.className = 'tpl-item tpl-manage';
-    mgmt.textContent = '⚙️ 管理模板…';
+    mgmt.append(icon('settings', { size: 14 }));
+    mgmt.append(document.createTextNode('管理模板…'));
     mgmt.addEventListener('click', () => { closeTemplateMenu(); manageTemplates(templates); });
     menu.append(mgmt);
   }

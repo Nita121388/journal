@@ -62,7 +62,9 @@ export function openDialog({ title, render, actions }) {
   for (const a of actions ?? []) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = a.primary ? 'btn-primary' : 'btn-secondary';
+    btn.className = 'btn';
+    btn.dataset.variant = a.primary ? 'solid' : 'outline';
+    btn.dataset.size = 'sm';
     if (a.danger) btn.classList.add('is-danger');
     btn.textContent = a.label;
     btn.addEventListener('click', () => settle(a.getValue ? a.getValue() : (a.value ?? null)));

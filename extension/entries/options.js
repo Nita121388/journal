@@ -13,6 +13,7 @@ import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 import { getPort } from '../platform/index.js';
 import { cardsToMarkdown } from '../shared/md-export.js';
 import { renderVersionBadge } from '../components/version-badge.js';
+import { hydrateIcons } from '../components/icon.js';
 
 /* ─── 常量 ──────────────────────────────────────────────── */
 
@@ -584,6 +585,8 @@ async function init() {
   }
 }
 
+// 图标先注入再走 init：head/按钮里的 data-icon 占位在此之前只是空元素
+hydrateIcons();
 init();
 
 // 版本徽标：单一真值 = manifest（“我装的是哪个包”在页面上可见）

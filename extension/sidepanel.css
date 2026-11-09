@@ -2017,6 +2017,12 @@ body.is-dragging .timeline-card.is-short {
   color: var(--color-muted);
   padding: 2px 6px;
   border-radius: 4px;
+  /* 关闭按钮现在只有 SVG 子节点（无 ✕ 字符），显式居中 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--h-ctl-sm);
+  min-height: var(--h-ctl-sm);
 }
 .card-editor-close-btn:hover { background: var(--color-cell-empty); }
 
@@ -2301,6 +2307,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
   padding: 1px 8px; border-radius: var(--r-sm);
   border: 1px solid var(--color-border); background: transparent;
   color: var(--color-muted); cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .props-add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
@@ -2414,8 +2423,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* ═══════════ 新建卡片界面美化（重写顶层样式） ═══════════ */
 
-/* 遮罩：加一层背景模糊 */
-.overlay { background: rgba(0,0,0,0.42); backdrop-filter: blur(3px); }
+/* 遮罩：纯色 scrim。
+ * 禁止 backdrop-filter（design.md §7：全站 0 处合成层）——窄侧栏里模糊既吃 GPU 又发糊。 */
+.overlay { background: var(--color-scrim); }
 
 .card-editor {
   position: relative;
@@ -2559,7 +2569,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   padding: 4px 0;
   min-width: 0;
 }
-.prop-key-icon { font-size: 11px; flex-shrink: 0; opacity: .85; }
+.prop-key-icon { font-size: 11px; flex-shrink: 0; opacity: .85; display: inline-flex; align-items: center; }
 .prop-key-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .prop-val {
   display: flex;
@@ -2650,7 +2660,8 @@ html.wide-mode .timeline-card { max-width: 300px; }
   font-weight: 600;
   border-color: var(--color-border);
 }
-/* 优先级圆点：颜色只出现在这里（8px 图形），文字保持正文色 */
+/* 优先级圆点：单色（图形不承载语义，语义由「高/中/低」文字承担）。
+ * 2026-11 起不再用红/褐/绿三色区分 —— R11 一号主色纪律 + 绿色退出 UI 语义。 */
 .seg-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -2658,10 +2669,7 @@ html.wide-mode .timeline-card { max-width: 300px; }
   background: var(--color-muted);
   opacity: .55;
 }
-.seg[data-priority="high"] .seg-dot { background: var(--prio-high); }
-.seg[data-priority="medium"] .seg-dot { background: var(--prio-medium); }
-.seg[data-priority="low"] .seg-dot { background: var(--prio-low); }
-.seg.is-active .seg-dot { opacity: 1; }
+.seg.is-active .seg-dot { opacity: 1; background: var(--accent); }
 
 /* 进度条 */
 .prop-val input[type=range] {
