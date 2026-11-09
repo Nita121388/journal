@@ -506,5 +506,36 @@ export async function runSmoke({ page }) {
     add('确认放弃后编辑器关闭', false, '确认框未出现');
   }
 
+  // ── P3 缺陷 2 回归：Esc 关抽屉后 pref 与实际状态一致（setPanels 唯一写入口） ──
+  {
+    const panelsBtn = page.locator('#btn-panels');
+    const panelsVisible = await panelsBtn.isVisible().catch(() => false); // 宽屏时按钮被 CSS 隐藏
+    if (panelsVisible) {
+      // 打开 → pref 应为 '1'
+      if (!(await page.evaluate(() => document.body.classList.contains('panels-open')))) {
+        await panelsBtn.click();
+        await page.waitForTimeout(150);
+      }
+      const prefOpen = await page.evaluate(() => localStorage.getItem('journal.panelsOpen'));
+      // Esc 关闭 → pref 必须同步为 '0'（修复前 Esc 只改 body class 不写 pref）
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+      const closedBody = await page.evaluate(() => !document.body.classList.contains('panels-open'));
+      const prefClosed = await page.evaluate(() => localStorage.getItem('journal.panelsOpen'));
+      add('Esc 关抽屉后 pref 与实际状态一致', closedBody && prefClosed === '0',
+        `body关=${closedBody} pref=${prefClosed} 开启时pref=${prefOpen}`);
+      // 再点开 → pref 回 '1'，下次启动状态不漂移
+      await panelsBtn.click();
+      await page.waitForTimeout(150);
+      const prefReopen = await page.evaluate(() => localStorage.getItem('journal.panelsOpen'));
+      add('重新打开抽屉后 pref 为 1', prefReopen === '1', `pref=${prefReopen}`);
+      // 还原：关上抽屉（不污染后续断言 —— 侧栏盖住主区会拦截 #btn-quick-add 的点击）
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+    } else {
+      add('Esc 关抽屉后 pref 与实际状态一致', true, '宽屏下抽屉按钮隐藏，跳过');
+    }
+  }
+
   return { checks };
 }

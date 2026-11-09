@@ -38,15 +38,17 @@ export async function bindShell() {
   });
 
   // 侧栏抽屉（窄栏默认收起；宽屏时 CSS 自动隐藏按钮）
+  // 唯一写入口：body class + aria + pref 都在这里同步（缺陷 2 修复：此前 Esc/点遮罩
+  // 只改 body class 不写 pref，下次启动回到旧状态，与实际状态漂移）
   const setPanels = (open) => {
     document.body.classList.toggle('panels-open', open);
     els.btnPanels.setAttribute('aria-expanded', String(open));
+    getPort().prefSet('journal.panelsOpen', open ? '1' : '0');
   };
+  // 初始化：pref 是真源，但只读一次（宽屏下 CSS 自动隐藏抽屉，不回写）
   setPanels(getPort().prefGet('journal.panelsOpen') === '1');
   els.btnPanels.addEventListener('click', () => {
-    const open = !document.body.classList.contains('panels-open');
-    setPanels(open);
-    getPort().prefSet('journal.panelsOpen', open ? '1' : '0');
+    setPanels(!document.body.classList.contains('panels-open'));
   });
   // 点击遮罩关闭抽屉
   els.board?.addEventListener?.('click', (e) => {
