@@ -4,7 +4,9 @@
 属性行渲染、拖拽排序、行内改名、LLM 建议、添加行。
  */
 
+import { icon as makeIcon } from '../components/icon.js';
 import { isReservedKey } from '../shared/field-registry.js';
+import { builtinFieldIcon } from './editor-fields.js';
 import { RESERVED_PROPS } from '../shared/model.js';
 import { dedupeKey, defaultValueForType, inferProp } from '../shared/prop-infer.js';
 import { savePropLibrary, upsertPropDef } from '../state/prop-library.js';
@@ -26,7 +28,10 @@ export function buildPropRow(key, def, locked) {
 
   const icon = document.createElement('button');
   icon.type = 'button'; icon.className = 'tpl-prop-icon'; icon.draggable = false;
-  icon.textContent = def.icon || '•';
+  // 内建字段用 SVG（功能图标）；自定义属性保留用户自选 emoji（内容图标）
+  const iconName = builtinFieldIcon(key);
+  if (iconName) icon.append(makeIcon(iconName, { size: 14 }));
+  else icon.textContent = def.icon || '•';
   icon.title = '点击更换图标';
   icon.setAttribute('aria-label', `更换属性「${def.label || key}」的图标`);
   icon.addEventListener('click', (e) => {
@@ -49,12 +54,12 @@ export function buildPropRow(key, def, locked) {
   if (!locked) {
     const edit = document.createElement('button');
     edit.type = 'button'; edit.className = 'tpl-row-act tpl-row-edit'; edit.draggable = false;
-    edit.textContent = '✎'; edit.title = '编辑属性';
+    edit.append(makeIcon('pencil', { size: 13 })); edit.title = '编辑属性';
     edit.setAttribute('aria-label', `编辑属性「${def.label || key}」`);
     edit.addEventListener('click', (e) => { e.stopPropagation(); openTplEditProp(key); });
     const del = document.createElement('button');
     del.type = 'button'; del.className = 'tpl-row-act tpl-row-del'; del.draggable = false;
-    del.textContent = '✕'; del.title = '从模板移除';
+    del.append(makeIcon('trash', { size: 13 })); del.title = '从模板移除';
     del.setAttribute('aria-label', `从模板移除属性「${def.label || key}」`);
     del.addEventListener('click', (e) => { e.stopPropagation(); removeExtra(key); });
     row.append(edit, del);

@@ -26,6 +26,36 @@ export const BASE_FIELDS = ['status', 'tags'];
 export const FIELD_ORDER = ['status', 'priority', 'progress', 'assignedDate', 'schedule', 'tags', 'project'];
 
 /**
+ * 内建字段 → icon.js 图标名（模板构建器的属性行图标）。
+ *
+ * 注册表里的 `icon` 存的是 emoji（历史数据，host 也存它），但**功能图标一律 SVG**
+ * （design-system §5）。所以内置字段在 UI 里用这张表查图标名，未知/自定义字段
+ * 继续显示用户自选的 emoji（那是内容，不是功能图标）。
+ * @type {Record<string, string>}
+ */
+export const BUILTIN_FIELD_ICONS = {
+  title: 'list',
+  content: 'note',
+  tags: 'tag',
+  status: 'pin',
+  priority: 'flag',
+  progress: 'gauge',
+  assignedDate: 'calendar',
+  date: 'calendar',
+  project: 'folder',
+  schedule: 'clock',
+};
+
+/**
+ * 取内建字段的图标名（非内建字段返回空串）。
+ * @param {string} key
+ * @returns {string}
+ */
+export function builtinFieldIcon(key) {
+  return BUILTIN_FIELD_ICONS[key] || '';
+}
+
+/**
  * 把「模板字段 key 列表」解析成「要显示的属性行 key 列表」。
  *
  * 规则：

@@ -2319,13 +2319,44 @@ html.wide-mode .timeline-card { max-width: 300px; }
   gap: 2px 10px;
   align-items: center;
 }
+/* 表单控件统一到控件标尺（P5 收口 2026-11-09）。
+ * 旧实现：`border: 1px solid transparent` + 高度靠内距撑（26px）+ 焦点时
+ * outline / border-color / box-shadow 三重叠加 → 截图里看上去像“两层边框”。
+ * 现在：常态 1px 描边（看得见边界）+ 高度走 --h-ctl（与全站控件同标尺），
+ * 焦点只用「描边变色 + 一圈外光晕」单环表达。 */
 .prop-input {
-  flex: 1; min-width: 0; font-family: var(--font); font-size: 12px;
-  border: 1px solid transparent; border-radius: var(--r-sm);
-  padding: 3px 6px; background: transparent; color: var(--color-text);
+  flex: 1; min-width: 0;
+  height: var(--h-ctl);
+  box-sizing: border-box;
+  font-family: var(--font);
+  font-size: var(--fs-12-5);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-ctl-md);
+  padding: 0 8px;
+  transition: border-color var(--dur-1) var(--ease-out),
+              box-shadow var(--dur-1) var(--ease-out);
 }
-.prop-input:hover { border-color: var(--color-border); }
-.prop-input:focus-visible { outline: none; border-color: var(--color-focus); box-shadow: 0 0 0 1px var(--color-focus); }
+.prop-input:hover { border-color: var(--ink-weak); }
+/* 单环焦点：去掉 outline（它会和外描边叠成两层），只留描边变色 + 外光晕。
+ * 必须同时覆盖 :focus —— 程序 focus() 不一定匹配 :focus-visible。 */
+.prop-input:focus,
+.prop-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* 多行/文本域：高度自适应，内距回到常规值 */
+textarea.prop-input {
+  height: auto;
+  min-height: 64px;
+  padding: 6px 8px;
+  line-height: 1.5;
+  resize: vertical;
+}
+/* 复选框不适用上面的高度/描边 */
+.prop-input[type="checkbox"] { height: auto; padding: 0; border: 0; background: none; }
 .prop-del { background: none; border: none; cursor: pointer; color: var(--color-muted); font-size: 11px; padding: 0 2px; }
 .prop-del:hover { color: var(--color-danger); }
 
@@ -2618,8 +2649,8 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .prop-val input[type="number"]:hover { border-color: var(--color-border); }
 .prop-val input:focus-visible {
   outline: none;
-  border-color: var(--color-focus);
-  box-shadow: 0 0 0 1px var(--color-focus);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .prop-val input::placeholder { color: var(--color-muted); opacity: .7; }
 .prop-val #card-editor-project { flex: 1 1 100%; }
@@ -2750,7 +2781,14 @@ html.wide-mode .timeline-card { max-width: 300px; }
   transition: background .12s ease-out, border-color .12s ease-out;
 }
 #card-editor-content:hover { background: var(--color-hover); }
-#card-editor-content:focus-visible { outline: none; border-color: var(--color-focus); }
+/* 单环焦点：描边变色 + 外光晕（与 .prop-input 同语言，避免“两层框”） */
+#card-editor-content:focus,
+#card-editor-content:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--surface);
+}
 #card-editor-content::placeholder { color: var(--color-muted); opacity: .75; }
 /* 标签 chip：Notion 式小方角（非胶囊），hover 才露出 ×
  * 作用域限定在编辑器内 —— 卡片池的只读标签（.card-tags）沿用既有胶囊样式，
@@ -2983,7 +3021,9 @@ html.wide-mode .timeline-card { max-width: 300px; }
 .tpl-prop-row:hover { background: var(--color-cell-empty); }
 .tpl-prop-check { accent-color: var(--color-accent); }
 .tpl-prop-label { font-size: 13px; }
-.tpl-prop-value .prop-input { width: 100%; padding: 4px 8px; border-radius: 7px; }
+.tpl-prop-value .prop-input { width: 100%; padding: 0 8px; border-radius: var(--r-ctl-md); }
+/* 多行属性的内距不能用单行档（会贴边） */
+.tpl-prop-value textarea.prop-input { padding: 6px 8px; }
 .tpl-prop-row.is-locked { background: rgba(0,0,0,0.02); }
 .tpl-prop-row.is-locked .tpl-prop-label { font-weight: 600; }
 
@@ -3162,16 +3202,40 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 /* 键盘焦点环：标题除外（它用下边框表达焦点，叠加整框环会变成「绿框里的绿框」） */
 .template-builder button:focus-visible,
-.template-builder input:focus-visible,
-.template-builder select:focus-visible,
-.template-builder textarea:focus-visible,
-.card-editor button:focus-visible,
-.card-editor select:focus-visible,
-.card-editor textarea:focus-visible,
-.card-editor input:not(.card-editor-title):focus-visible {
+.card-editor button:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* 表单控件**不**走 outline 焦点环：它们自己用「描边变色 + 外光晕」单环。
+ * 旧规则把 input/select/textarea 也套上 outline，叠加 .prop-input 的 border+box-shadow，
+ * 实测出现「三层蓝框」（截图确认）——这就是用户说的“两层边框”。 */
+.template-builder input:focus-visible,
+.template-builder select:focus-visible,
+.template-builder textarea:focus-visible,
+.card-editor select:focus-visible,
+.card-editor textarea:focus-visible,
+.card-editor input:not(.card-editor-title):focus-visible {
+  outline: none;
+}
+
+/* 弹窗内的自建下拉框：与 .prop-input 同标尺（select.css 的 sm 档是 24px/11px，
+ * 放进弹窗里比旁边输入框矮一截，看起来“矮小”）。 */
+.template-builder .js-select-trigger,
+.card-editor .js-select-trigger {
+  height: var(--h-ctl);
+  font-size: var(--fs-12-5);
+  background: var(--surface);
+  border-color: var(--line-2);
+  border-radius: var(--r-ctl-md);
+}
+/* 弹窗内的下拉 focus ring：offset 层用 surface，否则在白色弹窗上露出一圈灰边 */
+.template-builder .js-select-trigger:focus-visible,
+.card-editor .js-select-trigger:focus-visible {
+  box-shadow: var(--select-shadow),
+              0 0 0 2px var(--surface),
+              0 0 0 4px var(--color-focus);
 }
 
 /* 标题输入框（卡片/模板）：焦点已由下边框指示，不再叠加彩色焦点环。
