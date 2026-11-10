@@ -225,17 +225,19 @@
 卡片状态只有 4 个 key：`none|todo|doing|done`（`shared/card-schema.js:STATUSES`），
 中文名同样只在那里定义：`STATUS_LABELS` / `statusLabel(v)` / `statusOptions()`。
 
-- 编辑器状态胶囊由 `features/card-editor.js:ensureStatusButtons()` 从 `statusOptions()`
-  渲染，**HTML 里不再硬编码标签**。
+- 编辑器状态是**普通下拉框**（`<select id="card-editor-status">`，2026-11-10 取代 2×2 胶囊 +
+  自定义状态输入），选项由 `features/card-editor.js:ensureStatusOptions()` 从 `statusOptions()`
+  渲染，**HTML 里不再硬编码标签**。存量非常规状态值动态补一个同名 option 显示、不静默改写。
+- `none` 的显示名是「无状态」（不是「纯记录」——那不是一种状态，而是没有状态）。
 - 卡片池筛选与徽标（`views/pool.js`）用同一个 `statusLabel()`，不再自带文案。
 - 模板构建器的默认值下拉对 `behavior === 'status'` 用中文显示、值仍存 key
-  （否则模板里看到 `none`、编辑器里看到「纯记录」）。
+  （否则模板里看到 `none`、编辑器里看到「无状态」）。
 - `shared/prop-infer.js` 的「状态/阶段」关键词推断也取同一组 4 项。
 
 **Gotcha：`''` 不是 `nullish`。** `writeValueToCard` 曾用 `value ?? empty`，
 模板字段默认值留空（`''`）会被原样写进 `card.status`，于是卡片池
-`statusMatches(card,'none')` 匹配不到 —— 卡在「纯记录」筛选下凭空消失，
-而编辑器又把它显示成「纯记录」。一级字段现在把 `''` 视为未填、走 `empty` 兜底。
+`statusMatches(card,'none')` 匹配不到 —— 卡在「无状态」筛选下凭空消失，
+而编辑器又把它显示成「无状态」。一级字段现在把 `''` 视为未填、走 `empty` 兜底。
 
 ## 11. 两个页面共用一套 token 值（2026-11-09）
 

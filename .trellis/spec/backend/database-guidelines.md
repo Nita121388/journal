@@ -41,7 +41,7 @@ cards(
 )
 ```
 
-- **统一卡片模型**（阶段 A 重构后）：`status` 取代 `type+done` 的 UI 语义（文本=纯记录 none，待办=todo，进行中=doing，完成=done）。`type/done` 列**物理保留**，仅作历史兼容；读侧用 `statusFromTypeDone(type, done)` 推导：`task+done→done`、`task+not done→todo`、否则 `none`。**status 列必须可空（无 DEFAULT）**——否则 `ALTER TABLE ADD COLUMN ... DEFAULT 'none'` 会把存量 task 卡填成 `none`，推导失效。
+- **统一卡片模型**（阶段 A 重构后）：`status` 取代 `type+done` 的 UI 语义（文本=无状态 none，待办=todo，进行中=doing，完成=done）。`type/done` 列**物理保留**，仅作历史兼容；读侧用 `statusFromTypeDone(type, done)` 推导：`task+done→done`、`task+not done→todo`、否则 `none`。**status 列必须可空（无 DEFAULT）**——否则 `ALTER TABLE ADD COLUMN ... DEFAULT 'none'` 会把存量 task 卡填成 `none`，推导失效。
 - **三层命名空间**：内建字段 / `props.*`（自定义属性）/ `meta.*`（只读系统元数据）。自定义属性永远在 `props` 下，`RESERVED_PROPS` 保留字集过滤内建/系统字段名，杜绝覆盖（如 `title`/`status`）。
 - **journals are derived** from `c_mj_<day>` cards — there is no separate journals table (avoids dual sources of truth). `journals`/`todos` are legacy views over cards.
 - `settings` (key/value JSON) and `meta` (deviceId, propertyLibrary, templates, savedViews, …) are auxiliary tables.
