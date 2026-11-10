@@ -1,0 +1,2 @@
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"编辑器属性区组件约定与可访问性（删除入口后不得留死链）"}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"features/entries/components 分层：删引用需清理 dom-refs 与 entries 绑定"}

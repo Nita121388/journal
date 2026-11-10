@@ -181,6 +181,20 @@ export async function runEditor({ page, width, hostPort, outDir }) {
   await fieldPicker.waitFor({ state: 'visible', timeout: 3000 });
   add('「＋ 添加属性」浮层可打开', await fieldPicker.isVisible());
 
+  // ── ①e 冗余入口已删（2026-11-10）：新建/复用/新建一律走「＋ 添加属性」浮层 ──
+  add('编辑器内无冗余「新建自定义属性」按钮', await page.evaluate(() =>
+    !document.getElementById('btn-add-prop') && !document.getElementById('btn-prop-lib')));
+  add(
+    '浮层仍含「新建自定义属性…」入口',
+    await page.evaluate(() => [...document.querySelectorAll('#editor-field-picker .tpl-ctx-item')]
+      .some((b) => /新建自定义属性/.test(b.textContent))),
+  );
+  add(
+    '自定义属性空态提示指向「＋ 添加属性」',
+    await page.evaluate(() => /添加属性/.test(
+      document.querySelector('#card-editor-props-list .props-empty')?.textContent || '')),
+  );
+
   // ── P2 缺陷 3 回归：Esc 只关最上层浮层，编辑器本体不动 ──
   // 旧 bug：Esc 优先级靠 bind-editor 手写 if 链，浮层漏插队时 Esc 直接关掉
   // 编辑器，丢掉整份未保存表单。现在由 features/layer-stack.js 统一派发。

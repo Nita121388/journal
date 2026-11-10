@@ -300,17 +300,13 @@
         <!-- 正文：Notion 里正文在属性区之下，不再套卡片 -->
         <textarea id="card-editor-content" placeholder="写下你的想法…" rows="4" aria-label="内容"></textarea>
 
-        <!-- 自定义属性：与模板构建器同一套行交互（平面行 + 分割添加按钮 + 行内命名）。
-             旧实现是「折叠 details + 列表 + 独立表单（名称/图标/类型/选项）」三层结构，
-             点「添加属性」会跳到表单里填字段，和模板构建器完全两套语言。 -->
+        <!-- 自定义属性：与模板构建器同一套行交互（平面行 + 行内命名）。
+             旧的实现是「折叠 details + 列表 + 独立表单（名称/图标/类型/选项）」三层结构，
+             点「添加属性」会跳到表单里填字段，和模板构建器完全两套语言。
+             添加/复用/新建一律经属性区尾部的「＋ 添加属性」浮层（单一入口，
+             2026-11-10 删掉了这里重复的「新建自定义属性」常驻按钮 + 属性库 caret）。 -->
         <div class="ce-custom-props">
           <div id="card-editor-props-list" class="props-list"></div>
-          <div class="props-add-row-wrap">
-            <button id="btn-add-prop" type="button" class="props-add-main" aria-label="新建自定义属性">
-              <i data-icon="plus" data-icon-size="12" aria-hidden="true"></i><span>新建自定义属性</span>
-            </button>
-            <button id="btn-prop-lib" type="button" class="props-add-caret" title="从属性库选择" aria-label="从属性库选择" data-icon="chevronDown" data-icon-size="12"></button>
-          </div>
         </div>
       </div>
 

@@ -2304,20 +2304,10 @@ html.wide-mode .timeline-card { max-width: 300px; }
 
 
 /* 自定义属性：与内建属性共用 .ce-props 两列网格（.prop-row 为 display:contents），
- * 因此列表容器也是同一个网格 —— 视觉上不再出现「第二种行样式」。 */
+ * 因此列表容器也是同一个网格 —— 视觉上不再出现「第二种行样式」。
+ * 旧的 .props-header / .props-add-btn（独立的头部 + 添加按钮）已随单一入口改造删除
+ * （2026-11-10：添加/复用/新建一律走属性区尾部「＋ 添加属性」浮层）。 */
 .card-editor-props { margin-top: 6px; }
-.props-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.props-header .section-label { font-weight: 600; }
-.props-add-btn {
-  font-family: var(--font); font-size: 11px;
-  padding: 1px 8px; border-radius: var(--r-sm);
-  border: 1px solid var(--color-border); background: transparent;
-  color: var(--color-muted); cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.props-add-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
 .props-list {
   display: grid;
@@ -2898,25 +2888,8 @@ textarea.prop-input {
 }
 .ce-prop-row .tpl-prop-value { min-width: 0; flex: 1; }
 .ce-prop-row .tpl-prop-value .prop-input { width: 100%; }
-.props-add-row-wrap { display: flex; gap: 6px; width: 100%; }
-.props-add-main {
-  flex: 1; min-width: 0; min-height: var(--h-ctl);
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 10px;
-  font-family: var(--font); font-size: var(--fs-12-5);
-  color: var(--ink-soft); background: transparent;
-  border: 1px dashed var(--line-2); border-radius: var(--r-ctl-md);
-  cursor: pointer; transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.props-add-main:hover { background: var(--hover); border-color: var(--accent); color: var(--accent); }
-.props-add-caret {
-  flex: 0 0 30px; min-height: var(--h-ctl);
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--ink-soft); background: transparent;
-  border: 1px solid var(--line-2); border-radius: var(--r-ctl-md);
-  cursor: pointer; transition: background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.props-add-caret:hover { background: var(--hover); border-color: var(--accent); color: var(--accent); }
+/* 旧的「新建自定义属性」常驻按钮 + 属性库 caret 已删除（2026-11-10）：
+ * 添加/复用/新建统一经属性区尾部的「＋ 添加属性」浮层。 */
 
 /* 底部工具栏 + 按钮：模板入口左置（不与「保存」争同一视觉锚点） */
 .card-editor-footer {

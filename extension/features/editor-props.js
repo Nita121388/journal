@@ -8,8 +8,9 @@
  * 现在：
  *   - 平面行：[图标][名称][值控件][✎][✕]，复用 .tpl-prop-row 的视觉与尺寸
  *   - 「新建自定义属性」= 立刻新建一行并进入**行内命名**（Enter 提交 / Esc 取消）
- *     （2026-11-10 改名：属性区上方另有「＋ 添加属性」，两个同名按钮会让用户分不清边界）
- *   - 分割按钮的 caret = 从属性库选择已有定义
+ *     入口唯一：「＋ 添加属性」浮层的最后一项（2026-11-10 删掉了属性区下方重复的
+ *     常驻按钮与属性库 caret —— 它们与浮层的「新建/属性库」两项完全同流程）
+ *   - 从属性库复用已有定义：同一浮层的「属性库」分组
  *   - 点图标 = emoji 选择器（不再是手填 emoji 的文本框）
  *   - ✎ = 复用「属性定义」弹窗（显示名/图标/类型/选项），与模板构建器同源
  *   - ✕ = 从当前卡片移除（保留属性库定义）
@@ -25,7 +26,6 @@ import {
   getPropLibrary, removePropDef, savePropLibrary, upsertPropDef,
 } from '../state/prop-library.js';
 import { editorProps } from './card-editor.js';
-import { pickDialog } from './dialog.js';
 import { openRowIconPicker } from './template-fields.js';
 import { openPropDefDialog } from './template-menu.js';
 import { openNameEditor } from './template-rows.js';
@@ -36,7 +36,7 @@ import { closeTplPropDialog } from './template-builder.js';
 function renderEmpty() {
   const hint = document.createElement('div');
   hint.className = 'props-empty';
-  hint.textContent = '还没有自定义属性，点下方「新建自定义属性」';
+  hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」→「新建自定义属性…」';
   propsList.append(hint);
 }
 
@@ -175,26 +175,6 @@ export function addEditorProp() {
       onCommit: (next) => renameEditorProp(key, next),
     });
   }
-}
-
-/** 从属性库复用属性到当前卡（分割按钮的 caret 入口） */
-export async function openPropLibrary() {
-  const lib = getPropLibrary();
-  const keys = Object.keys(lib).filter(k => !(k in editorProps));
-  if (!keys.length) { showToast('属性库为空（或已全部添加）', ''); return; }
-  const picked = await pickDialog({
-    title: '从属性库添加',
-    items: keys.map((k) => `${lib[k].icon && lib[k].icon !== '•' ? lib[k].icon + ' ' : ''}${lib[k].label || k}`),
-    multi: true,
-    okLabel: '添加',
-  });
-  if (!Array.isArray(picked) || !picked.length) return;
-  for (const i of picked) {
-    const k = keys[i];
-    if (k && !(k in editorProps)) editorProps[k] = '';
-  }
-  renderEditorProps();
-  showToast(`已添加 ${picked.length} 个属性`, 'success');
 }
 
 /** 按属性类型构建编辑控件，改动即写回 editorProps */
