@@ -190,9 +190,9 @@ export async function runEditor({ page, width, hostPort, outDir }) {
       .some((b) => /新建自定义属性/.test(b.textContent))),
   );
   add(
-    '自定义属性空态提示指向「＋ 添加属性」',
-    await page.evaluate(() => /添加属性/.test(
-      document.querySelector('#card-editor-props-list .props-empty')?.textContent || '')),
+    '自定义属性空态无提示文案',
+    await page.evaluate(() =>
+      (document.getElementById('card-editor-props-list')?.textContent || '').trim() === ''),
   );
 
   // ── P2 缺陷 3 回归：Esc 只关最上层浮层，编辑器本体不动 ──

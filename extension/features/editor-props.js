@@ -32,15 +32,6 @@ import { openNameEditor } from './template-rows.js';
 import { runWrite, showToast } from './toast.js';
 import { closeTplPropDialog } from './template-builder.js';
 
-/** 空态提示（不是死路的「无数据」，给出下一步动作） */
-function renderEmpty() {
-  const hint = document.createElement('div');
-  hint.className = 'props-empty';
-  hint.textContent = '还没有自定义属性，点上方「＋ 添加属性」→「新建自定义属性…」';
-  propsList.append(hint);
-}
-
-/** 渲染一行自定义属性：结构与模板构建器的 .tpl-prop-row 一致 */
 function buildRow(key) {
   const def = getPropLibrary()[key] || { key, label: key, type: 'text' };
   const row = document.createElement('div');
@@ -126,9 +117,9 @@ function buildRow(key) {
 export function renderEditorProps() {
   if (!propsList) return;
   propsList.replaceChildren();
-  const keys = Object.keys(editorProps);
-  if (!keys.length) { renderEmpty(); return; }
-  for (const key of keys) propsList.append(buildRow(key));
+  // 空态不渲染任何提示（2026-11-10 用户拍板）：「＋ 添加属性」入口已在属性区尾部，
+  // 再写一行文案只是噪声。
+  for (const key of Object.keys(editorProps)) propsList.append(buildRow(key));
 }
 
 /**
