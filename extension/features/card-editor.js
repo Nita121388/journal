@@ -45,7 +45,8 @@ function setEditorEmoji(emoji) {
   if (editorEmoji) {
     emojiPreview.textContent = editorEmoji;
   } else {
-    emojiPreview.replaceChildren(icon('note', { size: 14 }));
+    // 占位线稿 20px：对齐 emoji 字号（26px）的视觉重量，44px 瓦片里 14px 明显偏小
+    emojiPreview.replaceChildren(icon('note', { size: 20 }));
   }
 }
 
