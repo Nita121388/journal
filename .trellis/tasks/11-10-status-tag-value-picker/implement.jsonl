@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"features/components 分层：浮层组件放 features 层，复用 layer-stack/place 思路"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"渲染函数组件与可访问性（role/aria/Esc 语义）约定"}
+{"file":".trellis/spec/frontend/design-system.md","reason":"状态词唯一真值（statusOptions）与焦点环/浮层样式 token 约定"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"模块粒度/状态归属：浮层内状态不外泄"}

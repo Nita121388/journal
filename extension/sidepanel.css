@@ -2702,13 +2702,97 @@ textarea.prop-input {
 }
 .prop-val input::placeholder { color: var(--color-muted); opacity: .7; }
 .prop-val #card-editor-project { flex: 1 1 100%; }
-.prop-val #card-editor-tag-input { flex: 1 1 90px; }
-/* 状态下拉框（2026-11-10 取代 2×2 胶囊 + 自定义状态输入）：
- * 与自建下拉框同标尺，占满值列；trigger 由 select.css 提供基础外观，
- * 这里只补宽度，保持与弹窗内其他 .js-select 一致。 */
-.prop-val > .js-select,
-.prop-val > .js-select .js-select-trigger { width: 100%; }
-.prop-val > .js-select { min-width: 0; }
+
+/* ─── 属性值格 + 值编辑浮层（value-picker，2026-11-10）───────────────────
+ * 状态/标签的值格：常态无框（与裸输入同语言），hover 出细边，点击开浮层。
+ * 浮层样式参考 snorkeling 的 value-popover（6px 圆角 + 双层阴影），
+ * token 用本项目的 surface / line-2 / accent。 */
+.prop-value-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 4px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s ease-out, border-color .12s ease-out;
+}
+.prop-value-cell:hover { border-color: var(--color-border); }
+.prop-value-cell:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.prop-value-cell .pvc-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prop-value-cell .pvc-placeholder { color: var(--color-muted); font-size: 12px; }
+.prop-value-cell .tag-chips { pointer-events: none; } /* 值格内 chips 只预览，增删在浮层 */
+
+.value-picker {
+  position: fixed;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 240px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink) 5%, transparent),
+    0 8px 24px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.vp-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-bottom: 1px solid var(--color-border);
+}
+.vp-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.vp-input {
+  flex: 1 1 90px;
+  min-width: 90px;
+  padding: 3px 4px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+.vp-input::placeholder { color: var(--color-muted); opacity: .8; }
+.vp-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-top: 2px;
+}
+.vp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--color-text);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.vp-item:hover, .vp-item.is-active { background: var(--color-hover); }
+.vp-item.is-selected { color: var(--accent); }
+.vp-check { font-size: 11px; color: var(--accent); }
+.vp-create { color: var(--accent); }
 
 /* 状态胶囊已退役（状态 → 普通下拉框）；下列 .seg 规则仍服务优先级胶囊。 */.prio-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; flex: 1; }
 .seg {

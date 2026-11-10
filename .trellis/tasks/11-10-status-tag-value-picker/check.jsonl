@@ -1,0 +1,2 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"lint/vitest/dev-loop 门禁"}
+{"file":".trellis/spec/frontend/design-system.md","reason":"核对状态文案仍走单一真值、未硬编码"}

@@ -221,14 +221,17 @@
       <div class="card-editor-body">
         <!-- 属性区：Notion 式两列网格（左键右值），行结构由 components/property-row.js 定义 -->
         <div class="ce-props" id="card-editor-props">
+          <input type="hidden" id="card-editor-status" value="none" />
           <input type="hidden" id="card-editor-priority" value="medium" />
 
           <div class="prop-row" data-key="status" data-field="status">
             <div class="prop-key"><i class="prop-key-icon" data-icon="pin" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">状态</span></div>
             <div class="prop-val">
-              <!-- 普通下拉框：选项由 features/card-editor.js 的 ensureStatusOptions()
-                   从 shared/card-schema.js 的 statusOptions() 渲染（文案唯一真值，勿在此硬编码） -->
-              <select id="card-editor-status" aria-label="状态"></select>
+              <!-- 状态值格：点击打开 value-picker 浮层（可搜索/可输入创建；2026-11-10 起取代原生 select）。
+                   hidden input 仍是值的唯一载体（#card-editor-status.value），展示层只负责渲染。 -->
+              <button type="button" id="card-editor-status-cell" class="prop-value-cell" aria-haspopup="dialog" aria-label="选择状态">
+                <span id="card-editor-status-text" class="pvc-text">无状态</span>
+              </button>
             </div>
           </div>
 
@@ -271,9 +274,12 @@
 
           <div class="prop-row" data-key="tags" data-field="tags">
             <div class="prop-key"><i class="prop-key-icon" data-icon="tag" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">标签</span></div>
-            <div class="prop-val prop-val--wrap">
-              <div id="card-editor-tag-chips" class="tag-chips"></div>
-              <input id="card-editor-tag-input" type="text" placeholder="+ 添加标签" aria-label="标签" />
+            <div class="prop-val">
+              <!-- 标签值格：只读 chips 预览 + 点击打开 value-picker 多选浮层
+                   （输入即过滤全库候选 / 无匹配可创建；2026-11-10 起取代行内输入框） -->
+              <button type="button" id="card-editor-tags-cell" class="prop-value-cell" aria-haspopup="dialog" aria-label="编辑标签">
+                <span id="card-editor-tag-chips" class="tag-chips"></span>
+              </button>
             </div>
           </div>
 

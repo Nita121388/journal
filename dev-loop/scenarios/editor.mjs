@@ -82,52 +82,108 @@ export async function runEditor({ page, width, hostPort, outDir }) {
   add('未选图标时图标位是 line 图标（非 📝）', typeGone.previewIsGlyph && typeGone.previewText === '',
     `svg=${typeGone.previewIsGlyph} text="${typeGone.previewText}"`);
 
-  // ── ①d 状态 = 普通下拉框（2026-11-10）：2×2 胶囊 + 自定义状态输入退役 ──
-  const statusDdl = await page.evaluate(() => {
-    const sel = document.getElementById('card-editor-status');
-    return {
-      isSelect: sel instanceof HTMLSelectElement,
-      options: sel ? [...sel.options].map((o) => `${o.value}:${o.text}`) : [],
-      segGone: !document.getElementById('card-editor-status-seg'),
-      customGone: !document.getElementById('card-editor-status-custom'),
-    };
-  });
-  add('状态控件是原生 select', statusDdl.isSelect);
+  // ── ①d 状态/标签 = 值格 + value-picker 浮层（2026-11-10，参考 snorkeling）──
+  const statusCell = await page.evaluate(() => ({
+    hasCell: !!document.getElementById('card-editor-status-cell'),
+    tagName: document.getElementById('card-editor-status')?.tagName || '',
+    text: document.getElementById('card-editor-status-text')?.textContent || '',
+    value: document.getElementById('card-editor-status')?.value || '',
+    segGone: !document.getElementById('card-editor-status-seg'),
+    customGone: !document.getElementById('card-editor-status-custom'),
+  }));
+  add('状态是值格按钮（不再依赖 select）', statusCell.hasCell && statusCell.tagName === 'INPUT', JSON.stringify(statusCell));
+  add('状态默认显示「无状态」', statusCell.text === '无状态' && statusCell.value === 'none', `${statusCell.text}/${statusCell.value}`);
+  add('胶囊容器与自定义状态输入已退役', statusCell.segGone && statusCell.customGone);
+
+  const vpSel = '.value-picker';
+  const readItems = () => page.evaluate(() => [...document.querySelectorAll('.value-picker .vp-item')]
+    .map((e) => (e.textContent || '').trim()));
+
+  // 打开浮层：四档候选
+  await page.locator('#card-editor-status-cell').click();
+  await page.locator(vpSel).waitFor({ state: 'visible', timeout: 3000 });
+  add('状态值格可打开 value-picker', await page.locator(vpSel).isVisible());
+  // 状态候选含四档
+  const statusItems = await readItems();
   add(
-    '状态选项 = 无状态/未开始/进行中/已完成',
-    statusDdl.options.join('|') === 'none:无状态|todo:未开始|doing:进行中|done:已完成',
-    statusDdl.options.join('|'),
+    '状态候选含四档',
+    ['无状态', '未开始', '进行中', '已完成'].every((t) => statusItems.some((i) => i.includes(t))),
+    statusItems.join('|'),
   );
-  add('胶囊容器与自定义状态输入已退役', statusDdl.segGone && statusDdl.customGone);
-  // 留一张属性区证据图（状态 = 下拉框的视觉基线，窄栏 360 下最易看出挤压）
+  if (outDir) {
+    await page.locator(vpSel).screenshot({ path: `${outDir}/value-picker-${width}.png` }).catch(() => {});
+  }
+
+  // 输入即过滤
+  await page.locator(`${vpSel} .vp-input`).fill('进行');
+  const filtered = await readItems();
+  add('状态输入即过滤候选', filtered.length === 2 && filtered[0].includes('进行中'), filtered.join('|'));
+
+  // 选中「已完成」→ 关闭 + 值格文案 + 进度 100
+  await page.locator(`${vpSel} .vp-input`).fill('');
+  await page.locator(`${vpSel} .vp-item`, { hasText: '已完成' }).first().click();
+  await page.waitForTimeout(80);
+  const afterDone = await page.evaluate(() => ({
+    text: document.getElementById('card-editor-status-text')?.textContent || '',
+    value: document.getElementById('card-editor-status')?.value || '',
+    progress: document.getElementById('card-editor-progress')?.value || '',
+    pickerOpen: !!document.querySelector('.value-picker'),
+  }));
+  add('单选即写入并关闭', afterDone.value === 'done' && !afterDone.pickerOpen, JSON.stringify(afterDone));
+  add('已完成 ⇒ 进度 100', afterDone.progress === '100', `progress=${afterDone.progress}`);
+
+  // 进度回退 ⇒ 进行中/未开始（进度 → 状态 联动仍在）
+  const prog30 = await page.evaluate(() => {
+    const prog = document.getElementById('card-editor-progress');
+    prog.value = 30;
+    prog.dispatchEvent(new Event('change', { bubbles: true }));
+    return document.getElementById('card-editor-status')?.value || '';
+  });
+  add('进度回退 ⇒ 进行中/未开始', prog30 === 'doing' || prog30 === 'todo', prog30);
+
+  // 输入创建自定义状态；再次打开时以 chip 回显原值
+  await page.locator('#card-editor-status-cell').click();
+  await page.locator(`${vpSel} .vp-input`).fill('等待反馈');
+  const createRow = page.locator(`${vpSel} .vp-create`);
+  await createRow.waitFor({ state: 'visible', timeout: 2000 });
+  add('无匹配时出现「创建」行', (await createRow.count()) === 1);
+  await createRow.click();
+  const custom = await page.evaluate(() => ({
+    value: document.getElementById('card-editor-status')?.value || '',
+    text: document.getElementById('card-editor-status-text')?.textContent || '',
+  }));
+  add('创建自定义状态写入原值', custom.value === '等待反馈' && custom.text === '等待反馈', JSON.stringify(custom));
+  await page.locator('#card-editor-status-cell').click();
+  const chipTexts = await page.evaluate(() => [...document.querySelectorAll('.value-picker .vp-chips .tag-chip')]
+    .map((e) => (e.textContent || '').trim()));
+  add('自定义状态回显为 chip', chipTexts.some((t) => t.includes('等待反馈')), chipTexts.join('|'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  add('Esc 只关状态浮层、编辑器仍开',
+    !(await page.locator(vpSel).isVisible()) && (await overlay.isVisible()));
+
+  // ── 标签值格：多选浮层（输入过滤 + 创建 + 多选不关闭）──
+  await page.locator('#card-editor-tags-cell').click();
+  await page.locator(vpSel).waitFor({ state: 'visible', timeout: 3000 });
+  add('标签值格可打开 value-picker', await page.locator(vpSel).isVisible());
+  await page.locator(`${vpSel} .vp-input`).fill(`回归标签-${width}`);
+  await page.locator(`${vpSel} .vp-create`).first().click();
+  await page.waitForTimeout(80);
+  const tagState = await page.evaluate(() => ({
+    chips: [...document.querySelectorAll('#card-editor-tag-chips .tag-chip')].map((e) => (e.textContent || '').trim()),
+    pickerOpen: !!document.querySelector('.value-picker'),
+  }));
+  add('标签输入即创建并留在浮层（多选）', tagState.chips.some((t) => t.includes(`回归标签-${width}`)) && tagState.pickerOpen,
+    JSON.stringify(tagState));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(100);
+  add('Esc 收掉标签浮层', !(await page.locator(vpSel).isVisible()));
+
+  // 留一张属性区证据图（状态/标签值格 + 视觉基线，窄栏 360 下最易看出挤压）
   if (outDir) {
     await page.locator('#card-editor-props').screenshot({ path: `${outDir}/editor-props-${width}.png` }).catch(() => {});
     await overlay.screenshot({ path: `${outDir}/editor-overlay-${width}.png` }).catch(() => {});
   }
-
-  // done ⇔ 进度 100 双向联动仍在（change 事件路径，与真实用户一致）
-  const linkage = await page.evaluate(() => {
-    const sel = document.getElementById('card-editor-status');
-    const prog = document.getElementById('card-editor-progress');
-    const out = {};
-    sel.value = 'done';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    out.doneProg = prog.value;
-    sel.value = 'none';
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-    out.noneProg = prog.value;
-    prog.value = 100;
-    prog.dispatchEvent(new Event('input', { bubbles: true }));
-    out.prog100Status = sel.value;
-    prog.value = 30;
-    prog.dispatchEvent(new Event('change', { bubbles: true }));
-    out.prog30Status = sel.value;
-    return out;
-  });
-  add('已完成 ⇒ 进度 100', linkage.doneProg === '100', `progress=${linkage.doneProg}`);
-  add('无状态 ⇒ 进度 0', linkage.noneProg === '0', `progress=${linkage.noneProg}`);
-  add('进度 100 ⇒ 已完成', linkage.prog100Status === 'done', linkage.prog100Status);
-  add('进度回退 ⇒ 进行中/未开始', linkage.prog30Status === 'doing' || linkage.prog30Status === 'todo', linkage.prog30Status);
 
 
   // ── ② 功能 emoji 清零（白名单：卡片图标预览 / 表情选择器） ──

@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCell, editorStatusText, editorTagChips, editorTagsCell, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
@@ -23,7 +23,8 @@ import { actions } from '../state/actions.js';
 
 import { createCardEntry, updateCardEntry } from '../state/repository.js';
 import { vs } from '../state/view-state.js';
-import { CARD_TYPES, statusOptions, STATUSES } from '../shared/card-schema.js';
+import { CARD_TYPES, statusOptions, statusLabel } from '../shared/card-schema.js';
+import { openValuePicker } from './value-picker.js';
 import { addEditorProp, renderEditorProps } from './editor-props.js';
 import { applyFields, fieldsWithValues, isLockedField, resolveFields } from './editor-fields.js';
 import { closeEditorFieldPicker, openEditorFieldPicker } from './editor-field-picker.js';
@@ -195,26 +196,74 @@ bindTemplateSwitch();
  */
 let editorTags = [];
 
+/** 值格里的只读 chips 预览（增删在 value-picker 浮层里做，值格只展示） */
 function renderEditorTags() {
   if (!editorTagChips) return;
   editorTagChips.replaceChildren();
+  if (!editorTags.length) {
+    // 空态占位：值格不能是一块看不见的空白（点击目标不明显）
+    const ph = document.createElement('span');
+    ph.className = 'pvc-placeholder';
+    ph.textContent = '＋ 添加标签';
+    editorTagChips.append(ph);
+    return;
+  }
   for (const name of editorTags) {
-    editorTagChips.append(createChip({
-      label: name,
-      onRemove: () => {
-        editorTags = editorTags.filter(t => t !== name);
-        renderEditorTags();
-      },
-    }));
+    editorTagChips.append(createChip({ label: name, static: true }));
   }
 }
 
-export function addEditorTag(raw) {
-  const name = String(raw ?? '').trim().toLowerCase();
-  if (!name || editorTags.includes(name)) return;
-  editorTags.push(name);
-  renderEditorTags();
+/** 全库标签候选：从 allCardsCache 聚合去重，按使用次数降序（同次数字典序）；当前卡已选也纳入 */
+function collectTagOptions() {
+  const counts = new Map();
+  const bump = (t) => counts.set(t, (counts.get(t) ?? 0) + 1);
+  for (const card of vs.allCardsCache ?? []) {
+    for (const t of (Array.isArray(card?.tags) ? card.tags : [])) bump(t);
+  }
+  for (const t of editorTags) bump(t); // 新建中的标签未必已入库，也要能被搜到
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([t]) => t);
 }
+
+/** 状态值格：点击打开单选 value-picker（可搜索四档，输入创建自定义状态） */
+function bindStatusCell() {
+  if (!editorStatusCell) return;
+  editorStatusCell.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const current = editorStatus?.value ?? 'none';
+    openValuePicker(editorStatusCell, {
+      selected: current !== 'none' ? [current] : [],
+      options: statusOptions(),
+      multiple: false,
+      placeholder: '搜索或输入状态',
+      onPick: (v) => {
+        updateStatusSeg(v);
+        onEditorStatusChange();
+      },
+    });
+  });
+}
+
+/** 标签值格：点击打开多选 value-picker（输入即过滤全库候选，无匹配可创建） */
+function bindTagsCell() {
+  if (!editorTagsCell) return;
+  editorTagsCell.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openValuePicker(editorTagsCell, {
+      selected: [...editorTags],
+      options: collectTagOptions(),
+      multiple: true,
+      placeholder: '搜索或输入标签',
+      onChange: (vals) => {
+        editorTags = vals.map((v) => String(v).trim().toLowerCase()).filter(Boolean);
+        renderEditorTags();
+      },
+    });
+  });
+}
+bindStatusCell();
+bindTagsCell();
 
 // ORIGIN_LABEL / formatProvenance 已提取到 shared/format.js（纯展示）。
 
@@ -424,21 +473,8 @@ export function onEditorStatusChange() {
 const PRIORITY_PRESETS = ['high', 'medium', 'low'];
 
 /**
- * 状态下拉框的选项文案与值来自 `shared/card-schema.js` 的 `statusOptions()`（唯一真值）。
- * 2026-11-10 之前这里是 2×2 分段胶囊 + 自定义状态输入；
- * 2026-11-09 之前胶囊标签硬编码在 sidepanel.html 里，卡片池又存了另一份拷贝，
- * 导致「同一张卡」在不同入口有两个名字。现在一律从 schema 渲染。
- */
-function ensureStatusOptions() {
-  if (!editorStatus) return;
-  if (editorStatus.options.length) return; // 已渲染（幂等）
-  for (const { value, label } of statusOptions()) editorStatus.append(new Option(label, value));
-  editorStatus.value = 'none';
-}
-
-/**
  * 优先级分段胶囊的控制器。
- * 状态已改为普通下拉框（不再经 components/seg.js）。
+ * 状态/标签已改为值格 + value-picker 浮层（2026-11-10），不再经 components/seg.js。
  * 惰性创建：DOM 引用在模块加载时已就绪，但回调需引用本模块函数，故首次使用时装配。
  * @type {{priority: {setValue(v:string):void,getValue():string}|null}}
  */
@@ -455,20 +491,15 @@ function ensureSegGroups() {
 }
 
 /**
- * 同步状态下拉框的选中值。
- * 存量非常规状态（历史自定义值）动态补一个 option 原值显示，不静默改写；
- * 上一张卡遗留的非常规 option 先清掉，避免下拉框越积越长。
+ * 同步状态值：写 hidden input（值的唯一载体）+ 刷新值格展示文案。
+ * 存量非常规状态（历史自定义值）原值显示，不静默改写；
+ * 展示文案走 `statusLabel()`（唯一真值，未知值原样返回）。
  * @param {string} value
  */
 export function updateStatusSeg(value) {
-  if (!editorStatus) return;
   const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
-  ensureStatusOptions();
-  for (const opt of [...editorStatus.options]) {
-    if (!STATUSES.includes(opt.value)) opt.remove();
-  }
-  if (!STATUSES.includes(v)) editorStatus.append(new Option(v, v));
-  editorStatus.value = v;
+  if (editorStatus) editorStatus.value = v;
+  if (editorStatusText) editorStatusText.textContent = statusLabel(v);
 }
 
 /**
@@ -520,7 +551,6 @@ export function closeEditor() {
   editorContent.value = '';
   editorTags = [];
   renderEditorTags();
-  if (editorTagInput) editorTagInput.value = '';
   if (editorDate) { editorDate.value = ''; editorDate.title = '未安排（保存在卡片池）'; }
   if (editorStart) editorStart.value = '';
   if (editorEnd) editorEnd.value = '';
@@ -554,8 +584,6 @@ async function doSaveEditor() {
   const title = editorTitle?.value?.trim() ?? '';
   // type 已退出 UI：保留编辑中卡片的原 type（旧任务卡不降级），新建恒为 'text'
   const type = editorTypeValue;
-  const pendingTag = editorTagInput?.value;
-  if (pendingTag) addEditorTag(pendingTag);
   // 新建：标题或内容至少填一个。
   // 曾经只判 content → 用户只填了「标题」（编辑器第一个字段）点保存会**静默丢弃**整张卡。
   if (!content && !title && !editingCardId) {

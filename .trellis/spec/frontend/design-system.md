@@ -225,9 +225,11 @@
 卡片状态只有 4 个 key：`none|todo|doing|done`（`shared/card-schema.js:STATUSES`），
 中文名同样只在那里定义：`STATUS_LABELS` / `statusLabel(v)` / `statusOptions()`。
 
-- 编辑器状态是**普通下拉框**（`<select id="card-editor-status">`，2026-11-10 取代 2×2 胶囊 +
-  自定义状态输入），选项由 `features/card-editor.js:ensureStatusOptions()` 从 `statusOptions()`
-  渲染，**HTML 里不再硬编码标签**。存量非常规状态值动态补一个同名 option 显示、不静默改写。
+- 编辑器状态/标签是**值格 + value-picker 浮层**（2026-11-10 晚，取代 `<select>` 下拉框；
+  交互参考 snorkeling 的 property-tag-editor）：点击值格打开非模态浮层，chips 与搜索输入同行流、
+  输入即过滤、无匹配可创建；状态单选（可输入创建自定义值）、标签多选。
+  状态候选取自 `statusOptions()`，**HTML/组件里不硬编码标签**；值的唯一载体仍是
+  hidden input `#card-editor-status`（`.value` API 不变），存量的非常规状态值原样显示、不静默改写。
 - `none` 的显示名是「无状态」（不是「纯记录」——那不是一种状态，而是没有状态）。
 - 卡片池筛选与徽标（`views/pool.js`）用同一个 `statusLabel()`，不再自带文案。
 - 模板构建器的默认值下拉对 `behavior === 'status'` 用中文显示、值仍存 key
