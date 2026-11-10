@@ -2819,30 +2819,30 @@ textarea.prop-input {
 /* 来源展示（创建/修改）：占满整行，不挤在项目输入后面 */
 .card-editor-meta { flex: 1 1 100%; margin-top: 2px; }
 
-/* 正文：单块无边输入，靠分隔线与属性区分层 */
+/* 正文：灰底无边框（2026-11-10）——「写下你的想法」默认即一块浅灰纸面，
+ * 不再靠 hover 才显形；与属性区分层仍靠上方 .prop-divider，不画边框。 */
 #card-editor-content {
   box-sizing: border-box;
   width: 100%;
   font-family: var(--font);
   font-size: 13px;
   line-height: 1.6;
-  padding: 6px 4px;
-  border: 1px solid transparent;
+  padding: 8px 10px;
+  border: none;
   border-radius: var(--r-sm);
-  background: transparent;
+  background: color-mix(in srgb, var(--ink) 5%, var(--surface));
   color: var(--color-text);
   resize: vertical;
   min-height: 88px;
-  transition: background .12s ease-out, border-color .12s ease-out;
+  transition: background .12s ease-out;
 }
-#card-editor-content:hover { background: var(--color-hover); }
-/* 单环焦点：描边变色 + 外光晕（与 .prop-input 同语言，避免“两层框”） */
+#card-editor-content:hover { background: color-mix(in srgb, var(--ink) 8%, var(--surface)); }
+/* 焦点：仍无边框，只留外光晕（焦点可见性是可访问性硬门，不能一起删） */
 #card-editor-content:focus,
 #card-editor-content:focus-visible {
   outline: none;
-  border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
 }
 #card-editor-content::placeholder { color: var(--color-muted); opacity: .75; }
 /* 标签 chip：Notion 式小方角（非胶囊），hover 才露出 ×

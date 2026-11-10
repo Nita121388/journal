@@ -102,6 +102,7 @@ export async function runEditor({ page, width, hostPort, outDir }) {
   // 留一张属性区证据图（状态 = 下拉框的视觉基线，窄栏 360 下最易看出挤压）
   if (outDir) {
     await page.locator('#card-editor-props').screenshot({ path: `${outDir}/editor-props-${width}.png` }).catch(() => {});
+    await overlay.screenshot({ path: `${outDir}/editor-overlay-${width}.png` }).catch(() => {});
   }
 
   // done ⇔ 进度 100 双向联动仍在（change 事件路径，与真实用户一致）
