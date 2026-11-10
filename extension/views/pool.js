@@ -19,7 +19,7 @@ import { actions } from '../state/actions.js';
 import { beginGesture, endGesture } from './gesture.js';
 
 // 术语统一（评审 P1-5）：`待办` 曾同时指「一个筛选集」「一个状态」「一个类型」
-// 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「未开始/进行中/已完成/纯记录」。
+// 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「无状态/未开始/进行中/已完成」。
 // 状态词只从 shared/card-schema.js 的 STATUS_LABELS 取：
 // 2026-11-09 之前这里存了第二份中文标签拷贝（还带功能 emoji），与编辑器胶囊各说一词。
 const STATUS_OPTIONS = [

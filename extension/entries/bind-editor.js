@@ -7,7 +7,7 @@
 
 import {
   editorOverlay, editorStart, editorEnd, editorDurationMin, editorStatus,
-  editorStatusCustom, editorProgress, editorProgressNumber,
+  editorProgress, editorProgressNumber,
   btnAddProp, btnPropLib, btnEmojiTile,
   saveTemplateBtn, editorSave, editorCancel, editorClose,
   tplBuilderOverlay, tplBuilderClose, tplCancel, tplSave, tplPrefill, tplBuilderTile,
@@ -15,7 +15,7 @@ import {
 } from '../components/dom-refs.js';
 import {
   openEmojiPicker, saveEditor, updateEditorDuration, onEditorDurationInput,
-  onEditorStatusChange, onEditorProgressChange, updateStatusSeg,
+  onEditorStatusChange, onEditorProgressChange,
   requestCloseEditor,
 } from '../features/card-editor.js';
 import { addEditorProp, openPropLibrary } from '../features/editor-props.js';
@@ -53,14 +53,9 @@ export function bindEditor() {
   editorEnd?.addEventListener('change', updateEditorDuration);
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
   editorStatus?.addEventListener('change', onEditorStatusChange);
-  // 分段胶囊（状态 / 优先级）的点击委托由 components/seg.js 在首次渲染时注册，
+  // 分段胶囊（优先级）的点击委托由 components/seg.js 在首次渲染时注册，
   // 此处不再重复绑定 —— 否则同一次点击会触发两遍（曾因此出现状态跳回）。
-  // 自定义状态：输入即设为自定义状态，清空回退纯记录
-  editorStatusCustom?.addEventListener('input', (e) => {
-    const v = e.target.value.trim();
-    if (v) { editorStatus.value = v; updateStatusSeg(v); onEditorStatusChange(); }
-    else { editorStatus.value = 'none'; updateStatusSeg('none'); onEditorStatusChange(); }
-  });
+  // 状态：普通下拉框，change 即联动进度（done⇔100）；选项由 card-editor.js 渲染。
   // 进度：手输数值（滑块/手输双向）
   editorProgressNumber?.addEventListener('change', () => {
     const p = Math.max(0, Math.min(100, Math.round(Number(editorProgressNumber.value) || 0)));

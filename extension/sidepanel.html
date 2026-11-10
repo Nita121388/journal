@@ -221,16 +221,14 @@
       <div class="card-editor-body">
         <!-- 属性区：Notion 式两列网格（左键右值），行结构由 components/property-row.js 定义 -->
         <div class="ce-props" id="card-editor-props">
-          <input type="hidden" id="card-editor-status" value="none" />
           <input type="hidden" id="card-editor-priority" value="medium" />
 
           <div class="prop-row" data-key="status" data-field="status">
             <div class="prop-key"><i class="prop-key-icon" data-icon="pin" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">状态</span></div>
-            <div class="prop-val prop-val--stack">
-              <!-- 状态胶囊由 features/card-editor.js 的 ensureStatusButtons() 从
-                   shared/card-schema.js 的 statusOptions() 渲染（文案唯一真值，勿在此硬编码） -->
-              <div class="status-seg" id="card-editor-status-seg" role="radiogroup" aria-label="状态"></div>
-              <input id="card-editor-status-custom" type="text" maxlength="20" placeholder="自定义状态，如：等待反馈" aria-label="自定义状态" autocomplete="off" />
+            <div class="prop-val">
+              <!-- 普通下拉框：选项由 features/card-editor.js 的 ensureStatusOptions()
+                   从 shared/card-schema.js 的 statusOptions() 渲染（文案唯一真值，勿在此硬编码） -->
+              <select id="card-editor-status" aria-label="状态"></select>
             </div>
           </div>
 

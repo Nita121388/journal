@@ -29,7 +29,7 @@ export const STATUSES = Object.freeze(['none', 'todo', 'doing', 'done']);
  * 于是「同一张卡」在不同入口有两个名字。现在一律从这里取。
  */
 export const STATUS_LABELS = Object.freeze({
-  none: '纯记录',
+  none: '无状态',
   todo: '未开始',
   doing: '进行中',
   done: '已完成',

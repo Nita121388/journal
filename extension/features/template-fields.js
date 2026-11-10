@@ -262,7 +262,7 @@ export function buildTplDefaultEditor(def) {
     const sel = document.createElement('select'); sel.className = 'prop-input';
     sel.append(new Option('', ''));
     // 内建状态的值是 key（none/todo/doing/done），必须显成中文：
-    // 否则模板构建器里选的是 none，编辑器里看到的是「纯记录」——同一字段两套词。
+    // 否则模板构建器里选的是 none，编辑器里看到的是「无状态」——同一字段两套词。
     for (const o of def.options || []) sel.append(new Option(def.behavior === 'status' ? statusLabel(o) : o, o));
     sel.value = cur ?? '';
     sel.addEventListener('change', () => set(sel.value));

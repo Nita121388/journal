@@ -2675,12 +2675,10 @@ textarea.prop-input {
   transition: background .12s ease-out;
 }
 .prop-val:hover, .prop-val:focus-within { background: var(--color-hover); }
-/* 值列纵向堆叠（状态 = 分段 + 自定义输入） */
-.prop-val--stack { flex-direction: column; align-items: stretch; gap: 4px; }
 .prop-val--wrap { flex-wrap: wrap; }
 /* 属性行可见性只由 features/editor-fields.js 的字段集决定（默认集 ∪ 模板字段）。
  * 旧的「按卡片类型隐藏进度」规则已删除：它会让「显示全部属性」/含进度的模板在
- * 纯记录卡上仍然看不到进度，形成两套互相打架的可见性来源。 */
+ * 无状态卡上仍然看不到进度，形成两套互相打架的可见性来源。 */
 /* 属性区与正文之间的唯一分隔线 */
 .prop-divider {
   border: none;
@@ -2714,18 +2712,15 @@ textarea.prop-input {
 }
 .prop-val input::placeholder { color: var(--color-muted); opacity: .7; }
 .prop-val #card-editor-project { flex: 1 1 100%; }
-.prop-val #card-editor-status-custom { width: 100%; }
 .prop-val #card-editor-tag-input { flex: 1 1 90px; }
+/* 状态下拉框（2026-11-10 取代 2×2 胶囊 + 自定义状态输入）：
+ * 与自建下拉框同标尺，占满值列；trigger 由 select.css 提供基础外观，
+ * 这里只补宽度，保持与弹窗内其他 .js-select 一致。 */
+.prop-val > .js-select,
+.prop-val > .js-select .js-select-trigger { width: 100%; }
+.prop-val > .js-select { min-width: 0; }
 
-/* 状态四档：图标 + 文字在 76px 值列里必然挤，只保留图标 + 短词（纯记录/未开始/进行中/已完成），
- * 用两行两列而不是四列一行 —— 四列时每档只有 ~55px，「纯记录」会被截成「纯记」。 */
-.status-seg {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
-  width: 100%;
-}
-.prio-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; flex: 1; }
+/* 状态胶囊已退役（状态 → 普通下拉框）；下列 .seg 规则仍服务优先级胶囊。 */.prio-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; flex: 1; }
 .seg {
   display: inline-flex;
   align-items: center;
@@ -3558,7 +3553,7 @@ body.tpl-dragging { user-select: none; }
 .pool-filter-row::-webkit-scrollbar { display: none; }
 .pool-filter-row .chip { flex: 0 0 auto; }
 /* 6 个状态 chip 在 360px 下 clientWidth=225 / scrollWidth=404：
-   横向滚动条被隐藏，等于「已完成 / 纯记录」对用户不存在。
+   横向滚动条被隐藏，等于「已完成 / 无状态」对用户不存在。
    改为换行显示全部选项。 */
 .pool-filter-row { flex-wrap: wrap; overflow-x: visible; }
 

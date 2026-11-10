@@ -32,7 +32,7 @@ async function countCards(port, title) {
 /**
  * @param {{ page: import('playwright').Page, width: number, hostPort?: number|null }} ctx
  */
-export async function runEditor({ page, width, hostPort }) {
+export async function runEditor({ page, width, hostPort, outDir }) {
   /** @type {Array<[string, boolean, string]>} */
   const checks = [];
   const add = (name, ok, detail = '') => checks.push([name, Boolean(ok), String(detail)]);
@@ -81,6 +81,53 @@ export async function runEditor({ page, width, hostPort }) {
   add('头部无「文本/任务/想法」文案', !typeGone.hasTypeWord, typeGone.subrowText.slice(0, 40));
   add('未选图标时图标位是 line 图标（非 📝）', typeGone.previewIsGlyph && typeGone.previewText === '',
     `svg=${typeGone.previewIsGlyph} text="${typeGone.previewText}"`);
+
+  // ── ①d 状态 = 普通下拉框（2026-11-10）：2×2 胶囊 + 自定义状态输入退役 ──
+  const statusDdl = await page.evaluate(() => {
+    const sel = document.getElementById('card-editor-status');
+    return {
+      isSelect: sel instanceof HTMLSelectElement,
+      options: sel ? [...sel.options].map((o) => `${o.value}:${o.text}`) : [],
+      segGone: !document.getElementById('card-editor-status-seg'),
+      customGone: !document.getElementById('card-editor-status-custom'),
+    };
+  });
+  add('状态控件是原生 select', statusDdl.isSelect);
+  add(
+    '状态选项 = 无状态/未开始/进行中/已完成',
+    statusDdl.options.join('|') === 'none:无状态|todo:未开始|doing:进行中|done:已完成',
+    statusDdl.options.join('|'),
+  );
+  add('胶囊容器与自定义状态输入已退役', statusDdl.segGone && statusDdl.customGone);
+  // 留一张属性区证据图（状态 = 下拉框的视觉基线，窄栏 360 下最易看出挤压）
+  if (outDir) {
+    await page.locator('#card-editor-props').screenshot({ path: `${outDir}/editor-props-${width}.png` }).catch(() => {});
+  }
+
+  // done ⇔ 进度 100 双向联动仍在（change 事件路径，与真实用户一致）
+  const linkage = await page.evaluate(() => {
+    const sel = document.getElementById('card-editor-status');
+    const prog = document.getElementById('card-editor-progress');
+    const out = {};
+    sel.value = 'done';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    out.doneProg = prog.value;
+    sel.value = 'none';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    out.noneProg = prog.value;
+    prog.value = 100;
+    prog.dispatchEvent(new Event('input', { bubbles: true }));
+    out.prog100Status = sel.value;
+    prog.value = 30;
+    prog.dispatchEvent(new Event('change', { bubbles: true }));
+    out.prog30Status = sel.value;
+    return out;
+  });
+  add('已完成 ⇒ 进度 100', linkage.doneProg === '100', `progress=${linkage.doneProg}`);
+  add('无状态 ⇒ 进度 0', linkage.noneProg === '0', `progress=${linkage.noneProg}`);
+  add('进度 100 ⇒ 已完成', linkage.prog100Status === 'done', linkage.prog100Status);
+  add('进度回退 ⇒ 进行中/未开始', linkage.prog30Status === 'doing' || linkage.prog30Status === 'todo', linkage.prog30Status);
+
 
   // ── ② 功能 emoji 清零（白名单：卡片图标预览 / 表情选择器） ──
   const emojiHits = await page.evaluate(() => {

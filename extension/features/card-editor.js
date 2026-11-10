@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCustom, editorStatusSeg, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorTagChips, editorTagInput, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
@@ -330,7 +330,6 @@ function formSnapshot() {
     content: editorContent?.value ?? '',
     date: editorDate?.value ?? '',
     status: editorStatus?.value ?? '',
-    statusCustom: editorStatusCustom?.value ?? '',
     progress: editorProgress?.value ?? '',
     priority: editorPriority?.value ?? '',
     start: editorStart?.value ?? '',
@@ -422,46 +421,30 @@ export function onEditorStatusChange() {
   updateEditorProgressLabel();
 }
 
-const STATUS_PRESETS = STATUSES;
 const PRIORITY_PRESETS = ['high', 'medium', 'low'];
 
 /**
- * 状态胶囊的文案与值来自 `shared/card-schema.js` 的 `statusOptions()`（唯一真值）。
- * 2026-11-09 之前这 4 个按钮的标签硬编码在 sidepanel.html 里，卡片池又存了另一份拷贝，
- * 导致「同一张卡」在不同入口可能有两个名字。
+ * 状态下拉框的选项文案与值来自 `shared/card-schema.js` 的 `statusOptions()`（唯一真值）。
+ * 2026-11-10 之前这里是 2×2 分段胶囊 + 自定义状态输入；
+ * 2026-11-09 之前胶囊标签硬编码在 sidepanel.html 里，卡片池又存了另一份拷贝，
+ * 导致「同一张卡」在不同入口有两个名字。现在一律从 schema 渲染。
  */
-function ensureStatusButtons() {
-  if (!editorStatusSeg) return;
-  if (editorStatusSeg.querySelector('.seg')) return; // 已渲染（幂等）
-  for (const { value, label } of statusOptions()) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'seg';
-    btn.dataset.status = value;
-    btn.setAttribute('role', 'radio');
-    btn.setAttribute('aria-checked', 'false');
-    btn.textContent = label;
-    editorStatusSeg.append(btn);
-  }
+function ensureStatusOptions() {
+  if (!editorStatus) return;
+  if (editorStatus.options.length) return; // 已渲染（幂等）
+  for (const { value, label } of statusOptions()) editorStatus.append(new Option(label, value));
+  editorStatus.value = 'none';
 }
 
 /**
- * 两组分段胶囊的控制器（状态 / 优先级）。
- * 逻辑同构（只差 dataset 键与回调），统一由 components/seg.js 实现。
+ * 优先级分段胶囊的控制器。
+ * 状态已改为普通下拉框（不再经 components/seg.js）。
  * 惰性创建：DOM 引用在模块加载时已就绪，但回调需引用本模块函数，故首次使用时装配。
- * @type {{status: {setValue(v:string):void,getValue():string}|null, priority: {setValue(v:string):void,getValue():string}|null}}
+ * @type {{priority: {setValue(v:string):void,getValue():string}|null}}
  */
-const segGroups = { status: null, priority: null };
+const segGroups = { priority: null };
 
 function ensureSegGroups() {
-  ensureStatusButtons();
-  if (!segGroups.status && editorStatusSeg) {
-    segGroups.status = createSegGroup(editorStatusSeg, {
-      dataKey: 'status',
-      initial: editorStatus?.value ?? 'none',
-      onPick: (v) => onStatusClicked(v),
-    });
-  }
   if (!segGroups.priority && editorPrioritySeg) {
     segGroups.priority = createSegGroup(editorPrioritySeg, {
       dataKey: 'priority',
@@ -471,16 +454,21 @@ function ensureSegGroups() {
   }
 }
 
-/** 同步分段状态胶囊 UI 到 hidden input（支持自定义状态字符串） */
+/**
+ * 同步状态下拉框的选中值。
+ * 存量非常规状态（历史自定义值）动态补一个 option 原值显示，不静默改写；
+ * 上一张卡遗留的非常规 option 先清掉，避免下拉框越积越长。
+ * @param {string} value
+ */
 export function updateStatusSeg(value) {
+  if (!editorStatus) return;
   const v = (typeof value === 'string' && value.trim()) ? value.trim() : 'none';
-  if (editorStatus) editorStatus.value = v;
-  ensureSegGroups();
-  // 自定义状态不在 4 个预设内时，全部胶囊取消高亮（保持既有语义）
-  segGroups.status?.setValue(v);
-  if (editorStatusCustom) {
-    editorStatusCustom.value = STATUS_PRESETS.includes(v) ? '' : v;
+  ensureStatusOptions();
+  for (const opt of [...editorStatus.options]) {
+    if (!STATUSES.includes(opt.value)) opt.remove();
   }
+  if (!STATUSES.includes(v)) editorStatus.append(new Option(v, v));
+  editorStatus.value = v;
 }
 
 /**
@@ -494,12 +482,6 @@ export function updatePrioritySeg(value) {
   if (editorPriority) editorPriority.value = v;
   ensureSegGroups();
   segGroups.priority?.setValue(v);
-}
-
-/** 点击分段胶囊：设状态 + 进度联动 */
-export function onStatusClicked(value) {
-  updateStatusSeg(value);
-  onEditorStatusChange();
 }
 
 /** 进度 → 状态 联动：拖到 100% ⇒ 完成；回退 ⇒ 进行中/待办 */
