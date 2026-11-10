@@ -301,6 +301,39 @@ export async function runEditor({ page, width, hostPort, outDir }) {
   });
   add('可隐藏刚加入的「优先级」', !afterHide.includes('priority'), afterHide.join(','));
 
+  // ── 日期行：值格满宽、右侧日历 icon 已隐藏（2026-11-10 用户要求）──
+  await page.locator('#card-editor-add-field').click();
+  await page.locator('#editor-field-picker').getByRole('button', { name: /日期/ }).first().click();
+  await page.waitForTimeout(80);
+  const dateCell = await page.evaluate(() => {
+    const el = document.getElementById('card-editor-date');
+    const cell = el?.closest('.prop-val');
+    if (!el || !cell) return null;
+    // ::-webkit-calendar-picker-indicator 的 computed style 不可靠（实测始终 block），
+    // 改查样式表规则：display:none 落在 date 输入的伪元素上即视为生效（截图另行留证）。
+    const hasHiddenIndicator = [...document.styleSheets].some((sheet) => {
+      try {
+        return [...sheet.cssRules].some((r) => r.selectorText?.includes('::-webkit-calendar-picker-indicator')
+          && /display:\s*none/.test(r.style?.cssText || ''));
+      } catch { return false; }
+    });
+    return {
+      rowVisible: !el.closest('.prop-row').hidden,
+      ratio: el.getBoundingClientRect().width / cell.getBoundingClientRect().width,
+      hasHiddenIndicator,
+    };
+  });
+  add('日期行可加入且可见', !!dateCell?.rowVisible, JSON.stringify(dateCell));
+  add('日期输入满宽（与上下属性同宽）', !!dateCell && dateCell.ratio > 0.9,
+    `ratio=${dateCell ? dateCell.ratio.toFixed(2) : 'n/a'}`);
+  add('日期右侧日历 icon 已隐藏（样式规则生效）', !!dateCell?.hasHiddenIndicator, JSON.stringify(dateCell));
+  if (outDir) {
+    await page.locator('#card-editor-date').locator('..').screenshot({ path: `${outDir}/date-row-${width}.png` }).catch(() => {});
+  }
+  // 收尾：把日期行再藏起，保持后续断言的环境与之前一致
+  await page.locator('#card-editor-props [data-field="date"] .prop-key-hide, #card-editor-props [data-field="assignedDate"] .prop-key-hide')
+    .first().click().catch(() => {});
+
   // ── 模板切换入口（只改可见性，不清空已填内容） ──
   await page.locator('#card-editor-template').click();
   // 下拉项是异步拉 host meta 后才渲染的，必须等出现再断言（否则 400px 下偶发空列表）

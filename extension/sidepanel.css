@@ -2674,6 +2674,20 @@ textarea.prop-input {
 .prop-val input::placeholder { color: var(--color-muted); opacity: .7; }
 .prop-val #card-editor-project { flex: 1 1 100%; }
 
+/* 日期：值格满宽，与上下的状态/标签值格同宽（2026-11-10 用户要求）。
+ * 右侧原生日历 icon 隐藏 —— 整个字段就是点击目标，click 由 bind-editor 调 showPicker()。 */
+.prop-val input[type="date"] {
+  width: 100%;
+  cursor: pointer;
+}
+.prop-val input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  margin: 0;
+}
+
 /* ─── 属性值格 + 值编辑浮层（value-picker，2026-11-10）───────────────────
  * 状态/标签的值格：常态无框（与裸输入同语言），hover 出细边，点击开浮层。
  * 浮层样式参考 snorkeling 的 value-popover（6px 圆角 + 双层阴影），

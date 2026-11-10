@@ -6,7 +6,7 @@
  */
 
 import {
-  editorOverlay, editorStart, editorEnd, editorDurationMin,
+  editorOverlay, editorStart, editorEnd, editorDate, editorDurationMin,
   editorProgress, editorProgressNumber,
   btnEmojiTile,
   saveTemplateBtn, editorSave, editorCancel, editorClose,
@@ -51,6 +51,11 @@ export function bindEditor() {
   editorStart?.addEventListener('change', updateEditorDuration);
   editorEnd?.addEventListener('change', updateEditorDuration);
   editorDurationMin?.addEventListener('change', onEditorDurationInput);
+  // 日期：右侧日历 icon 已隐藏（CSS），整个字段就是点击目标 —— 点即开原生日历。
+  // showPicker() 需要用户手势，click 正好满足；已打开/不支持时静默忽略。
+  editorDate?.addEventListener('click', () => {
+    try { editorDate.showPicker?.(); } catch { /* 已打开或环境不支持 */ }
+  });
   // 分段胶囊（优先级）的点击委托由 components/seg.js 在首次渲染时注册，
   // 此处不再重复绑定 —— 否则同一次点击会触发两遍（曾因此出现状态跳回）。
   // 状态/标签：值格点击打开 value-picker 浮层（绑定在 card-editor.js 的 bindStatusCell/bindTagsCell），
