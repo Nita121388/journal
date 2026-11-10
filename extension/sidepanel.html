@@ -208,12 +208,6 @@
         </div>
         <div class="ce-head-fields">
           <input id="card-editor-title" type="text" class="card-editor-title" placeholder="标题…" aria-label="标题" autocomplete="off" />
-          <div class="ce-head-subrow">
-            <button id="card-editor-template" type="button" class="ce-template-btn" title="切换模板" aria-haspopup="menu">
-              <i data-icon="template" data-icon-size="12" aria-hidden="true"></i>
-              <span id="card-editor-template-name" class="ce-template-name">空白</span>
-            </button>
-          </div>
         </div>
         <button id="card-editor-close" class="card-editor-close-btn" data-icon="close" aria-label="关闭"></button>
       </div>
@@ -223,6 +217,18 @@
         <div class="ce-props" id="card-editor-props">
           <input type="hidden" id="card-editor-status" value="none" />
           <input type="hidden" id="card-editor-priority" value="medium" />
+
+          <!-- 模板选择（属性集入口）：2026-11-10 从标题下方小按钮上提为属性区首行。
+               无 data-field —— 它不是一个卡片字段，不参与 applyFields 的可见性/排序。
+               id 保留（#card-editor-template / -name），bindTemplateSwitch 与模板切换逻辑不变。 -->
+          <div class="prop-row prop-row--chrome" data-key="template">
+            <div class="prop-key"><i class="prop-key-icon" data-icon="template" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">模板</span></div>
+            <div class="prop-val">
+              <button type="button" id="card-editor-template" class="prop-value-cell" title="切换模板（只改可见属性，不清空已填内容）" aria-haspopup="menu">
+                <span id="card-editor-template-name" class="pvc-text">空白</span>
+              </button>
+            </div>
+          </div>
 
           <div class="prop-row" data-key="status" data-field="status">
             <div class="prop-key"><i class="prop-key-icon" data-icon="pin" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">状态</span></div>

@@ -53,7 +53,7 @@ export async function runEditor({ page, width, hostPort, outDir }) {
     const list = [...document.querySelectorAll('#card-editor-props .prop-row')];
     return {
       all: list.map((r) => r.dataset.field).filter(Boolean),
-      visible: list.filter((r) => !r.hidden).map((r) => r.dataset.field),
+      visible: list.filter((r) => !r.hidden).map((r) => r.dataset.field).filter(Boolean),
       templateLabel: document.getElementById('card-editor-template-name')?.textContent || '',
     };
   });
@@ -64,21 +64,29 @@ export async function runEditor({ page, width, hostPort, outDir }) {
     rows.visible.join(','),
   );
   add('默认模板标签为「空白」', rows.templateLabel === '空白', rows.templateLabel);
+  add('模板选择在属性区首行（头部无 subrow）', await page.evaluate(() => {
+    const first = document.querySelector('#card-editor-props .prop-row');
+    return first?.dataset.key === 'template'
+      && !document.querySelector('#card-editor .ce-head-subrow')
+      && !!document.getElementById('card-editor-template');
+  }));
 
   // ── ①b 类型退场（2026-11-09）：形态由模板承担，不再让用户选「文本/任务/想法」 ──
   const typeGone = await page.evaluate(() => {
-    const subrow = document.querySelector('#card-editor .ce-head-subrow');
-    const text = (subrow?.textContent || '').trim();
+    // 2026-11-10：标题下方的 .ce-head-subrow 已删（模板选择上提为属性区首行），
+    // 头部文案就查整个 head（图标 + 标题）。
+    const head = document.querySelector('#card-editor .card-editor-header');
+    const text = (head?.textContent || '').trim();
     return {
       hasSelect: !!document.getElementById('card-editor-type'),
-      subrowText: text,
+      headText: text,
       hasTypeWord: /文本|任务|想法/.test(text),
       previewIsGlyph: !!document.querySelector('#emoji-preview svg'),
       previewText: (document.getElementById('emoji-preview')?.textContent || '').trim(),
     };
   });
   add('编辑器已无「类型」下拉', !typeGone.hasSelect);
-  add('头部无「文本/任务/想法」文案', !typeGone.hasTypeWord, typeGone.subrowText.slice(0, 40));
+  add('头部无「文本/任务/想法」文案', !typeGone.hasTypeWord, typeGone.headText.slice(0, 40));
   add('未选图标时图标位是 line 图标（非 📝）', typeGone.previewIsGlyph && typeGone.previewText === '',
     `svg=${typeGone.previewIsGlyph} text="${typeGone.previewText}"`);
 

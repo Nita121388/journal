@@ -209,7 +209,7 @@ export async function runSmoke({ page }) {
   const headShape = await page.evaluate(() => ({
     hasType: !!document.getElementById('card-editor-type'),
     templateBtn: document.getElementById('card-editor-template-name')?.textContent?.trim() ?? '',
-    typeWords: /文本|任务|想法/.test(document.querySelector('#card-editor .ce-head-subrow')?.textContent ?? ''),
+    typeWords: /文本|任务|想法/.test(document.querySelector('#card-editor .card-editor-header')?.textContent ?? ''),
   }));
   add('编辑器已无「类型」下拉', !headShape.hasType && !headShape.typeWords, `typeWords=${headShape.typeWords}`);
   add('头部模板入口在位（默认空白）', headShape.templateBtn === '空白', `name=${headShape.templateBtn}`);
