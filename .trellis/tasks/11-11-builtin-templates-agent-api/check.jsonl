@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "检查 400/409 语义与返回体一致性"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "检查 storage/server 职责边界与路由注册位置"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "检查单测覆盖与 lint/dev-loop 门禁"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "检查 meta 读写没有绕过 host-client"}

@@ -2485,6 +2485,8 @@ textarea.prop-input {
 }
 .tpl-item:hover { background: var(--color-cell-empty); color: var(--color-accent); }
 .tpl-chips { font-size: 10px; color: var(--color-muted); margin-left: auto; }
+/* 内置模板只读标记（🔒 是内容符号，非功能图标；不抢主文字颜色） */
+.tpl-lock { font-style: normal; font-size: 10px; opacity: .75; }
 .tpl-manage { color: var(--color-muted); border-top: 1px solid var(--color-border); margin-top: 2px; }
 
 /* 只读系统元数据（修改时间 + 来源） */

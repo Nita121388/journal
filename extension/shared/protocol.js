@@ -70,7 +70,7 @@ export const routes = Object.freeze({
 });
 
 /** 本机 meta 配置的合法 kind（与 host `/api/meta/:kind` 对齐）。 */
-export const META_KINDS = Object.freeze(['savedViews', 'propertyLibrary', 'templates']);
+export const META_KINDS = Object.freeze(['savedViews', 'propertyLibrary', 'templates', 'templatesSeed']);
 
 /**
  * 扩展内部消息类型（`chrome.runtime.sendMessage` / native messaging）。

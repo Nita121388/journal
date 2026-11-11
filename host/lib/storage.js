@@ -28,6 +28,24 @@ const JOURNAL_PREFIX = 'c_mj_';
 
 /* ─── 通用工具 ───────────────────────────────────────── */
 
+/** 模板写入校验失败（server 映射 400 VALIDATION_ERROR）。 */
+export class TemplateValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'TemplateValidationError';
+    this.code = 'VALIDATION_ERROR';
+  }
+}
+
+/** 试图修改/删除内置模板（server 映射 409 BUILTIN_TEMPLATE_READONLY）。 */
+export class BuiltinTemplateError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'BuiltinTemplateError';
+    this.code = 'BUILTIN_TEMPLATE_READONLY';
+  }
+}
+
 export function nowIso() { return new Date().toISOString(); }
 
 export function genId(prefix = 'c_') {
@@ -650,6 +668,66 @@ export async function saveTemplates(store, list) {
   if (!Array.isArray(list)) throw new Error('templates 必须是数组');
   await store.setMeta({ templates: list });
   return list;
+}
+
+/**
+ * 单模板 upsert（agent / 外部调用方友好的写入路径，2026-11-11）。
+ *
+ * 为什么不用整列表 PUT：那是 read-modify-write，agent 与 UI 并发保存会互相
+ * 覆盖（后写者胜，先写者丢数据）。按 id 合并的单条 upsert 没有这个窗口。
+ *
+ * 规则：
+ * - `id` 必须非空字符串且与路由一致；`name` 非空字符串；`fields` 是数组
+ * - payload 的 `builtin` 一律剥离：内置标记的写入源唯一 = extension seed
+ * - 已存在且 builtin → 409（内置模板只读，改/删请先复制）
+ * @param {object} store
+ * @param {{id?: unknown, name?: unknown, fields?: unknown, emoji?: unknown, builtin?: unknown}} tpl
+ * @param {string} id 路由 id（与 tpl.id 必须一致）
+ */
+export async function upsertTemplate(store, tpl, id) {
+  if (typeof id !== 'string' || !id) throw new TemplateValidationError('模板 id 必须是非空字符串');
+  if (tpl?.id !== id) throw new TemplateValidationError('body.id 与路由 id 不一致');
+  if (typeof tpl?.name !== 'string' || !tpl.name.trim()) throw new TemplateValidationError('模板 name 必须是非空字符串');
+  if (!Array.isArray(tpl?.fields)) throw new TemplateValidationError('模板 fields 必须是数组');
+
+  const list = await getTemplates(store);
+  const existing = list.find(t => t?.id === id);
+  if (existing?.builtin) throw new BuiltinTemplateError(`内置模板「${existing.name ?? id}」只读，可复制后修改`);
+
+  // 剥离 builtin：内置标记只属于 seed 写入的模板
+  const { builtin: _builtin, ...clean } = tpl;
+  const next = existing ? list.map(t => (t?.id === id ? { ...clean, name: tpl.name.trim() } : t))
+    : [...list, { ...clean, name: tpl.name.trim() }];
+  await store.setMeta({ templates: next });
+  return next.find(t => t?.id === id);
+}
+
+/**
+ * 单模板删除（幂等：不存在 = 成功；builtin → 409）。
+ * @param {object} store
+ * @param {string} id
+ */
+export async function deleteTemplate(store, id) {
+  if (typeof id !== 'string' || !id) throw new TemplateValidationError('模板 id 必须是非空字符串');
+  const list = await getTemplates(store);
+  const existing = list.find(t => t?.id === id);
+  if (existing?.builtin) throw new BuiltinTemplateError(`内置模板「${existing.name ?? id}」只读，不可删除`);
+  if (!existing) return null; // 幂等：删不存在的模板不算错
+  const next = list.filter(t => t?.id !== id);
+  await store.setMeta({ templates: next });
+  return existing;
+}
+
+/** 模板 seed 版本标记（extension 首次 seed 时写入；见 shared/builtin-templates.js） */
+export async function getTemplatesSeed(store) {
+  const v = await store.getMeta('templatesSeed');
+  return typeof v === 'number' ? v : null;
+}
+export async function saveTemplatesSeed(store, v) {
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 0) throw new TemplateValidationError('templatesSeed 必须是非负整数');
+  await store.setMeta({ templatesSeed: n });
+  return n;
 }
 
 /** 命名视图：SavedView[] */

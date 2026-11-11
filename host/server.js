@@ -15,7 +15,7 @@ import { hostname, platform, release, homedir } from 'node:os';
 import { cardsToMarkdown } from '../extension/shared/md-export.js';
 // 时间换算与搜索语义统一来自 shared（host 只可依赖 extension/shared 叶子）
 import { addMinutes, cardMatchesQuery } from '../extension/shared/model.js';
-import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews } from './lib/storage.js';
+import { createStore, getPropertyLibrary, savePropertyLibrary, getTemplates, saveTemplates, getSavedViews, saveSavedViews, upsertTemplate, deleteTemplate, getTemplatesSeed, saveTemplatesSeed, TemplateValidationError, BuiltinTemplateError } from './lib/storage.js';
 import { readConfig as readAiConfig, isConfigured as isAiConfigured, inferProp as inferPropAi, writeConfig as writeAiConfig, PROVIDER_INFO, SUGGESTED_MODELS, FIXED_CRED_PROVIDERS, PROVIDER_LOGO_MAP } from './lib/llm.js';
 import { createLogger } from './lib/logger.js';
 import { createBackplane } from './sync/backplane.js';
@@ -415,6 +415,7 @@ export async function createApp(store, { logger } = {}) {
     const dayMatch = path.match(/^\/api\/journals\/(\d{4}-\d{2}-\d{2})$/);
     const todoMatch = path.match(/^\/api\/todos\/([\w-]+)$/);
     const cardMatch = path.match(/^\/api\/cards\/([\w-]+)$/);
+    const templateMatch = path.match(/^\/api\/meta\/templates\/([\w-]+)$/);
 
     try {
       // ── Cards ────────────────────────────────────────
@@ -599,6 +600,37 @@ export async function createApp(store, { logger } = {}) {
       if (path === '/api/meta/propertyLibrary' && method === 'PUT') return ok(res, await savePropertyLibrary(store, body ?? {}));
       if (path === '/api/meta/templates' && method === 'GET') return ok(res, await getTemplates(store));
       if (path === '/api/meta/templates' && method === 'PUT') return ok(res, await saveTemplates(store, Array.isArray(body) ? body : []));
+      // ── 单模板 API（agent 友好；2026-11-11）──
+      // 整列表 PUT 是 read-modify-write，agent 与 UI 并发保存会互相覆盖；
+      // 单条 upsert/删除按 id 合并，没有丢数据窗口。文档见 .agents/skills/journal/SKILL.md。
+      if (templateMatch && method === 'PUT') {
+        try {
+          return ok(res, await upsertTemplate(store, body ?? {}, templateMatch[1]));
+        } catch (e) {
+          if (e instanceof BuiltinTemplateError) return err(res, 409, e.code, e.message);
+          if (e instanceof TemplateValidationError) return err(res, 400, e.code, e.message);
+          throw e;
+        }
+      }
+      if (templateMatch && method === 'DELETE') {
+        try {
+          return ok(res, await deleteTemplate(store, templateMatch[1]));
+        } catch (e) {
+          if (e instanceof BuiltinTemplateError) return err(res, 409, e.code, e.message);
+          if (e instanceof TemplateValidationError) return err(res, 400, e.code, e.message);
+          throw e;
+        }
+      }
+      // ── 模板 seed 版本标记（extension ensureBuiltinTemplates 读写）──
+      if (path === '/api/meta/templatesSeed' && method === 'GET') return ok(res, await getTemplatesSeed(store));
+      if (path === '/api/meta/templatesSeed' && method === 'PUT') {
+        try {
+          return ok(res, await saveTemplatesSeed(store, body));
+        } catch (e) {
+          if (e instanceof TemplateValidationError) return err(res, 400, e.code, e.message);
+          throw e;
+        }
+      }
       if (path === '/api/meta/savedViews' && method === 'GET') return ok(res, await getSavedViews(store));
       if (path === '/api/meta/savedViews' && method === 'PUT') return ok(res, await saveSavedViews(store, Array.isArray(body) ? body : []));
 

@@ -8,6 +8,7 @@ import { els, tplBuilderTile } from '../components/dom-refs.js';
 import { icon } from '../components/icon.js';
 import { writeValueToCard } from '../shared/field-registry.js';
 import { RESERVED_PROPS } from '../shared/model.js';
+import { cloneTemplate } from '../shared/builtin-templates.js';
 import { actions } from '../state/actions.js';
 import { getHostMeta, updateHostMeta } from '../state/host-client.js';
 import { savePropLibrary, upsertPropDef } from '../state/prop-library.js';
@@ -262,6 +263,14 @@ export function renderTemplateMenu(templates) {
     emoji.className = 'tpl-item-icon';
     const nm = document.createElement('span');
     nm.textContent = t.name;
+    // 内置模板：🔒 标记只读（可选用/可复制，不可编辑/删除）
+    if (t.builtin) {
+      const lock = document.createElement('i');
+      lock.className = 'tpl-lock';
+      lock.setAttribute('aria-hidden', 'true');
+      lock.textContent = '🔒';
+      nm.append(' ', lock);
+    }
     it.append(emoji, nm);
     if (t.fields?.length || t.tags?.length) {
       const tags = Array.isArray(t.fields)
@@ -305,16 +314,35 @@ export function renderTemplateMenu(templates) {
   }, 0);
 }
 
-/** 模板管理：重命名 / 删除 / 编辑（应用内对话框，不再用原生 prompt/confirm） */
+/** 模板管理：重命名 / 删除 / 编辑（应用内对话框，不再用原生 prompt/confirm）。
+ * 内置模板（builtin: true）只读：唯一出口是「复制为我的模板」。 */
 export async function manageTemplates(templates) {
   if (!templates.length) return;
   const idx = await pickDialog({
     title: '选择要管理的模板',
-    items: templates.map(t => `${t.emoji || '🗂️'} ${t.name}`),
+    items: templates.map(t => `${t.emoji || '🗂️'} ${t.name}${t.builtin ? ' 🔒' : ''}`),
     okLabel: '下一步',
   });
   if (typeof idx !== 'number') return;
   const tpl = templates[idx];
+
+  // ── 内置模板：只读 + 可复制（2026-11-11）──
+  if (tpl.builtin) {
+    const act = await pickDialog({
+      title: `「${tpl.name}」（内置·只读）`,
+      items: ['复制为我的模板'],
+      okLabel: '复制',
+    });
+    if (act !== 0) return;
+    const copy = cloneTemplate(tpl, 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
+    const res = await runWrite(
+      () => updateHostMeta('templates', (cur) => [...(Array.isArray(cur) ? cur : []), copy]),
+      '复制失败：本机服务未连接',
+    );
+    if (!res.ok) return;
+    showToast(`✅ 已复制为「${copy.name}」，可自由编辑`, 'success');
+    return;
+  }
 
   const action = await pickDialog({
     title: `「${tpl.name}」`,

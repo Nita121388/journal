@@ -167,6 +167,33 @@ curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/jso
 
 **把一段日志转成多张卡片**（让界面能看到）：先 `$CLI read <day>` 拿到 journals 文本，再按段落拆开分别 `POST /api/cards`，每段一个时间。
 
+## 模板管理（agent 可创建/管理模板）
+
+模板存 host meta，界面「模板」下拉可见。agent 用**单模板 API**（按 id 合并，无并发覆盖窗口）：
+
+```bash
+# 列出全部模板（含内置，builtin: true 只读）
+curl http://127.0.0.1:8765/api/meta/templates
+
+# 创建/更新单模板（按 id 幂等）
+curl -X PUT http://127.0.0.1:8765/api/meta/templates/t_agent_review \
+  -H "Content-Type: application/json" \
+  -d '{"id":"t_agent_review","name":"代码评审","emoji":"🧐","fields":[{"key":"status","value":"todo"},{"key":"priority","value":"high"}]}'
+
+# 删除单模板
+curl -X DELETE http://127.0.0.1:8765/api/meta/templates/t_agent_review
+```
+
+**格式契约**：
+- `id`：路由 id 与 body.id 必须一致，建议 `t_agent_<slug>`；`name` 非空；`fields` 是 `{key, value}` 数组。
+- fields **不必**含 title/content/tags（界面会自动补必填）；`value: ""` = 只控制编辑器可见性不预填。
+- 可用内建字段 key：`status`（todo/doing/done）、`priority`（high/medium/low）、`progress`、`assignedDate`、`project`、`schedule`（值形如 `{"start":"09:30","end":"10:00","duration":30}`）。
+
+**硬规则**：
+- ⚠️ **不要用 `PUT /api/meta/templates`（整列表覆盖）**——它与 UI 是 read-modify-write，并发保存会互相覆盖丢数据。
+- ⚠️ 内置模板（`builtin: true`，如 `t_builtin_todo`）**只读**：单模板 API 对它 PUT/DELETE 会返回 409；需要类似模板请新建一个。
+- payload 里的 `builtin` 字段会被 host 剥离（内置标记只属于出厂 seed）。
+
 ## 自然语言 → 命令映射（示例）
 
 | 用户说 | 执行 |

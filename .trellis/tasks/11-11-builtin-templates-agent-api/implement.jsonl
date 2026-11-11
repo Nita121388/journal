@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "新增 shared/builtin-templates.js 纯数据与 seed 模块，需按层落位（shared 零 DOM；meta 读写只能经 state/host-client）"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "host 新增 storage 函数与路由，需遵循 host 分层与路由组织方式"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "单模板 API 的 400/409 错误语义需与现有 ok/err 返回风格一致"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "meta 写入唯一通路是 host-client 的 get/set/updateHostMeta；seed 属数据层职责"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "builtin 条目在模板菜单里的视觉标记需用语义 token、不加新色"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "单测/lint/dev-loop 门禁；host 测试用 node:test"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "模板形态是 extension 构建器与 host 存储的跨层契约，字段形态须单一定义（normalizeTemplateFields）"}

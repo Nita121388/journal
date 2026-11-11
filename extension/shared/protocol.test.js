@@ -43,7 +43,7 @@ describe('动态路由', () => {
 
 describe('META_KINDS / MESSAGES', () => {
   it('与 host /api/meta/:kind 对齐', () => {
-    expect([...META_KINDS]).toEqual(['savedViews', 'propertyLibrary', 'templates']);
+    expect([...META_KINDS]).toEqual(['savedViews', 'propertyLibrary', 'templates', 'templatesSeed']);
   });
   it('消息类型命名空间', () => {
     expect(MESSAGES.startHost).toBe('journal:start-host');

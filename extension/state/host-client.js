@@ -139,8 +139,8 @@ export async function saveAiConfig(patch) {
 /* ─── 本机配置 meta ───────────────────────────────────── */
 
 /**
- * 读取 host 本机配置（模板 / 命名视图 / 属性库）。
- * @param {'savedViews'|'propertyLibrary'|'templates'} kind
+ * 读取 host 本机配置（模板 / 命名视图 / 属性库 / seed 标记）。
+ * @param {'savedViews'|'propertyLibrary'|'templates'|'templatesSeed'} kind
  * @returns {Promise<any|null>} host 离线 / 未设过 → null
  */
 export async function getHostMeta(kind) {
@@ -153,7 +153,7 @@ export async function getHostMeta(kind) {
  *
  * **失败必须抛错**（而不是静默返回 null）：否则调用方会弹出"已保存"并继续，
  * 而用户刷新后发现数据根本没变甚至被覆盖。
- * @param {'savedViews'|'propertyLibrary'|'templates'} kind
+ * @param {'savedViews'|'propertyLibrary'|'templates'|'templatesSeed'} kind
  * @param {any} value
  * @throws {Error} host 离线或写入被拒
  */
@@ -171,7 +171,7 @@ export async function setHostMeta(kind, value) {
  * 再写回“新增一条”就会把用户原有的全部模板/视图**覆盖成一条**，
  * 而 UI 还弹「已保存」。
  *
- * @param {'savedViews'|'propertyLibrary'|'templates'} kind
+ * @param {'savedViews'|'propertyLibrary'|'templates'|'templatesSeed'} kind
  * @param {(current: any) => any} mutate 基于当前值产出新值
  * @returns {Promise<any>} 保存后的值
  * @throws {Error} 读取或写入失败（调用方必须提示用户，不得当成功）

@@ -14,6 +14,7 @@ import { checkHostHealth } from '../features/host-status.js';
 import { showToast } from '../features/toast.js';
 import { refreshAll } from '../views/refresh.js';
 import { loadPoolViews } from '../views/named-view.js';
+import { ensureBuiltinTemplates } from '../state/template-seed.js';
 import { loadSkillStatus } from '../views/skills.js';
 import { markViewMode, requestFocusScroll } from '../views/rightview.js';
 import { updateHeaderDate } from '../views/calendar.js';
@@ -68,6 +69,9 @@ export async function init() {
   // 属性库 + 字段注册表（用户字段走 getter 实时读，变更后无需重新 init）
   await loadPropLibrary();
   initFieldRegistry({ getUserFields: () => getPropLibrary() });
+
+  // 内置模板 seed（只一次、不复活；host 未就绪时静默跳过，下次启动自愈）
+  await ensureBuiltinTemplates();
 
   // 本机 AI Skill 状态（供「复制所有路径给 AI」）
   await loadSkillStatus();
