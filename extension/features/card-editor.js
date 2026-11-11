@@ -16,7 +16,7 @@ import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
 import { formatDateTime, formatProvenance } from '../shared/format.js';
-import { addMinutes, getCardEndTime, getCardStartTime, snapToQuarter, snapUpToQuarter, timeToMinutes } from '../shared/model.js';
+import { DEFAULT_CARD_DURATION_MIN, addMinutes, getCardEndTime, getCardStartTime, snapToQuarter, snapUpToQuarter, timeToMinutes } from '../shared/model.js';
 import { getFieldDef } from '../shared/field-registry.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
 import { actions } from '../state/actions.js';
@@ -332,9 +332,9 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
     start = getCardStartTime(card) ?? null;
     end = getCardEndTime(card) ?? null;
   } else {
-    // 新建：有种子时间则预填，否则留空（= 不排具体时间，全天卡片）
+    // 新建：有种子时间则预填（默认时长 DEFAULT_CARD_DURATION_MIN），否则留空
     start = time ? snapUpToQuarter(time) : null;
-    end = start ? addMinutes(start, 15) : null;
+    end = start ? addMinutes(start, DEFAULT_CARD_DURATION_MIN) : null;
   }
   if (editorStart) editorStart.value = start ?? '';
   if (editorEnd) editorEnd.value = end ?? '';
@@ -628,8 +628,8 @@ async function doSaveEditor() {
   let start = null, end = null;
   if (startRaw) {
     start = snapToQuarter(startRaw);
-    end = snapToQuarter(endRaw || addMinutes(start, 15));
-    if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, 15);
+    end = snapToQuarter(endRaw || addMinutes(start, DEFAULT_CARD_DURATION_MIN));
+    if (timeToMinutes(end) <= timeToMinutes(start)) end = addMinutes(start, DEFAULT_CARD_DURATION_MIN);
   }
 
   // 日期：date input 的值；空 = 未安排（卡片池）

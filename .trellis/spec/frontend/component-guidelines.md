@@ -364,8 +364,8 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 | 契约 | 说明 |
 |---|---|
 | 落点换算单一真源 | `shared/model.js` 的 `slotMinutesAtY`（Y→未吸附分钟）+ `clampStartMinutes`（吸附 15 分钟 + 钳制不越界）。**预览与 drop 必须调用同一对函数**；任一处私下 `*15/30` 即缺陷（预览会骗人）。`slotHeight` 由视图传入（`views/timeline.js` 的 `SLOT_HEIGHT`）。 |
-| ghost 预览 | `.drop-ghost` 单例，虚线 + `--accent-soft`，`top/height` 走 `scheduleHeight`；**节流**：同容器+同起点+同时长直接 return（dragover 高频，每帧写 DOM 会发涩）。 |
-| 时长链 | `getCardDuration(card)`（起止差）→ `card.duration` → 15 分钟。drop **只改日期与起点，不压缩原时长**。 |
+| ghost 预览 | `.drop-ghost` 单例，虚线 + `--accent-soft`，`top/height` 走 `scheduleHeight`；**节流**：同容器+同起点+同时长直接 return（dragover 高频，每帧写 DOM 会发涩）。**落位指示只靠 ghost 块**——不画画布/整列蓝底（2026-11-11 用户拍板；旧 `.schedule-canvas.drag-over` / `.calview-week-body.drag-over` 已删）。 |
+| 时长链 | `getCardDuration(card)`（起止差）→ `card.duration` → `DEFAULT_CARD_DURATION_MIN`（**30 分钟**，`shared/model.js` 单一真源）。drop **只改日期与起点，不压缩原时长**。同一个常量也管新建卡预填结束时间、保存兜底、「安排到某天」快捷动作与 `getCardEndTime` 兜底——改默认时长只改这一处。 |
 | drop 行为 | **不自动打开编辑器**（ghost 已可视化落点；想细调点卡片）。无 toast，落位即反馈。 |
 | ghost 三路清除 | drop、目标 `dragleave`、源 `dragend`（`pool.js` 兜底调 `hideDropGhost()`）。新增拖拽源必须接 `dragend`。`dragleave` 需守 `contains(relatedTarget)`：进入子元素时不算离开，否则拖到画布内已排程卡上会误清预览。 |
 | 拖拽数据传递 | HTML5 DnD 在 **dragover 阶段处于 protected mode**——`dataTransfer.getData()` 恒返回空串（Chrome/Firefox/Safari 一致），只有 `drop` 能读。拖拽源必须在 `dragstart` 把卡 id 写进 `vs.draggingCardId`（`dragend` 清空），落点预览只能读它；`getData` 仅作兜底。合成 `DataTransfer` 的 dev-loop 能读到数据，**测不出**这个真实浏览器差异。 |

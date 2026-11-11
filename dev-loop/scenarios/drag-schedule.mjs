@@ -218,7 +218,7 @@ export async function runDragSchedule({ page, _width, _outDir, hostPort }) {
       const g = document.querySelector(`.calview-week-body[data-day="${d}"] .drop-ghost`);
       return g ? (g.querySelector('.drop-ghost-time')?.textContent || '').trim() : null;
     }, someDay.day);
-    add('周视图列 dragover 出现 ghost', ghostW === '10:00–10:15', `time=${ghostW}`);
+    add('周视图列 dragover 出现 ghost（默认时长 30 分钟 = 两格）', ghostW === '10:00–10:30', `time=${ghostW}`);
 
     // ── ⑤ ghost 清理：dragleave ──
     await dispatchDrag(page, sel, cardB.id, Y_AT_1000, 'dragleave');
@@ -230,8 +230,8 @@ export async function runDragSchedule({ page, _width, _outDir, hostPort }) {
     await dispatchDrag(page, sel, cardB.id, Y_AT_1000, 'drop');
     await page.waitForTimeout(900);
     const b1 = await cardOf(hostPort, cardB.id);
-    add('B 卡落到周视图目标列（10:00–10:15）',
-      b1?.assignedDate === someDay.day && b1?.startTime === '10:00' && b1?.endTime === '10:15',
+    add('B 卡落到周视图目标列（10:00–10:30）',
+      b1?.assignedDate === someDay.day && b1?.startTime === '10:00' && b1?.endTime === '10:30',
       `assignedDate=${b1?.assignedDate} ${b1?.startTime}–${b1?.endTime}`);
   }
 

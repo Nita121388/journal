@@ -159,6 +159,15 @@ export function getCardsByDate(cards, date) {
 
 /* ─── 日程时间工具（15 分钟网格） ───────────────────────────── */
 
+/**
+ * 卡片默认时长（分钟，2026-11-11 用户拍板：一改 15 → 30）。
+ *
+ * 唯一真源：新建卡片的预填结束时间、保存兜底、拖拽排程的时长链、
+ * “安排到选中日”快捷动作、以及 `getCardEndTime` 的兜底全部取它——
+ * 以前 15 散落在 5 处，改一次默认值要翻遍全库。
+ */
+export const DEFAULT_CARD_DURATION_MIN = 30;
+
 /** @param {string} hhmm — "HH:MM" @returns {number} 当天分钟数 */
 export function timeToMinutes(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -211,11 +220,11 @@ export function getCardStartTime(card) {
   return card?.startTime ?? card?.time ?? null;
 }
 
-/** 兼容读取结束时间：endTime ?? start+15min */
+/** 兼容读取结束时间：endTime ?? start + 默认时长 */
 export function getCardEndTime(card) {
   if (card?.endTime) return card.endTime;
   const start = getCardStartTime(card);
-  return start ? addMinutes(start, 15) : null;
+  return start ? addMinutes(start, DEFAULT_CARD_DURATION_MIN) : null;
 }
 
 /** @returns {number} 持续分钟数（无时间返回 0） */

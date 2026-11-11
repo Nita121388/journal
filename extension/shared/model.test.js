@@ -58,14 +58,14 @@ describe('卡片起止/时长', () => {
     expect(getCardStartTime({ time: '08:00' })).toBe('08:00');
     expect(getCardStartTime({})).toBeNull();
   });
-  it('endTime 优先；无 endTime 时 start+15 分钟', () => {
+  it('endTime 优先；无 endTime 时 start+默认时长（30 分钟，2026-11-11）', () => {
     expect(getCardEndTime({ startTime: '09:00', endTime: '10:00' })).toBe('10:00');
-    expect(getCardEndTime({ startTime: '09:00' })).toBe('09:15');
+    expect(getCardEndTime({ startTime: '09:00' })).toBe('09:30');
     expect(getCardEndTime({})).toBeNull();
   });
   it('getCardDuration 由起止推算', () => {
     expect(getCardDuration({ startTime: '09:00', endTime: '10:30' })).toBe(90);
-    expect(getCardDuration({ startTime: '09:00' })).toBe(15);
+    expect(getCardDuration({ startTime: '09:00' })).toBe(30);
     expect(getCardDuration({})).toBe(0);
   });
 });

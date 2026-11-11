@@ -7,7 +7,7 @@
  * 跨层调用（重渲染 / 打开编辑器）经 state/actions.js 由组合根注入。
  */
 
-import { currentTime, snapUpToQuarter, addMinutes, cardMatchesQuery } from '../shared/model.js';
+import { DEFAULT_CARD_DURATION_MIN, currentTime, snapUpToQuarter, addMinutes, cardMatchesQuery } from '../shared/model.js';
 import { statusLabel, statusOptions } from '../shared/card-schema.js';
 import { listFieldDefs, readValueFromCard } from '../shared/field-registry.js';
 import { shortDate, cardPrimaryText } from '../shared/format.js';
@@ -313,7 +313,7 @@ export async function renderCardPool() {
       const st = snapUpToQuarter(currentTime());
       void patchCard(
         card.id,
-        { assignedDate: vs.selectedDate, time: st, startTime: st, endTime: addMinutes(st, 15) },
+        { assignedDate: vs.selectedDate, time: st, startTime: st, endTime: addMinutes(st, DEFAULT_CARD_DURATION_MIN) },
         '安排失败：本机服务未连接',
       );
     });

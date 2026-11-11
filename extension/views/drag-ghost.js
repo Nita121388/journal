@@ -12,7 +12,7 @@
  *
  * 行为约定（2026-11-11 用户拍板）：
  * - drop 后**不**自动打开编辑器（ghost 已可视化落点；想细调就点卡片）
- * - 拖拽只改日期与起点，**保留原时长**（时长链：起止差 → duration 字段 → 15 分钟）
+ * - 拖拽只改日期与起点，**保留原时长**（时长链：起止差 → duration 字段 → 默认时长）
  * - ghost 三路清除：drop、dragleave、源 dragend（pool.js 兜底）
  *
  * 依赖方向：本模块 → timeline.js 取视图几何（SLOT_HEIGHT/scheduleHeight，几何唯一
@@ -23,7 +23,7 @@
  */
 
 import {
-  addMinutes, clampStartMinutes, getCardDuration, minutesToTime, slotMinutesAtY,
+  DEFAULT_CARD_DURATION_MIN, addMinutes, clampStartMinutes, getCardDuration, minutesToTime, slotMinutesAtY,
 } from '../shared/model.js';
 import { cardPrimaryText } from '../shared/format.js';
 import { vs } from '../state/view-state.js';
@@ -52,9 +52,9 @@ export function droppedCardSchedule(card, startMin) {
   };
 }
 
-/** 被拖卡的时长（分钟）：起止差 → duration 字段 → 15。drop 预览共用这唯一一份。 */
+/** 被拖卡的时长（分钟）：起止差 → duration 字段 → 默认时长。drop 预览共用这唯一一份。 */
 function draggedDuration(card) {
-  return getCardDuration(card) || card?.duration || 15;
+  return getCardDuration(card) || card?.duration || DEFAULT_CARD_DURATION_MIN;
 }
 
 /**
@@ -125,7 +125,6 @@ export function bindScheduleDrop(target, assignedDate) {
   target.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    target.classList.add('drag-over');
     const card = draggedCard(e);
     if (!card) return;
     const startMin = slotOf(e.clientY, card);
@@ -136,18 +135,18 @@ export function bindScheduleDrop(target, assignedDate) {
       title: cardPrimaryText(card, ''),
     });
   });
+  // 落位指示只靠 ghost 预览块（2026-11-11 用户拍板：不画整块蓝底，
+  // 故不再切 drag-over 类；dragleave 只负责清 ghost）。
 
   // 只在真正离开目标（进入子元素不算——dragleave 会随子元素边界冒上来，
-  // 否则拖到画布内已排程卡上时 ghost 会闪没）时清除；与 pool.js 同款守卫。
+  // 否则拖到画布内已排程卡上时 ghost 会闪没）时清除。
   target.addEventListener('dragleave', (e) => {
     if (e.relatedTarget && target.contains(e.relatedTarget)) return;
-    target.classList.remove('drag-over');
     hideDropGhost();
   });
 
   target.addEventListener('drop', (e) => {
     e.preventDefault();
-    target.classList.remove('drag-over');
     hideDropGhost();
     const card = draggedCard(e);
     // 拖拽到此结束：无论 drop 后 refreshAll 是否重建了源头行（列表重建时

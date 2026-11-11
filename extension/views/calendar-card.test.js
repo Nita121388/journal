@@ -73,8 +73,8 @@ describe('cardTimeText', () => {
     expect(cardTimeText(card({ startTime: '09:00', endTime: '10:30' }), { range: false })).toBe('09:00');
   });
 
-  it('只有开始时间时结束时间补 15 分钟', () => {
-    expect(cardTimeText(card({ startTime: '09:00' }))).toBe('09:00–09:15');
+  it('只有开始时间时结束时间补默认时长（30 分钟，2026-11-11）', () => {
+    expect(cardTimeText(card({ startTime: '09:00' }))).toBe('09:00–09:30');
   });
 });
 

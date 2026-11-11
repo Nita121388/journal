@@ -1744,13 +1744,8 @@ body.panels-open #board::before {
   background: var(--accent);
   opacity: 0.7;
 }
-/* 拖拽卡片池卡片到时间线时的画布高亮 */
-.schedule-canvas.drag-over {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  border-radius: var(--r-chip);
-  background: var(--accent-soft);
-}
+/* 拖拽落位只靠 ghost 预览块表达（2026-11-11 用户拍板：不画整块蓝底）——
+ * 原先的 .schedule-canvas.drag-over / .calview-week-body.drag-over 整块高亮已删。 */
 
 /* 拖拽落地预览（views/drag-ghost.js，2026-11-11）：
  * 与真实卡同几何（top/height 由 scheduleHeight 算），虚线 + accent-soft。
@@ -1784,10 +1779,8 @@ body.panels-open #board::before {
 }
 .drop-ghost-time { font-size: 10px; opacity: .85; }
 
-/* 周视图列接收拖拽时的高亮（ghost 块落在列内，列本身给弱底） */
-.calview-week-body.drag-over { background: var(--accent-soft); }
-
-/* 反向拖拽：已排程卡拖回卡片池 = 取消排程（views/pool.js） */
+/* 反向拖拽：已排程卡拖回卡片池 = 取消排程（views/pool.js）。拖回池不是 ghost 预览
+ * 能表达的（方向相反），保留整块弱高亮作目标提示。 */
 #cardpool-list.drag-over {
   outline: 1px dashed var(--accent);
   outline-offset: -2px;
