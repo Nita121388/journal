@@ -81,6 +81,16 @@ export const vs = {
   // ── 时间线滚动 ──
   /** @type {boolean} 下次渲染是否滚动到当前时刻 */
   pendingFocusScroll: false,
+
+  // ── 拖拽排程 ──
+  /**
+   * 正被拖拽的卡片池卡片 id（'' = 无）。
+   * HTML5 DnD 在 dragover 阶段处于 protected mode，`dataTransfer.getData()`
+   * 恒返回空串——落点预览（ghost）必须靠源头 dragstart 缓存才能拿到卡 id；
+   * 源头 dragend 清空。views/pool.js 写、views/drag-ghost.js 读。
+   * @type {string}
+   */
+  draggingCardId: '',
 };
 
 /* ─── 类型 ─────────────────────────────────────────────── */
@@ -106,6 +116,7 @@ export const vs = {
  * @property {object[]} savedViews
  * @property {string} activeViewId
  * @property {boolean} pendingFocusScroll
+ * @property {string} draggingCardId 正被拖拽的卡片池卡片 id（'' = 无；dragover 阶段读不到 dataTransfer）
  */
 
 /** @typedef {import('../shared/model.js').Card} Card */

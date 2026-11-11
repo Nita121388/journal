@@ -227,6 +227,39 @@ export function getCardDuration(card) {
 }
 
 /**
+ * 拖拽落位：Y 坐标 → 未吸附分钟数（拖拽预览与 drop 共用的第一步）。
+ *
+ * `slotHeight` 显式传入（当前由 views/timeline.js 的 `SLOT_HEIGHT=30` 提供）——
+ * shared 层不持有视图常量，但换算必须只有这一份，预览和落点才不会各说各话。
+ * @param {number} y 指针相对容器 top 的偏移（px）
+ * @param {number} viewStartMin 当前视图起始分钟
+ * @param {number} slotHeight 一个 15 分钟格的像素高
+ * @returns {number} 未吸附的当天分钟数
+ */
+export function slotMinutesAtY(y, viewStartMin, slotHeight) {
+  return viewStartMin + (y / slotHeight) * 15;
+}
+
+/**
+ * 拖拽落位：吸附 + 钳制（预览与 drop 共用的第二步）。
+ *
+ * round 到 15 分钟格；再把起点夹在 `[viewStartMin, viewEndMin - durationMin]`，
+ * 保证卡片不越出画布。`durationMin` 大于整个视图时退化为贴上界（不再下探）。
+ * @param {number} rawMin 未吸附分钟数
+ * @param {number} viewStartMin
+ * @param {number} viewEndMin
+ * @param {number} durationMin 卡片时长（分钟，≥15）
+ * @returns {number} 吸附且钳制后的起点分钟数
+ */
+export function clampStartMinutes(rawMin, viewStartMin, viewEndMin, durationMin) {
+  const dur = Math.max(15, durationMin || 15);
+  const snapped = Math.round(rawMin / 15) * 15;
+  const lower = viewStartMin;
+  const upper = Math.max(viewStartMin, viewEndMin - dur);
+  return Math.max(lower, Math.min(upper, snapped));
+}
+
+/**
  * 重叠区间 lane 分配（区间分区贪心算法）
  * @param {Array<{id:string, start:number, end:number}>} items — 分钟数区间
  * @returns {Map<string, {lane:number, laneCount:number}>}

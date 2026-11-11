@@ -21,6 +21,7 @@ import { renderCardBlock, renderDayHeader } from './calendar-card.js';
 import { getCardsByDaySync } from './day-cards.js';
 import { requestFocusScroll } from './rightview.js';
 import { createNowMarker, nowLabel } from './now-marker.js';
+import { bindScheduleDrop } from './drag-ghost.js';
 
 // 框选交互已收敛到 views/range-select.js（与日视图时间线共用同一实现）。
 import { bindRangeSelect } from './range-select.js';
@@ -190,6 +191,10 @@ function buildDayBody(dayKey, today, bodyH) {
     const top = Math.max(8, Math.min(bodyH - 8, scheduleHeight(nowMin)));
     body.append(createNowMarker({ dayKey, top, label: nowLabel(now) }));
   }
+
+  // 拖拽来自卡片池的卡片：与日视图时间线同一套落点换算 + ghost 预览
+  // （列 = assignedDate，Y = 时间格；2026-11-11 与日视图共用 views/drag-ghost.js）。
+  bindScheduleDrop(body, dayKey);
 
   return body;
 }

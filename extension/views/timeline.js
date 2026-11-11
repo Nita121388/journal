@@ -6,11 +6,12 @@
  */
 
 import { todayKey, currentTime, timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter, getCardStartTime, getCardEndTime, layoutScheduleLanes } from '../shared/model.js';
-import { getCardsByDay, updateCardEntry } from '../state/repository.js';
+import { getCardsByDay } from '../state/repository.js';
 import { els } from '../components/dom-refs.js';
 import { vs, DAY_START_MIN, DAY_END_MIN } from '../state/view-state.js';
 import { bindRangeSelect } from './range-select.js';
 import { renderCardBlock } from './calendar-card.js';
+import { bindScheduleDrop } from './drag-ghost.js';
 import { actions } from '../state/actions.js';
 import { icon } from '../components/icon.js';
 import { button } from '../components/button.js';
@@ -103,37 +104,10 @@ export async function renderTimeline() {
     actions.openEditorRange(minutesToTime(sMin), minutesToTime(eMin), date);
   });
 
-  // ── 拖拽来自卡片池的卡片：根据 Y 坐标设置时间槽 ──
-  canvas.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    canvas.classList.add('drag-over');
-  });
-  canvas.addEventListener('dragleave', () => {
-    canvas.classList.remove('drag-over');
-  });
-  canvas.addEventListener('drop', (e) => {
-    e.preventDefault();
-    canvas.classList.remove('drag-over');
-    const cardId = e.dataTransfer.getData('text/plain');
-    if (!cardId) return;
-    const rect = canvas.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const rawMins = vs.viewStartMin + (y / SLOT_HEIGHT) * 15;
-    const snapped = snapToQuarter(minutesToTime(Math.max(vs.viewStartMin, Math.min(vs.viewEndMin - 15, rawMins))));
-    updateCardEntry(cardId, {
-      assignedDate: date,
-      time: snapped,
-      startTime: snapped,
-      endTime: addMinutes(snapped, 15),
-    }).then(async () => {
-      await actions.refreshAll();
-      // 拖拽放置后直接打开编辑器（「拖到单元格进行编辑」）
-      const dropped = vs.allCardsCache.find(c => c.id === cardId);
-      if (dropped) actions.openEditor(dropped, snapped, date);
-    })
-      .catch(err => console.error('[journal] drop move failed:', err));
-  });
+  // ── 拖拽来自卡片池的卡片：落点预览（ghost）+ 按格落位 ──
+  // 落点换算与 ghost 预览与周视图共用 views/drag-ghost.js 的 bindScheduleDrop；
+  // 2026-11-11：取代「只有画布描边、落点靠猜 + 强制开编辑器」。
+  bindScheduleDrop(canvas, date);
 
   // 重叠区间 lane 分配
   const laneItems = timedCards.map(c => ({

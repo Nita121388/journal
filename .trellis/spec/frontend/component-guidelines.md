@@ -354,3 +354,25 @@ if (rowIconPop     && e.key==='Escape') { e.preventDefault(); closeRowIconPicker
 
 **原则**：`sticky` 失效先查两件事——祖先链上是否有 `overflow` 建立了滚动容器，
 以及包含块有没有可移动空间。两者都对了再谈 z-index。
+
+## 拖拽排程（卡片池 → 时间线/周视图，2026-11-11）
+
+排程拖拽的**唯一实现**：`views/drag-ghost.js` 的 `bindScheduleDrop(target, assignedDate)`
+（时间线画布与周视图单日列共用）。新增可拖入的时间语境（如未来月历）必须复用它，
+不得就地再写一份 dragover/drop。
+
+| 契约 | 说明 |
+|---|---|
+| 落点换算单一真源 | `shared/model.js` 的 `slotMinutesAtY`（Y→未吸附分钟）+ `clampStartMinutes`（吸附 15 分钟 + 钳制不越界）。**预览与 drop 必须调用同一对函数**；任一处私下 `*15/30` 即缺陷（预览会骗人）。`slotHeight` 由视图传入（`views/timeline.js` 的 `SLOT_HEIGHT`）。 |
+| ghost 预览 | `.drop-ghost` 单例，虚线 + `--accent-soft`，`top/height` 走 `scheduleHeight`；**节流**：同容器+同起点+同时长直接 return（dragover 高频，每帧写 DOM 会发涩）。 |
+| 时长链 | `getCardDuration(card)`（起止差）→ `card.duration` → 15 分钟。drop **只改日期与起点，不压缩原时长**。 |
+| drop 行为 | **不自动打开编辑器**（ghost 已可视化落点；想细调点卡片）。无 toast，落位即反馈。 |
+| ghost 三路清除 | drop、目标 `dragleave`、源 `dragend`（`pool.js` 兜底调 `hideDropGhost()`）。新增拖拽源必须接 `dragend`。`dragleave` 需守 `contains(relatedTarget)`：进入子元素时不算离开，否则拖到画布内已排程卡上会误清预览。 |
+| 拖拽数据传递 | HTML5 DnD 在 **dragover 阶段处于 protected mode**——`dataTransfer.getData()` 恒返回空串（Chrome/Firefox/Safari 一致），只有 `drop` 能读。拖拽源必须在 `dragstart` 把卡 id 写进 `vs.draggingCardId`（`dragend` 清空），落点预览只能读它；`getData` 仅作兜底。合成 `DataTransfer` 的 dev-loop 能读到数据，**测不出**这个真实浏览器差异。 |
+| 写通路 | 落位与反向取消排程统一走 `features/card-actions.js` 的 `patchCard`（失败 toast + 重渲染回滚），不直调 `state/repository.js`。 |
+| 反向取消排程 | 已排程卡拖回 `#cardpool-list` → 显式 `null` 清 `assignedDate/time/startTime/endTime`（host PATCH 白名单已支持），**`duration` 保留**以便再次排程。 |
+| 依赖方向 | `week.js`/`pool.js`/`timeline.js` → drag-ghost 合法；drag-ghost 取几何需 `timeline.js` 的 `SLOT_HEIGHT/scheduleHeight`，因此 timeline ↔ drag-ghost 是**同层循环 import**（与既有 timeline↔range-select、week↔rightview 同性质）。运行时安全的前提：几何常量与 `bindScheduleDrop` 都只在**函数体内**使用（不在模块顶层求值），否则会踩 TDZ。若未来要严格单向，需把 SLOT_HEIGHT/scheduleHeight 抽到独立几何模块（涉及 4 个消费方，另开任务）。 |
+
+**验证**：`dev-loop --scenario drag-schedule`（合成 `DragEvent` + `DataTransfer` 驱动，
+不用真实鼠标 DnD——无法逐帧断言 ghost）。场景要用**确保式播种**并在开头显式切视图
+（见 [dev-loop.md](./dev-loop.md) 的两条 Gotcha）。

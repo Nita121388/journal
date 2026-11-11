@@ -30,6 +30,20 @@ node dev-loop.mjs --width 360 --headed    # 有头模式人工观察
 > 切回亮色后记得 `waitForTimeout(250)` 再截图——token 翻转会重启 `background-color` 过渡，
 > 否则末尾的全页截图会拍到「过渡中间色」，看起来像配色错了。
 
+> Gotcha：**UI 偏好是持久化 pref，会跨宽度/跨场景延续**。
+> `journal.viewMode`（时间线/周/月）、`journal.poolLayout`、`journal.timelineSpan` 都存在
+> platform pref 里（`prefGet/prefSet`），同一 isolated profile 下第 2 个宽度的页面会
+> **接着上个宽度留下的状态**启动。场景依赖某个视图时必须**开头显式切过去**
+> （`#view-dock [data-mode=…]`，如 `drag-schedule` 开头切 timeline），否则断言在
+> 不存在的 DOM（如周视图下的 `.schedule-canvas`）上静默拿 null，表现为「谁排第一谁过」。
+> 场景末尾也顺手切回默认视图，不把状态留给后续宽度。
+
+> Gotcha：**多宽度共享同一 isolated DB，场景种子卡不能靠模块级 `seeded` 短路**。
+> 模块级标志只在首个宽度为 true，若场景末尾清理了自己的卡，第 2 个宽度起就无卡可测。
+> 正解："确保式播种"——每次运行查 host（按标题查 `GET /api/cards`），缺则补种；
+> 种完 `page.reload()` 后 `waitForFunction` 等到卡片池渲染出目标标题再派发交互
+> （否则 `vs.allCardsCache` 未水合，拖拽取不到卡，表现为偶发 ghost=null）。
+
 ## 与本项目的关系
 
 - 扩展源码在 `extension/`（分层见 [Directory Structure](./directory-structure.md)）；dev-loop 只**读取**它做测试构建，绝不写入。

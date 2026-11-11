@@ -58,6 +58,8 @@ export default [
         Response: 'readonly',
         ImageData: 'readonly',
         MouseEvent: 'readonly',
+        DragEvent: 'readonly',
+        DataTransfer: 'readonly',
         innerWidth: 'readonly',
         innerHeight: 'readonly',
       },

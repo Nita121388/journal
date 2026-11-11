@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   todayKey, toDayKey, currentTime,
   timeToMinutes, minutesToTime, addMinutes, snapToQuarter, snapUpToQuarter,
+  slotMinutesAtY, clampStartMinutes,
   getCardStartTime, getCardEndTime, getCardDuration,
   layoutScheduleLanes, getCardsByDate,
   countCardsByDay, getCardTypeCounts,
@@ -66,6 +67,37 @@ describe('卡片起止/时长', () => {
     expect(getCardDuration({ startTime: '09:00', endTime: '10:30' })).toBe(90);
     expect(getCardDuration({ startTime: '09:00' })).toBe(15);
     expect(getCardDuration({})).toBe(0);
+  });
+});
+
+describe('拖拽落位换算（预览与 drop 共用）', () => {
+  // SLOT_HEIGHT = 30px / 15 分钟；视图 08:00(480) – 22:30(1350)
+  const START = 480;
+  const END = 1350;
+  const SLOT = 30;
+
+  it('slotMinutesAtY：Y 偏移 → 分钟（未吸附）', () => {
+    expect(slotMinutesAtY(0, START, SLOT)).toBe(480);      // 视图上界
+    expect(slotMinutesAtY(30, START, SLOT)).toBe(495);     // 1 格 = 15 分钟
+    expect(slotMinutesAtY(60, START, SLOT)).toBe(510);     // 2 格 = 30 分钟（08:30）
+    expect(slotMinutesAtY(37, START, SLOT)).toBeCloseTo(498.5, 5);
+  });
+
+  it('clampStartMinutes：round 到 15 分钟', () => {
+    expect(clampStartMinutes(498.5, START, END, 15)).toBe(495);  // 08:15
+    expect(clampStartMinutes(505, START, END, 15)).toBe(510);    // 08:22:30 → 08:30 向上
+    expect(clampStartMinutes(503, START, END, 15)).toBe(510);    // 08:23 → 08:30 向上回合
+  });
+
+  it('clampStartMinutes：钳到视图上下界（保持时长不越界）', () => {
+    expect(clampStartMinutes(0, START, END, 90)).toBe(START);            // 上界
+    expect(clampStartMinutes(9999, START, END, 90)).toBe(END - 90);      // 下界 = 22:30-90
+    expect(clampStartMinutes(9999, START, END, 15)).toBe(END - 15);
+  });
+
+  it('clampStartMinutes：时长超视图 → 贴上界；时长为 0/缺失 → 15', () => {
+    expect(clampStartMinutes(9999, START, END, 2000)).toBe(START);
+    expect(clampStartMinutes(9999, START, END, 0)).toBe(END - 15);
   });
 });
 

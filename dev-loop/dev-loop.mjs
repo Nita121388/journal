@@ -30,6 +30,7 @@ import { runCalendarVisual } from './scenarios/calendar-visual.mjs';
 import { runWeekReadable } from './scenarios/week-readable.mjs';
 import { runShell } from './scenarios/shell.mjs';
 import { runEditor } from './scenarios/editor.mjs';
+import { runDragSchedule } from './scenarios/drag-schedule.mjs';
 import { seedHost } from './lib/seed.mjs';
 
 function parseArgs(argv) {
@@ -129,6 +130,7 @@ try {
         : args.scenario === 'week-readable' ? runWeekReadable
         : args.scenario === 'shell' ? runShell
         : args.scenario === 'editor' ? runEditor
+        : args.scenario === 'drag-schedule' ? runDragSchedule
         : runSmoke;
       // 传 outDir 让场景可以留多视图截图证据（audit 场景早已这样用）；
       // hostPort 供需要自己补数据的场景（week-readable 造重叠卡）直接 POST 到隔离 host

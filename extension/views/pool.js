@@ -17,6 +17,7 @@ import { vs } from '../state/view-state.js';
 import { patchCard, deleteCardWithUndo } from '../features/card-actions.js';
 import { actions } from '../state/actions.js';
 import { beginGesture, endGesture } from './gesture.js';
+import { hideDropGhost } from './drag-ghost.js';
 
 // 术语统一（评审 P1-5）：`待办` 曾同时指「一个筛选集」「一个状态」「一个类型」
 // 现在拆分清楚：筛选集叫「未完成」（todo ∪ doing），状态叫「无状态/未开始/进行中/已完成」。
@@ -34,6 +35,41 @@ function statusMatches(card, f) {
   if (f === 'active') return card.status === 'todo' || card.status === 'doing';
   return card.status === f;
 }
+
+/**
+ * 反向拖拽：把已排程卡拖回卡片池 = 取消排程（2026-11-11）。
+ *
+ * 与「卡片池 → 时间线」构成闭环：排程有来有回，符合直觉。
+ * 显式 null 清字段（host PATCH 白名单含四个时间字段）；`duration` 保留，
+ * 便于再次拖到时间线时找回原时长。无排程的卡拖回来 = 无变化。
+ * 绑定一次（列表元素常驻，行内 li 每次重建不影响容器级监听）。
+ */
+function bindPoolUnscheduleDrop() {
+  const list = els.cardpoolList;
+  if (!list) return;
+  list.addEventListener('dragover', (e) => {
+    // 只接受卡片拖拽（text/plain 带 cardId），避免其它拖入误触发高亮
+    if (![...(e.dataTransfer?.types ?? [])].includes('text/plain')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    list.classList.add('drag-over');
+  });
+  list.addEventListener('dragleave', (e) => {
+    if (!list.contains(e.relatedTarget)) list.classList.remove('drag-over');
+  });
+  list.addEventListener('drop', (e) => {
+    e.preventDefault();
+    list.classList.remove('drag-over');
+    hideDropGhost();
+    const cardId = e.dataTransfer?.getData?.('text/plain') || vs.draggingCardId || '';
+    vs.draggingCardId = ''; // 拖拽到此结束，源头缓存一并清空
+    if (!cardId) return;
+    void patchCard(cardId, {
+      assignedDate: null, time: null, startTime: null, endTime: null,
+    }, '取消排程失败：本机服务未连接');
+  });
+}
+bindPoolUnscheduleDrop();
 
 /** 卡片池状态 + 项目 筛选条（渲染到 pool-filter-row） */
 function renderPoolFilters() {
@@ -195,6 +231,9 @@ export async function renderCardPool() {
     li.addEventListener('dragstart', (e) => {
       e.dataTransfer.setData('text/plain', card.id);
       e.dataTransfer.effectAllowed = 'move';
+      // dragover 阶段 dataTransfer 处于 protected mode（getData 恒空串），
+      // 落点预览只能从源头缓存拿卡 id；dragend 清空。
+      vs.draggingCardId = card.id;
       li.classList.add('is-dragging'); // li 自身的视觉态（opacity），非全局标志
       beginGesture('pool-drag');       // 全局手势标志唯一写者（views/gesture.js）
       cardDragged = false;
@@ -202,6 +241,8 @@ export async function renderCardPool() {
     li.addEventListener('dragend', () => {
       li.classList.remove('is-dragging');
       endGesture('pool-drag');
+      vs.draggingCardId = '';
+      hideDropGhost(); // 拖到非法区域（没落在任何 drop 目标上）时的源头兑底
       cardDragged = true;
       setTimeout(() => { cardDragged = false; }, 0);
     });

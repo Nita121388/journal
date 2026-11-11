@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "新增 views/drag-ghost.js 与 shared 纯函数，需按层落位；views 同层互引合法、shared 零 DOM"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "ghost 预览块样式需用语义 token（accent/accent-soft），禁硬编码 hex；§10 编辑器契约不受影响"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "ghost 组件结构与事件绑定规范；HTML5 DnD 与指针手势两条链路的边界"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "patchCard → repository 写路径；gesture 全局标志（pool-drag）唯一写者约定"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "测试与 lint 门禁；视图层不得直接 storage"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "ghost 与 drop 共用同一落点换算函数 + host 显式 null 清字段的跨层契约"}
