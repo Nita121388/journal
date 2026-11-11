@@ -10,7 +10,6 @@ import { autoEnhance as enhanceSelects } from '../features/select.js';
 import { startHost } from '../features/host-status.js';
 import { WIDE_QUERY, widePreference, applyWide } from '../features/wide-mode.js';
 import { getPort } from '../platform/index.js';
-import { currentTime } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { getSettings } from '../state/settings.js';
 import { vs } from '../state/view-state.js';
@@ -61,9 +60,9 @@ export async function bindShell() {
     }
   });
 
-  // 快捷新建（今天/当前视图日期）
+  // 快捷新建：真空白（不预填排程/日期；想排程去时间线点格子，2026-11-11）
   els.btnQuickAdd?.addEventListener('click', () => {
-    actions.openEditor(null, currentTime(), vs.selectedDate);
+    actions.openEditor(null, null, null, null);
   });
 
   // 项目/标签筛选：展开/收起「筛选」区（渐进披露）

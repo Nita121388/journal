@@ -99,6 +99,16 @@ describe('applyFields', () => {
     expect(() => applyFields(null, ['status'])).not.toThrow();
   });
 
+  it('无 data-field 的系统只读行（来源三行）不受 applyFields 影响', () => {
+    // 来源行在 #card-editor-props 之外；即使误放进容器，也必须因缺 data-field 而保持原状。
+    const roRow = document.createElement('div');
+    roRow.className = 'prop-row ce-ro-row';
+    roRow.hidden = false;
+    container.append(roRow);
+    applyFields(container, ['status']);
+    expect(roRow.hidden).toBe(false);
+  });
+
   it('「＋ 添加属性」始终排在全部属性行之后（不被重排顶到前面）', () => {
     const addBtn = document.createElement('button');
     addBtn.className = 'ce-add-field';

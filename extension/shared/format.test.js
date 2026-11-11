@@ -2,7 +2,7 @@
  * format.test.js — 纯展示格式化
  */
 import { describe, it, expect } from 'vitest';
-import { formatDateLabel, shortDate, typeIcon, formatProvenance, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel, cardColorKey, CARD_COLOR_KEYS } from './format.js';
+import { formatDateLabel, shortDate, typeIcon, formatProvenance, formatDateTime, escapeHtml, sanitizeEmoji, cardPrimaryText, compactDateLabel, cardColorKey, CARD_COLOR_KEYS } from './format.js';
 import { todayKey, toDayKey } from './model.js';
 
 describe('formatDateLabel', () => {
@@ -93,6 +93,25 @@ describe('compactDateLabel', () => {
   });
   it('跨年补年份', () => {
     expect(compactDateLabel('2000-01-01')).toBe('2000年1月1日 周六');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('合法 ISO → YYYY-MM-DD HH:mm（本地字段，补零）', () => {
+    expect(formatDateTime('2026-11-11T06:05:00.000Z')).toMatch(/^2026-11-11 \d{2}:\d{2}$/);
+    const d = new Date('2026-11-11T06:05:00.000Z');
+    const pad = (n) => String(n).padStart(2, '0');
+    expect(formatDateTime('2026-11-11T06:05:00.000Z'))
+      .toBe(`2026-11-11 ${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  });
+  it('空值 → fallback', () => {
+    expect(formatDateTime('')).toBe('—');
+    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime(undefined)).toBe('—');
+    expect(formatDateTime(null, '保存后生成')).toBe('保存后生成');
+  });
+  it('非法值原样返回', () => {
+    expect(formatDateTime('not-a-date')).toBe('not-a-date');
   });
 });
 

@@ -142,8 +142,13 @@ export async function runSmoke({ page }) {
     `items=${poolState.count} tabs=[${poolState.tabs.join(',')}] empty=${poolState.hasEmpty}`);
 
   // 10) #4 empty state offers an action
+  // 双分支真不变量：空态只在池空时渲染（非空时不该出现）。
+  // 不能无条件断言「存在」—— 多宽度共享 DB 时，上轮残留的池内测试卡
+  // 会让本断言在后续宽度假红（实测 items=0→1→2→3 逐宽累积）。
   const emptyAction = await page.locator('#cardpool-list .empty-action').first().textContent().catch(() => '');
-  add('空态有行动按钮', /\S/.test(emptyAction), emptyAction.trim());
+  add('空态有行动按钮（池空时才有空态）',
+    poolState.count === 0 ? /\S/.test(emptyAction) : !/\S/.test(emptyAction),
+    `items=${poolState.count} action="${emptyAction.trim()}"`);
 
   // 11) #5 reduced motion collapses transitions.  //     Target .cal-day (real `transition: border-color .15s`); #app-title has no
   //     transition (default 0s) so asserting on it would pass even without the
@@ -350,7 +355,52 @@ export async function runSmoke({ page }) {
   if (hostOnline) {
     await page.locator('#btn-quick-add').click();
     await page.waitForTimeout(400);
+    // R1（2026-11-11）：快捷新建是真空白——排程/日期默认不预填。
+    // 旧行为（预填 15 分钟 + 选中日期）已按用户要求移除，这条断言锁住新契约。
+    const blankDefaults = await page.evaluate(() => ({
+      start: document.getElementById('card-editor-start')?.value ?? 'missing',
+      end: document.getElementById('card-editor-end')?.value ?? 'missing',
+      date: document.getElementById('card-editor-date')?.value ?? 'missing',
+    }));
+    add('快捷新建不预填排程/日期（真空白）',
+      blankDefaults.start === '' && blankDefaults.end === '' && blankDefaults.date === '',
+      JSON.stringify(blankDefaults));
+    // R2：来源行（AC4）——新建未落库时三行占位「保存后生成」，不显示假数据。
+    const provNew = await page.evaluate(() => ({
+      visible: document.getElementById('card-editor-provenance')?.hidden === false,
+      by: document.getElementById('card-editor-created-by')?.textContent || 'missing',
+      at: document.getElementById('card-editor-created-at')?.textContent || 'missing',
+    }));
+    add('来源行：新建未保存显示占位（保存后生成）',
+      provNew.visible && provNew.by === '保存后生成' && provNew.at === '保存后生成',
+      JSON.stringify(provNew));
+    // 无日期保存 → 应落在卡片池（未安排），不进时间线。
+    await page.locator('#card-editor-title').fill('无日期快捷新建卡');
+    await page.locator('#card-editor-save').click();
+    await page.waitForTimeout(900);
+    const poolHit = await page.evaluate(() => {
+      const pool = document.getElementById('cardpool-list');
+      const onTimeline = [...document.querySelectorAll('#timeline-container .timeline-card')]
+        .some((c) => (c.textContent || '').includes('无日期快捷新建卡'));
+      return {
+        inPool: /无日期快捷新建卡/.test(pool?.textContent || ''),
+        onTimeline,
+      };
+    });
+    add('无日期快捷新建卡落卡片池（未安排）', poolHit.inPool && !poolHit.onTimeline,
+      JSON.stringify(poolHit));
+
+    // 后续时间线卡断言需要一张有日期的卡：走真实路径 ——
+    // 快捷新建 → 显示全部属性 → 填今天日期 → 保存。
+    await page.locator('#btn-quick-add').click();
+    await page.waitForTimeout(400);
+    await revealAllProps(page);
     await page.locator('#card-editor-title').fill('只填标题的卡');
+    await page.locator('#card-editor-date').fill(await page.evaluate(() => {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }));
     await page.locator('#card-editor-save').click();
     await page.waitForTimeout(900);
     const titleOnly = await page.evaluate(() => {
@@ -381,6 +431,25 @@ export async function runSmoke({ page }) {
     add('卡片页脚已无「切换类型」', !titleOnly.hasTypeSwitch);
     add('卡片默认图标为 note 线稿（非 📝/☑️/💡）', titleOnly.iconIsSvg && titleOnly.iconText === '',
       `svg=${titleOnly.iconIsSvg} text="${titleOnly.iconText}"`);
+
+    // R2：来源行（AC3）——编辑已有卡，三行显示真实 provenance。
+    // 创建人来自 meta.createdBy（UI 保存 → 👤 人类）；时间是 host 写的 createdAt/updatedAt。
+    await page.locator('#timeline-container .timeline-card', { hasText: '只填标题的卡' }).first().click();
+    await page.waitForTimeout(400);
+    const provSaved = await page.evaluate(() => ({
+      visible: document.getElementById('card-editor-provenance')?.hidden === false,
+      by: document.getElementById('card-editor-created-by')?.textContent || 'missing',
+      at: document.getElementById('card-editor-created-at')?.textContent || 'missing',
+      up: document.getElementById('card-editor-updated-at')?.textContent || 'missing',
+    }));
+    add('来源行：已有卡显示创建人/创建时间/更新时间',
+      provSaved.visible && /人类|agent|自动/.test(provSaved.by)
+        && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(provSaved.at)
+        && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(provSaved.up),
+      JSON.stringify(provSaved));
+    // 收尾：关编辑器（无改动 → 无脏确认）；这卡随后由场景自清理删除
+    await page.locator('#card-editor-cancel').click();
+    await page.waitForTimeout(200);
 
     // P4 手势收敛回归：对一张真实定时卡做一次 resize 手柄拖动与卡片本体拖动，
     // 断言「拖中置位（dataset.gesture 可观测）、拖后即清（旧 class 也不残留）」。
@@ -486,11 +555,20 @@ export async function runSmoke({ page }) {
     }
     // 清理：删掉本场景创建的卡片，否则后续宽度会带着它跑，
     // 把「空日引导 / 空态行动按钮 / 当前时刻居中」这些依赖空库的断言弄脏。
-    for (const name of ['拖拽回归用卡', '只填标题的卡']) {
+    // 「无日期快捷新建卡」落在卡片池（不在时间线），删卡按钮是 .cardpool-delete-btn
+    // （删除即撤销 toast，无确认弹窗）；时间线卡走 aria-label="删除卡片" + 确认弹窗。
+    for (const name of ['拖拽回归用卡', '只填标题的卡', '无日期快捷新建卡']) {
       await page.evaluate((nm) => {
-        const hit = [...document.querySelectorAll('#timeline-container .timeline-card')]
+        const tl = [...document.querySelectorAll('#timeline-container .timeline-card')]
           .find((el) => (el.textContent || '').includes(nm));
-        hit?.querySelector('button[aria-label="删除卡片"]')?.click();
+        if (tl) {
+          tl.querySelector('button[aria-label="删除卡片"]')?.click();
+          return 'timeline';
+        }
+        const pool = [...document.querySelectorAll('#cardpool-list .cardpool-item')]
+          .find((el) => (el.textContent || '').includes(nm));
+        pool?.querySelector('.cardpool-delete-btn')?.click();
+        return pool ? 'pool' : 'none';
       }, name);
       await page.waitForTimeout(400);
       if (await page.locator('#app-dialog').isVisible().catch(() => false)) {
@@ -499,7 +577,8 @@ export async function runSmoke({ page }) {
       }
     }
     const cleaned = await page.evaluate(
-      () => document.querySelectorAll('#timeline-container .timeline-card').length === 0,
+      () => document.querySelectorAll('#timeline-container .timeline-card').length === 0
+        && document.querySelectorAll('#cardpool-list .cardpool-item').length === 0,
     ).catch(() => false);
     add('场景自清理（删除本场景创建的卡片）', cleaned);
   } else {

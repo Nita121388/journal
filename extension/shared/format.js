@@ -113,6 +113,25 @@ export function typeIcon(type, emoji = '') {
   return type === 'task' ? '☑️' : type === 'idea' ? '💡' : '📝';
 }
 
+/**
+ * 时间戳 → 本地展示文案，如「2026-11-11 14:30」（卡片编辑器的创建/更新时间行）。
+ *
+ * 刻意不用 `toLocaleString`：属性行宽度有限，且 zh-CN 的默认输出格式
+ * 不保证稳定（不同 Chromium 版本实测有「2026/11/11 14:30」与
+ * 「2026年11月11日 14:30」两种），统一成固定格式避免行宽跳动。
+ *
+ * @param {string|null|undefined} iso ISO 时间戳
+ * @param {string} [fallback='—'] 空值兜底
+ * @returns {string} 合法 → `YYYY-MM-DD HH:mm`；空 → fallback；非法 → 原样返回
+ */
+export function formatDateTime(iso, fallback = '—') {
+  if (!iso) return fallback;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const ORIGIN_LABEL = {
   human: '👤 人类',
   'agent-assisted': '🤖 人类驱动 agent',

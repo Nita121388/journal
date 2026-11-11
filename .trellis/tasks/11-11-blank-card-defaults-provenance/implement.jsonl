@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "改动横跨 entries/features/components/shared 四层，需按层职责落位（bind-* 只绑事件、card-editor 持编辑器状态、dom-refs 集中抓 DOM）"}
+{"file": ".trellis/spec/frontend/design-system.md", "reason": "新增 .ce-provenance 只读行样式需取现有 token 与图标规范（功能图标一律 SVG，禁用 emoji 当功能图标）"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "新增编辑器来源行组件与 dom-refs 引用变更需遵循组件守则"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "R1 改的是 state/actions 注入的 openEditor 调用点，需确认不绕过状态层"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "提交前质量门槛（单测、ESLint 边界）"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "R2 渲染数据来自 host 写入的 meta，需按跨层指南核对 UI 读侧与存储写侧的字段契约"}

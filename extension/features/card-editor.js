@@ -6,7 +6,7 @@
  * 重渲染经 state/actions.js 由组合根注入。
  */
 
-import { cardEditorAddField, btnEmojiTile, editorContent, editorDate, editorDuration, editorDurationMin, editorEnd, editorMetaEl, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorSave, editorStart, editorStatus, editorStatusCell, editorStatusText, editorTagChips, editorTagsCell, editorTitle, emojiPicker, emojiPreview, projectSuggest } from '../components/dom-refs.js';
+import { cardEditorAddField, btnEmojiTile, editorContent, editorCreatedByEl, editorCreatedAtEl, editorDate, editorDuration, editorDurationMin, editorEnd, editorOverlay, editorPriority, editorPrioritySeg, editorProgress, editorProgressNumber, editorProjectInput, editorProvenanceEl, editorSave, editorStart, editorStatus, editorStatusCell, editorStatusText, editorTagChips, editorTagsCell, editorTitle, emojiPicker, emojiPreview, projectSuggest, editorUpdatedAtEl } from '../components/dom-refs.js';
 import { createChip } from '../components/chip.js';
 import { createSegGroup } from '../components/seg.js';
 import { icon } from '../components/icon.js';
@@ -15,7 +15,7 @@ import { withBusy } from './busy.js';
 import { recordRecentEmoji, renderEmojiPicker } from './emoji.js';
 import { showToast } from './toast.js';
 import { getPort } from '../platform/index.js';
-import { formatProvenance } from '../shared/format.js';
+import { formatDateTime, formatProvenance } from '../shared/format.js';
 import { addMinutes, getCardEndTime, getCardStartTime, snapToQuarter, snapUpToQuarter, timeToMinutes } from '../shared/model.js';
 import { getFieldDef } from '../shared/field-registry.js';
 import { DEFAULT_HOST_BASE } from '../shared/protocol.js';
@@ -268,6 +268,38 @@ bindTagsCell();
 
 // ORIGIN_LABEL / formatProvenance 已提取到 shared/format.js（纯展示）。
 
+/**
+ * 渲染来源只读三行（创建人/创建时间/更新时间，2026-11-11）。
+ *
+ * 取代旧的项目行下一行灰字：① 三行恒显示（不进模板收敛/字段浮层）；
+ * ② 新建未落库时占位「保存后生成」，不显示假数据 —— 落库前根本没有
+ *    createdBy/createdAt，瞎编会误导「这张卡已经有了出生证明」。
+ * ③ agent 名到具体模型：formatProvenance 已拼 origin/agent/model/project/device/at。
+ *
+ * @param {object|null} existing 正在编辑的卡片在真源里的快照（新建 = null）
+ */
+function renderEditorProvenance(existing) {
+  if (!editorProvenanceEl) return;
+  const m = existing?.meta ?? null;
+  const createdBy = m?.createdBy ?? null;
+  if (editorCreatedByEl) {
+    editorCreatedByEl.textContent = createdBy
+      ? formatProvenance(createdBy)
+      : existing ? '—' : '保存后生成';
+  }
+  if (editorCreatedAtEl) {
+    editorCreatedAtEl.textContent = existing?.createdAt
+      ? formatDateTime(existing.createdAt)
+      : existing ? '—' : '保存后生成';
+  }
+  if (editorUpdatedAtEl) {
+    editorUpdatedAtEl.textContent = existing?.updatedAt
+      ? formatDateTime(existing.updatedAt)
+      : existing ? '—' : '保存后生成';
+  }
+  editorProvenanceEl.hidden = false;
+}
+
 /** 历史项目目录（用于 datalist 建议） */
 function collectProjects() {
   const set = new Set();
@@ -345,13 +377,8 @@ export function openEditor(card, time, date, assignedDate = undefined, opts = {}
   if (editorProjectInput) editorProjectInput.value = recordedProject ?? getPort().prefGet('journal.lastProject') ?? '';
   renderProjectSuggest();
 
-  // 来源：仅编辑已有卡片时展示
-  if (editorMetaEl) {
-    const m = existing?.meta ?? null;
-    editorMetaEl.textContent = m
-      ? `创建：${formatProvenance(m.createdBy)}　修改：${formatProvenance(m.updatedBy)}`
-      : '';
-  }
+  // 来源：只读三行（创建人/创建时间/更新时间，2026-11-11）
+  renderEditorProvenance(existing);
 
   editorOverlay.classList.remove('hidden');
   // 登记进浮层栈：编辑器是模态层（外点不关，遮罩点击由 bind-editor 的遮罩 handler 负责）。
@@ -562,7 +589,10 @@ export function closeEditor() {
   updatePrioritySeg('medium');
   if (editorProgress) { editorProgress.value = 0; }
   updateEditorProgressLabel();
-  if (editorMetaEl) editorMetaEl.textContent = '';
+  if (editorProvenanceEl) editorProvenanceEl.hidden = true;
+  if (editorCreatedByEl) editorCreatedByEl.textContent = '';
+  if (editorCreatedAtEl) editorCreatedAtEl.textContent = '';
+  if (editorUpdatedAtEl) editorUpdatedAtEl.textContent = '';
   editorProps = {};
   renderEditorProps();
   setEditorEmoji('');

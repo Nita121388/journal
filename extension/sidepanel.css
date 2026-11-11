@@ -2172,13 +2172,29 @@ body.is-dragging .timeline-card.is-short {
 
 /* 编辑器正文 / 项目输入样式见 Notion 化段（#card-editor-content 与 .prop-val 内输入） */
 
-.card-editor-meta {
-  font-size: 10px;
+/* 来源只读行（2026-11-11）：创建人/创建时间/更新时间。
+ * 取代旧的 .card-editor-meta 一行灰字（挂在项目行下，信息密度低且难发现）。
+ * 与 .ce-props 同一套两列网格（.prop-row 为 display:contents），
+ * 但容器在 #card-editor-props 之外 —— applyFields 只扫描 props 容器内的行，
+ * 因此这里恒显示、不被模板收敛/字段浮层控制。 */
+.ce-provenance {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  margin: 2px 0 4px;
+}
+/* hidden 必须显式写：grid 声明会盖过 UA 的 [hidden]{display:none} */
+.ce-provenance[hidden] { display: none; }
+.ce-ro-row .prop-key { padding-right: 0; } /* 只读行没有 ✕，不吃锁定行的隐藏按钮占位 */
+.ce-ro-value {
+  font-size: 11.5px;
   line-height: 1.5;
   color: var(--color-muted);
   word-break: break-all;
+  user-select: text; /* 来源信息常要复制（agent 名/项目路径），可选中 */
+  padding: 4px 4px;
 }
-.card-editor-meta:empty { display: none; }
 
 .card-editor-footer {
   display: flex;
@@ -2875,8 +2891,6 @@ textarea.prop-input {
   border-radius: 0;
 }
 .card-editor-duration { grid-column: 1 / -1; font-size: 11px; color: var(--color-warn); }
-/* 来源展示（创建/修改）：占满整行，不挤在项目输入后面 */
-.card-editor-meta { flex: 1 1 100%; margin-top: 2px; }
 
 /* 正文：灰底无边框（2026-11-10）——「写下你的想法」默认即一块浅灰纸面，
  * 不再靠 hover 才显形；与属性区分层仍靠上方 .prop-divider，不画边框。 */
@@ -3938,7 +3952,7 @@ body.tpl-dragging { user-select: none; }
   /* 320px 下两列网格（键列 64px + 值列）根本不够：
    * 时间输入被压到只剩「18」、按钮文字换行、键列标签被裁。
    * 改为单列堆叠 —— 键在上、值在下，值列拿到整宽。 */
-  .ce-props, .props-list {
+  .ce-props, .props-list, .ce-provenance {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }

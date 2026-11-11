@@ -10,13 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ICONS, hydrateIcons, icon } from './icon.js';
 
 /** design.md §3.1 的 26 个 + layout/list/grid（视图切换预留）+ P2 新增 flame/chevronDown
- *  + P5 新增 gauge/flag/clock/play/note（弹窗属性行与 options 页 logo）。 */
+ *  + P5 新增 gauge/flag/clock/play/note（弹窗属性行与 options 页 logo）
+ *  + user（编辑器来源行「创建人」，2026-11-11）。 */
 const REQUIRED = [
   'menu', 'status', 'settings', 'plus', 'expand', 'range', 'calendar', 'week', 'month',
   'timeline', 'chevronLeft', 'chevronRight', 'chevronDown', 'flame', 'search', 'filter',
   'template', 'save', 'copy', 'tag', 'folder', 'close', 'check', 'more', 'pin', 'sparkle', 'trash',
   'layout', 'list', 'grid',
-  'gauge', 'flag', 'clock', 'play', 'note', 'sync', 'pencil',
+  'gauge', 'flag', 'clock', 'play', 'note', 'sync', 'pencil', 'user',
 ];
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

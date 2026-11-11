@@ -8,7 +8,7 @@
 import { els } from '../components/dom-refs.js';
 import { icon } from '../components/icon.js';
 import { getPort } from '../platform/index.js';
-import { todayKey, currentTime } from '../shared/model.js';
+import { todayKey } from '../shared/model.js';
 import { vs, monthOf } from '../state/view-state.js';
 import { actions } from '../state/actions.js';
 import { showToast } from '../features/toast.js';
@@ -163,9 +163,9 @@ export function bindViews() {
     renderRightView();
   });
 
-  // ── 卡片池：新建卡片（直接开空白编辑器，保存时才落库）──
+  // ── 卡片池：新建卡片（直接开真空白编辑器——不预填排程/日期，保存时才落库）──
   els.btnNewCard.addEventListener('click', () => {
-    actions.openEditor(null, currentTime(), null, null);
+    actions.openEditor(null, null, null, null);
   });
 
   // ── 卡片池：布局切换（卡片视图 / 列表视图）──

@@ -166,7 +166,8 @@ export async function renderCardPool() {
       act.type = 'button';
       act.className = 'empty-action';
       act.textContent = '＋ 新建卡片';
-      act.addEventListener('click', () => actions.openEditor(null, currentTime(), vs.selectedDate));
+      // 空态新建与卡片池「新建」同语义：真空白，不预填排程/日期（2026-11-11）
+      act.addEventListener('click', () => actions.openEditor(null, null, null, null));
       li.append(title, act);
     }
     els.cardpoolList.append(li);

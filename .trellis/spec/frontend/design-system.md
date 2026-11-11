@@ -196,6 +196,42 @@
 最多落字段默认值（priority=medium / progress=0），与既有行为一致；「隐藏」也不清值，
 有值的字段在下次打开时由 `fieldsWithValues` 重新拉出来显示。
 
+### 10.1 新建入口的默认值（2026-11-11）
+
+「空白卡片」必须真的空白。**通用新建入口不预填排程与日期**：
+
+| 入口 | 现状 |
+|---|---|
+| 顶部快捷新建（`bind-shell.js` btnQuickAdd） | `openEditor(null, null, null, null)` → 无时间、无日期（未安排，落卡片池） |
+| 卡片池「新建」（`bind-views.js` btnNewCard） | 同上 |
+| 卡片池空态新建（`views/pool.js`） | 同上 |
+| 模板新建（`features/template-menu.js`） | 传 null；模板字段自带时间/日期的仍按模板值写（那是模板的语义） |
+| 时间线点格子/框选/拖拽、周视图、now-marker | **保持预填**（点格子 = 排程语义，预填是功能不是噪声） |
+
+判定：差异只来自「调用者是否处在时间语境」，**`openEditor` 的预填逻辑本身不改**。
+新建默认值属于纯调用点约定，`saveEditor` 无感知（开始为空 → 全天卡，日期为空 → `assignedDate: null`）。
+
+### 10.2 来源只读行（创建人 / 创建时间 / 更新时间，2026-11-11）
+
+编辑器底部 `#card-editor-provenance` 三行**恒显示、只读、系统行**：
+
+| 行 | 数据源 | 新建（未落库） |
+|---|---|---|
+| 创建人 | `formatProvenance(card.meta.createdBy)`（👤 人类 / 🤖 agent 名 · model · 项目 · 设备 · 时间） | 占位「保存后生成」 |
+| 创建时间 | `formatDateTime(card.createdAt)` | 同上 |
+| 更新时间 | `formatDateTime(card.updatedAt)` | 同上 |
+
+**契约（改动前必读）**：
+- 容器在 `#card-editor-props` **之外**，三行**不写 `data-field`** —— `applyFields` 只扫
+  `.prop-row[data-field]`，因此它们天然不进模板收敛、不进「＋ 添加属性」浮层、不可隐藏/编辑。
+- 不新增 `editorProps` 键、不写库；key 保留字（`createdAt/updatedAt/createdBy`）已在 `RESERVED_PROPS`。
+- `.ce-provenance` 用与 `.ce-props` 相同的两列网格（`grid-template-columns: 76px minmax(0,1fr)`），
+  行仍是 `display: contents`；**必须显式写 `.ce-provenance[hidden] { display: none }`**
+  （grid 声明会盖过 UA 的 `[hidden]`，与 `.prop-row[hidden]` 同一坑）。
+- `formatDateTime` 刻意不用 `toLocaleString`（zh-CN 输出格式跨 Chromium 版本不稳定，会致行宽跳动），
+  固定 `YYYY-MM-DD HH:mm` 本地时间。
+- 旧的一行灰字 `#card-editor-meta`（项目行 `.prop-val` 内）**已删除**，不要恢复双份来源展示。
+
 ## 13. 自定义属性交互（卡片编辑器 = 模板构建器，2026-11-09）
 
 卡片编辑器的自定义属性区**复用模板构建器的行结构与交互**，不再有自己的表单语言：

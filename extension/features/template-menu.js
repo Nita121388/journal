@@ -7,7 +7,7 @@
 import { els, tplBuilderTile } from '../components/dom-refs.js';
 import { icon } from '../components/icon.js';
 import { writeValueToCard } from '../shared/field-registry.js';
-import { RESERVED_PROPS, currentTime } from '../shared/model.js';
+import { RESERVED_PROPS } from '../shared/model.js';
 import { actions } from '../state/actions.js';
 import { getHostMeta, updateHostMeta } from '../state/host-client.js';
 import { savePropLibrary, upsertPropDef } from '../state/prop-library.js';
@@ -227,7 +227,9 @@ export async function createFromTemplate(tpl) {
   }
   const card = await createCardEntry(patch);
   await actions.refreshAll();
-  openEditor(card, currentTime(), null, null, {
+  // time/date 参数对已有卡是 no-op（openEditor 读卡片自身的时间/日期），
+  // 传 null 只为表达意图：模板建卡不再隐含排程/日期预填。
+  openEditor(card, null, null, null, {
     templateId: tpl.id ?? null,
     templateName: tpl.name || '模板',
     fields: fields.map(f => f?.key).filter(Boolean),

@@ -294,7 +294,6 @@
             <div class="prop-val">
               <input id="card-editor-project" type="text" list="project-suggest" placeholder="E:/primary/projects/journal" aria-label="项目目录" />
               <datalist id="project-suggest"></datalist>
-              <div id="card-editor-meta" class="card-editor-meta"></div>
             </div>
           </div>
 
@@ -319,6 +318,25 @@
              2026-11-10 删掉了这里重复的「新建自定义属性」常驻按钮 + 属性库 caret）。 -->
         <div class="ce-custom-props">
           <div id="card-editor-props-list" class="props-list"></div>
+        </div>
+
+        <!-- 来源信息（只读，系统行）：创建人 / 创建时间 / 更新时间。
+             2026-11-11：取代原先挂在「项目」行下的 #card-editor-meta 一行灰字。
+             刻意不写 data-field —— applyFields 只管带 data-field 的行，
+             因此这里恒显示、不进模板收敛、不进「＋ 添加属性」浮层。 -->
+        <div id="card-editor-provenance" class="ce-provenance" hidden>
+          <div class="prop-row ce-ro-row">
+            <div class="prop-key"><i class="prop-key-icon" data-icon="user" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">创建人</span></div>
+            <div class="prop-val"><span id="card-editor-created-by" class="ce-ro-value"></span></div>
+          </div>
+          <div class="prop-row ce-ro-row">
+            <div class="prop-key"><i class="prop-key-icon" data-icon="calendar" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">创建时间</span></div>
+            <div class="prop-val"><span id="card-editor-created-at" class="ce-ro-value"></span></div>
+          </div>
+          <div class="prop-row ce-ro-row">
+            <div class="prop-key"><i class="prop-key-icon" data-icon="sync" data-icon-size="12" aria-hidden="true"></i><span class="prop-key-label">更新时间</span></div>
+            <div class="prop-val"><span id="card-editor-updated-at" class="ce-ro-value"></span></div>
+          </div>
         </div>
       </div>
 
