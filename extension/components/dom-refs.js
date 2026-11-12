@@ -37,13 +37,12 @@ export const els = {
   poolFilterRow: document.getElementById('pool-filter-row'),
   poolSearch: document.getElementById('pool-search'),
 
-  // skills
-  skillsSection: document.getElementById('skills-section'),
-  skillsCount: document.getElementById('skills-count'),
-  skillsToggle: document.getElementById('btn-skills-toggle'),
-  skillsPanel: document.getElementById('skills-panel'),
+  // skills（右上角弹窗：#btn-skills 锚定 #skills-popover）
+  skillsBtn: document.getElementById('btn-skills'),
+  skillsPopover: document.getElementById('skills-popover'),
   skillsOverall: document.getElementById('skills-overall'),
   skillsList: document.getElementById('skills-list'),
+  skillsRefresh: document.getElementById('btn-skills-refresh'),
   skillsCopyAll: document.getElementById('btn-skills-copy'),
   hostStatusBtn: document.getElementById('btn-host-status'),
   hostBanner: document.getElementById('host-banner'),

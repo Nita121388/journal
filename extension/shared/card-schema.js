@@ -53,6 +53,27 @@ export function statusOptions() {
   return STATUSES.map(value => ({ value, label: STATUS_LABELS[value] }));
 }
 
+/**
+ * 优先级显示名（**唯一真值**）。
+ * 与 statusLabel 同理：存储值是英文 key（high/medium/low），
+ * 展示一律经此映射，避免「模板里选 medium、编辑器里看「中」」两套词。
+ */
+export const PRIORITY_LABELS = Object.freeze({
+  high: '高',
+  medium: '中',
+  low: '低',
+});
+
+/**
+ * 取优先级显示名（未知值原样返回）。
+ * @param {string|null|undefined} priority
+ * @returns {string}
+ */
+export function priorityLabel(priority) {
+  if (!priority) return PRIORITY_LABELS.medium;
+  return PRIORITY_LABELS[priority] ?? String(priority);
+}
+
 /** 用户自定义属性保留字（内建字段 + 系统字段），杜绝 props 覆盖一级字段 */
 export const RESERVED_PROPS = new Set([
   'id', 'content', 'type', 'done', 'assignedDate', 'time', 'startTime', 'endTime',

@@ -62,13 +62,16 @@ export async function openTemplatePicker(anchor, { onPick, activeId = null } = {
   menu.className = 'template-menu editor-template-menu';
   menu.setAttribute('role', 'menu');
 
-  const addItem = (id, name, keys, hintLabel) => {
+  const addItem = (id, name, keys, hintLabel, emoji = '') => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tpl-item' + (id && id === activeId ? ' is-active' : '');
     btn.setAttribute('role', 'menuitem');
 
-    const glyph = icon('template', { size: 14 });
+    // 模板图标是**内容** emoji（用户自选）优先；未设时用 SVG 占位（功能图标不得用 emoji）
+    const glyph = document.createElement('span');
+    if (emoji) glyph.textContent = emoji;
+    else glyph.append(icon('template', { size: 14 }));
     glyph.classList.add('tpl-item-icon');
     const label = document.createElement('span');
     label.className = 'tpl-item-name';
@@ -92,7 +95,7 @@ export async function openTemplatePicker(anchor, { onPick, activeId = null } = {
   addItem(null, '空白（默认属性）', [], '状态 · 标签');
   for (const tpl of templates) {
     const keys = templateFieldKeys(tpl);
-    addItem(tpl.id, tpl.name || '未命名模板', keys, keys.length ? `${keys.length} 个属性` : '无额外属性');
+    addItem(tpl.id, tpl.name || '未命名模板', keys, keys.length ? `${keys.length} 个属性` : '无额外属性', tpl.emoji || '');
   }
   // 没有合适模板时的逃生口：一次性显示全部内建属性（不建模板、不改数据）
   addItem(null, '显示全部属性', FIELD_ORDER, '一次性');

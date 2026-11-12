@@ -20,6 +20,7 @@ import {
 import { launchBrowser, openSidePanel } from './lib/browser.mjs';
 import { writeReport } from './lib/report.mjs';
 import { runSmoke } from './scenarios/smoke.mjs';
+import { runSkills } from './scenarios/skills.mjs';
 import { runAudit } from './scenarios/audit.mjs';
 import { runTpl } from './scenarios/tpl.mjs';
 import { runTailwindMigrated } from './scenarios/tailwind-migrated.mjs';
@@ -131,6 +132,7 @@ try {
         : args.scenario === 'shell' ? runShell
         : args.scenario === 'editor' ? runEditor
         : args.scenario === 'drag-schedule' ? runDragSchedule
+        : args.scenario === 'skills' ? runSkills
         : runSmoke;
       // 传 outDir 让场景可以留多视图截图证据（audit 场景早已这样用）；
       // hostPort 供需要自己补数据的场景（week-readable 造重叠卡）直接 POST 到隔离 host

@@ -31,6 +31,9 @@
               title="面板（卡片池/日历/打卡）" aria-expanded="false" aria-controls="sidebar"></button>
       <button id="btn-host-status" class="hdr-btn host-status-btn is-unknown" data-icon="status"
               aria-label="Host 状态：检测中" title="Host 状态：检测中"></button>
+      <button id="btn-skills" class="hdr-btn ghost skills-btn is-unknown" data-icon="sparkle"
+              aria-label="AI Skill 状态" title="AI Skill 状态（各 agent 的 journal skill 安装/同步情况）"
+              aria-haspopup="dialog" aria-expanded="false"></button>
       <button id="btn-settings" class="hdr-btn ghost" data-icon="settings" aria-label="设置" title="设置"></button>
     </div>
   </header>
@@ -90,20 +93,7 @@
           <div id="heatmap-container" role="img" aria-label="日志热力图"></div>
         </section>
 
-        <!-- 本机 Skills（快速复制给 AI） -->
-        <section id="skills-section">
-          <div class="section-header">
-            <span class="section-label"><i data-icon="sparkle" data-icon-size="14"></i>AI Skill 状态</span>
-            <span id="skills-count" class="section-badge">…</span>
-            <button id="btn-skills-toggle" class="skills-toggle-btn" data-icon="chevronDown" data-icon-size="14"
-                    aria-label="展开/收起" title="展开/收起"></button>
-          </div>
-          <div id="skills-panel" class="skills-panel hidden">
-            <div id="skills-overall" class="skills-overall"></div>
-            <ul id="skills-list" class="skills-list"></ul>
-            <button id="btn-skills-copy" class="skills-copyall-btn"><i data-icon="copy" data-icon-size="14"></i><span>复制所有路径给 AI</span></button>
-          </div>
-        </section>
+        <!-- 本机 Skills 入口已移到右上角 header（#btn-skills → #skills-popover） -->
       </aside>
 
       <!-- 右侧：日历/周历/时间线 -->
@@ -396,6 +386,18 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- AI Skill 状态弹窗（右上角按钮的锚定浮层；打开时由 layer-stack 接管 Esc/外点） -->
+  <div id="skills-popover" class="skills-popover hidden" role="dialog" aria-label="AI Skill 状态">
+    <div class="skills-pop-head">
+      <span class="skills-pop-title">AI Skill 状态</span>
+      <button id="btn-skills-refresh" class="skills-refresh-btn" type="button" data-icon="sync" data-icon-size="13"
+              aria-label="重新检测" title="重新检测"></button>
+    </div>
+    <div id="skills-overall" class="skills-overall" role="status" aria-live="polite"></div>
+    <ul id="skills-list" class="skills-list"></ul>
+    <button id="btn-skills-copy" class="skills-copyall-btn"><i data-icon="copy" data-icon-size="14"></i><span>复制所有路径给 AI</span></button>
   </div>
 
   <script type="module" src="entries/sidepanel.js"></script>

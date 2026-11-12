@@ -4,7 +4,9 @@
  *  - One-line add row: click → new row, inline name edit, live inference.
  *  - Row interactions: icon picker, dblclick rename, right-click context menu.
  *  - Builder closes cleanly and the card editor becomes interactive again.
+ *  - 内置模板（2026-11-11）：5 个 seed 后出现在下拉、带 🔒、管理只有复制。
  */
+import { BUILTIN_TEMPLATES } from '../../extension/shared/builtin-templates.js';
 
 export async function runTpl({ page }) {
   const checks = [];
@@ -199,6 +201,70 @@ export async function runTpl({ page }) {
   add('关闭构建器', builderHidden);
   const editorInteractive = await page.locator('#card-editor-content').click({ timeout: 3000 }).then(() => true).catch(() => false);
   add('卡片编辑器恢复可交互', editorInteractive);
+
+  // ── 内置模板（2026-11-11 PRD R1-R3；isolated DB 全新 → app init 必已 seed）──
+  const builtinNames = BUILTIN_TEMPLATES.map((t) => t.name);
+
+  // ① 编辑器内模板下拉：5 个内置模板都在（模板选卡入口）
+  await page.locator('#card-editor-template').click();
+  await page.waitForTimeout(300);
+  const pickerItems = await page.evaluate(() =>
+    [...document.querySelectorAll('#editor-template-menu .tpl-item-name')]
+      .map((el) => (el.textContent || '').trim()));
+  add('编辑器模板下拉列出 5 个内置模板',
+    builtinNames.every((n) => pickerItems.includes(n)),
+    pickerItems.join(' | '));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // ② 卡片池模板下拉：内置条目带 🔒（tpl-lock）
+  await page.locator('#card-editor-cancel').click();
+  await page.waitForTimeout(300);
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(300);
+  await page.locator('#btn-template').click();
+  await page.waitForTimeout(300);
+  const poolMenu = await page.evaluate(() =>
+    [...document.querySelectorAll('#template-menu .tpl-item')].map((el) => ({
+      text: (el.textContent || '').trim(),
+      locked: Boolean(el.querySelector('.tpl-lock')),
+    })));
+  add('卡片池模板下拉：内置模板带 🔒 只读标记',
+    builtinNames.every((n) => poolMenu.some((i) => i.text.includes(n) && i.locked)),
+    JSON.stringify(poolMenu.filter((i) => i.locked).map((i) => i.text)));
+
+  // ③ 管理：选内置「待办任务」→ 只有「复制为我的模板」；复制出副本（无 builtin）
+  await page.locator('#template-menu .tpl-manage').click();
+  await page.waitForTimeout(300);
+  await page.locator('.app-dialog-item', { hasText: builtinNames[0] }).first().click();
+  await page.locator('#app-dialog-actions [data-variant="solid"]').click();
+  await page.waitForTimeout(300);
+  const manageItems = await page.evaluate(() =>
+    [...document.querySelectorAll('#app-dialog .app-dialog-item span')]
+      .map((el) => (el.textContent || '').trim()));
+  add('内置模板管理只有「复制为我的模板」',
+    manageItems.length === 1 && /复制为我的模板/.test(manageItems[0]),
+    manageItems.join('|'));
+  await page.locator('#app-dialog-actions [data-variant="solid"]').click();
+  await page.waitForTimeout(600);
+  const cloned = await page.evaluate(async () => {
+    const mod = await import(chrome.runtime.getURL('shared/protocol.js'));
+    const res = await fetch(`${mod.DEFAULT_HOST_BASE}/api/meta/templates`);
+    const data = await res.json();
+    const list = data?.data || data || [];
+    return {
+      total: list.length,
+      copy: list.find((t) => /副本/.test(t?.name || '')) ?? null,
+      builtinCount: list.filter((t) => t?.builtin).length,
+    };
+  }).catch((e) => ({ err: String(e).slice(0, 80) }));
+  add('复制出副本（不带 builtin）且原内置仍在',
+    cloned?.copy && cloned.copy.builtin === undefined && cloned.builtinCount === 5,
+    JSON.stringify(cloned));
+
+  // 收尾：关抽屉（不把侧栏开看留给后续断言/截图）
+  await page.locator('#btn-panels').click();
+  await page.waitForTimeout(200);
 
   return { checks };
 }

@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CARD_TYPES, PRIORITIES, STATUSES, RESERVED_PROPS,
   statusFromTypeDone, normalizeProgress, normalizeDuration, normalizeProps, normalizeTags,
+  priorityLabel,
 } from './card-schema.js';
 
 describe('常量', () => {
@@ -18,6 +19,17 @@ describe('常量', () => {
     expect(RESERVED_PROPS.has('title')).toBe(true);
     expect(RESERVED_PROPS.has('deleted')).toBe(true);
     expect(RESERVED_PROPS.has('myField')).toBe(false);
+  });
+});
+
+describe('priorityLabel', () => {
+  it('英文 key 映射为中文（与编辑器胶囊一致）', () => {
+    expect(PRIORITIES.map(priorityLabel)).toEqual(['高', '中', '低']);
+  });
+  it('空值默认「中」，未知值原样返回', () => {
+    expect(priorityLabel(null)).toBe('中');
+    expect(priorityLabel('')).toBe('中');
+    expect(priorityLabel('urgent')).toBe('urgent');
   });
 });
 

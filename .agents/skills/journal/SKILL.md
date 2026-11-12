@@ -18,8 +18,16 @@ description: 操作 Journal 每日日志扩展的数据（日志 + TODO + 热力
 
 ## 前置条件
 
-1. 本地 host 服务已启动：`node E:/primary/projects/journal/host/server.js`（监听 `127.0.0.1:8765`）
-2. 若 host 未启动，CLI 会返回 `HOST_OFFLINE`，需先启动它
+本机有两套 host，写数据前先确认该写哪套：
+
+| 环境 | 端口 | 启动 | 数据（SQLite 权威库） |
+|---|---|---|---|
+| **dev**（本仓库） | **8766** | `node E:/primary/projects/journal/host/server.js`（或 `host\start-dev.bat`） | `E:/primary/data/journal-dev/journal.db` |
+| **prod**（现役，Chrome 在用） | **8765** | `D:/Apps/ChromeExtensions/journal/host/server.js` | `E:/primary/data/journal/journal.db` |
+
+- CLI（`cli.mjs`）默认连 dev（8766），可用环境变量 `JOURNAL_HOST` 覆盖。
+- ⚠️ 对 8765 的写操作会直接进生产库；除非用户明确要改现役数据，否则一律走 dev（8766）。
+- 目标 host 未启动时 CLI 返回 `HOST_OFFLINE`，需先启动它。
 
 ## ⭐ 数据模型（务必先读，避免写错地方）
 
@@ -34,7 +42,7 @@ Journal 有**两套互不相通的数据结构**，注意区分：
 - **想让用户在扩展界面里看到某段内容 → 必须写 `cards`**（带 `assignedDate` 和 `time`），不是 `journals`。
 - `journals` 的文本侧边栏看不到，但仍会被热力图计数，且 `today`/`read` 能读。
 - 如果用户说"记录下来/显示一下"，**默认创建 cards**；只有在明确指"日志区/段落文本"或复查归档时才动 `journals`。
-- **修改 `cards` 时，时间要落在 30 分钟整/半点刻度附近**：界面时间线只有 8:00-22:00 的 `:00`/`:30` 刻度，卡片时间离最近刻度 ≤15 分钟才会显示（如 11:07 归 11:00）。建议直接用整点/半点（如 14:00）。
+- **修改 `cards` 时，时间建议对齐 15 分钟网格**：界面时间线是 15 分钟网格（默认 08:00–22:30，可切 24 小时模式），卡片按实际时间定位（不对齐也能显示，只是会压在两条网格线之间）；不带 `time` 的卡片落到「全天」组（底部）。建议直接用 `:00`/`:15`/`:30`/`:45`（如 14:00、14:45）。
 
 ## ⭐ 来源元数据（provenance）——每张卡片记录「谁创建 / 谁修改」
 
@@ -81,7 +89,8 @@ $CLI todo add "写周报" --origin agent-assisted --agent pi --model deepseek-v4
 直接调 HTTP API 时在 body 里带 `provenance`：
 
 ```bash
-curl -X POST http://127.0.0.1:8765/api/cards \
+BASE="http://127.0.0.1:8766"   # dev host（生产为 8765）
+curl -X POST $BASE/api/cards \
   -H "Content-Type: application/json" \
   -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-24","time":"14:00",
        "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/primary/projects/journal"}}'
@@ -94,6 +103,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 
 ```bash
 CLI="node E:/primary/projects/journal/host/cli.mjs"
+BASE="http://127.0.0.1:8766"   # dev host；HTTP 直连示例统一用 $BASE（生产是 8765，慎写）
 ```
 
 ## 常用命令
@@ -128,7 +138,7 @@ $CLI todo delete <id> --confirm              # 删除（需 --confirm 防误操�
 
 > ⚠️ **不加 `--time` 的待办会落进界面时间线的「全天」组**（排在最底部），
 > 不会出现在具体时刻上。想让待办显示在时间线上某个点，必须传 `--time`，
-> 且时间要落在 `:00`/`:30` 刻度附近（与卡片同规则，见下文「创建卡片」）。
+> 且时间建议对齐 15 分钟网格（与卡片同规则，见下文「创建卡片」）。
 
 ### 热力图 / 汇总
 
@@ -138,18 +148,18 @@ $CLI heatmap                                # 各天是否有记录
 
 ## 创建卡片（界面可见）
 
-> CLI 没有卡片命令，需要直接调 host 的 HTTP API（端口 8765）。
+> CLI 没有卡片命令，需要直接调 host 的 HTTP API（`$BASE`，见顶部环境表；在仓库工作时默认 8766）。
 
 **创建单张卡片**（`assignedDate` = 哪天，`time` = 时间刻度，建议用整点/半点）：
 
 ```bash
-curl -X POST http://127.0.0.1:8765/api/cards \
+curl -X POST $BASE/api/cards \
   -H "Content-Type: application/json" \
   -d '{"content":"下午见客户","type":"text","assignedDate":"2026-09-17","time":"14:00"}'
 ```
 
 - `type`：`text`（文本）/ `task`（任务） / `idea`（灵感）
-- 想在界面时间线显示，务必给 `assignedDate` + 落在整/半点刻度的 `time`（如 09:00、14:30）
+- 想在界面时间线显示，务必给 `assignedDate` + `time`（建议 `:00`/`:15`/`:30`/`:45` 对齐网格，如 09:00、14:30）
 - **⭐ 必须带 `tags`（项目标签）**：写卡片时一律带上项目标签，否则界面无法按项目筛选、导出到 Obsidian 后也归不了类。
   `"tags":["journal"]` —— 用项目名/仓库名（如 `journal`、`LiCASmart`、`tabshelf`）。
   同时 `provenance.project` 给项目目录（如 `E:/primary/projects/journal`）。
@@ -160,7 +170,7 @@ curl -X POST http://127.0.0.1:8765/api/cards \
 **完整示例（agent 写一张卡，带标签 + 来源）**：
 
 ```bash
-curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/json"   -d '{"content":"优化侧栏滚动","type":"text","tags":["journal"],
+curl -X POST $BASE/api/cards   -H "Content-Type: application/json"   -d '{"content":"优化侧栏滚动","type":"text","tags":["journal"],
        "assignedDate":"2026-09-24","time":"09:30","startTime":"09:30","endTime":"10:00",
        "provenance":{"origin":"agent-assisted","agent":"pi","model":"deepseek-v4-pro","project":"E:/primary/projects/journal"}}'
 ```
@@ -173,21 +183,22 @@ curl -X POST http://127.0.0.1:8765/api/cards   -H "Content-Type: application/jso
 
 ```bash
 # 列出全部模板（含内置，builtin: true 只读）
-curl http://127.0.0.1:8765/api/meta/templates
+curl $BASE/api/meta/templates
 
 # 创建/更新单模板（按 id 幂等）
-curl -X PUT http://127.0.0.1:8765/api/meta/templates/t_agent_review \
+curl -X PUT $BASE/api/meta/templates/t_agent_review \
   -H "Content-Type: application/json" \
   -d '{"id":"t_agent_review","name":"代码评审","emoji":"🧐","fields":[{"key":"status","value":"todo"},{"key":"priority","value":"high"}]}'
 
 # 删除单模板
-curl -X DELETE http://127.0.0.1:8765/api/meta/templates/t_agent_review
+curl -X DELETE $BASE/api/meta/templates/t_agent_review
 ```
 
 **格式契约**：
 - `id`：路由 id 与 body.id 必须一致，建议 `t_agent_<slug>`；`name` 非空；`fields` 是 `{key, value}` 数组。
 - fields **不必**含 title/content/tags（界面会自动补必填）；`value: ""` = 只控制编辑器可见性不预填。
 - 可用内建字段 key：`status`（todo/doing/done）、`priority`（high/medium/low）、`progress`、`assignedDate`、`project`、`schedule`（值形如 `{"start":"09:30","end":"10:00","duration":30}`）。
+- `status`/`priority` 的 API 值始终是英文 key；界面上才显示中文（如「进行中」「高」）——不要往 API 里写「高/中/低」。
 
 **硬规则**：
 - ⚠️ **不要用 `PUT /api/meta/templates`（整列表覆盖）**——它与 UI 是 read-modify-write，并发保存会互相覆盖丢数据。
@@ -199,7 +210,7 @@ curl -X DELETE http://127.0.0.1:8765/api/meta/templates/t_agent_review
 | 用户说 | 执行 |
 |--------|------|
 | "我今天做了什么" / "看看日志" | `$CLI today` |
-| "今天记录一下：下午见客户"（想让界面显示） | `POST /api/cards`（`assignedDate`=今天，`time`置整/半点刻度，如 14:00） |
+| "今天记录一下：下午见客户"（想让界面显示） | `POST /api/cards`（`assignedDate`=今天，`time` 对齐 15 分钟网格，如 14:00） |
 | "给 7/8 加一条：整理报告" | `read 2026-07-08` 看当天卡片/日志 → 决定加 `journals` 还是 `cards`。若要在界面看到 → `POST /api/cards` |
 | "我的待办有哪些" | `$CLI todo list` |
 | "加个待办：写周报，明天截止" | `$CLI todo add "写周报" --due <明天> --time 14:00`（要显示在时间线上就给 `--time`）|
@@ -341,4 +352,4 @@ node E:/primary/projects/journal/host/auto-summary.mjs --dry-run
   想在具体时刻显示 → 用 `POST /api/cards` 并明确给 `time`。
 - **追加日志**：先 `read` 再 `write` 覆盖，避免丢内容
 - 所有输出为 JSON，`ok:false` 时看 `error.code`（`HOST_OFFLINE` = 启动 host；`VALIDATION_ERROR` = 参数错误；`NOT_FOUND` = 目标不存在）
-- 数据文件：`E:/primary/projects/journal/host/data/journal.db`（host SQLite 权威库；扩展是镜像缓存）
+- 数据文件（SQLite 权威库；扩展是镜像缓存）：dev `E:/primary/data/journal-dev/journal.db`，prod `E:/primary/data/journal/journal.db`（见顶部环境表）

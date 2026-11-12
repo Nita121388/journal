@@ -7,7 +7,8 @@
  */
 
 import { createServer } from 'node:http';
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { hostname, platform, release, homedir } from 'node:os';
@@ -258,6 +259,32 @@ const USER_SKILLS_DIRS = {
   Codex: 'C:\\Users\\chemclin\\.codex\\skills',
 };
 
+/**
+ * 读取一份 SKILL.md 的指纹：行数 + mtime + 内容哈希 + 物理路径。
+ * 只探测存在性只能看出「文件在不在」——实际最常见的坏状态是
+ * 「文件在但内容落后于项目源」（三入口 junction 共用同一份旧副本），
+ * 所以必须把内容指纹带给 UI，才能标出「⚠️ 落后」。
+ * realpath 用于识别 junction：`.agents/.claude/.codex` 三个入口指向同一物理文件时，
+ * 状态面板只应出一行，而不是三行同容的假象。
+ */
+function skillFileInfo(p) {
+  try {
+    const st = statSync(p);
+    if (!st.isFile()) return null;
+    const raw = readFileSync(p, 'utf-8');
+    let real;
+    try { real = realpathSync(p); } catch { real = p; }
+    return {
+      lines: raw.split(/\r?\n/).length,
+      mtime: st.mtime.toISOString(),
+      hash: createHash('md5').update(raw).digest('hex'),
+      real,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function checkSkillStatus() {
   const locations = [
     { platform: '项目自带', path: join(PROJECT_DIR, '.agents', 'skills', SKILL_NAME, 'SKILL.md') },
@@ -267,13 +294,47 @@ function checkSkillStatus() {
   }
   locations.push({ platform: 'skillshare全局', path: join(SKILLS_DIR, SKILL_NAME, 'SKILL.md') });
 
-  const detail = locations.map(loc => ({
-    platform: loc.platform,
-    path: loc.path,
-    installed: statSyncSafe(loc.path) ? true : false,
-  }));
+  const detail = locations.map(loc => {
+    const info = skillFileInfo(loc.path);
+    return {
+      platform: loc.platform,
+      path: loc.path,
+      installed: Boolean(info),
+      ...(info ? { lines: info.lines, mtime: info.mtime, hash: info.hash, real: info.real } : {}),
+    };
+  });
+  // 去重：junction 让 `.agents/.claude/.codex` 三入口指向同一物理文件（realpath 相同），
+  // 每个物理副本只出一行，平台名合并展示（如「Pi / Claude / Codex」），
+  // 否则弹窗里三行同容是假象。
+  const seen = new Map(); // realpath(小写) → 行索引
+  const uniq = [];
+  for (const d of detail) {
+    const key = (d.real ?? d.path).toLowerCase();
+    const i = seen.get(key);
+    if (i === undefined) { seen.set(key, uniq.length); uniq.push(d); continue; }
+    uniq[i].platform = `${uniq[i].platform} / ${d.platform}`;
+  }
+  detail.length = 0;
+  detail.push(...uniq);
+  // 与「项目自带」逐份比对内容指纹：落后 = 存在但内容不一致
+  const source = detail.find(d => d.platform === '项目自带');
+  const sourceHash = source?.hash ?? null;
+  for (const d of detail) {
+    d.sameAsSource = Boolean(d.installed && sourceHash && d.hash === sourceHash);
+    delete d.hash; // 指纹只用于比对，不往外发
+    delete d.real; // 物理路径只用于去重，不往外发
+  }
+  const staleCount = detail.filter(d => d.installed && !d.sameAsSource).length;
   const installedCount = detail.filter(d => d.installed).length;
-  return { name: SKILL_NAME, installed: installedCount > 0, installedCount, total: detail.length, locations: detail };
+  return {
+    name: SKILL_NAME,
+    installed: installedCount > 0,
+    installedCount,
+    total: detail.length,
+    staleCount,
+    sourceLines: source?.lines ?? null,
+    locations: detail,
+  };
 }
 
 /* ─── 同步配置（脱敏） ──────────────────────────────────── */

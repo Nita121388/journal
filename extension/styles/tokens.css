@@ -191,7 +191,8 @@
   /* 今天标记：走主色（红退出 UI 语义）。--color-on-accent 压 --accent 实测 5.17:1 */
   --cc-today: var(--accent);
 
-  --panel-max-h: calc(100vh - 110px); /* 110 ≈ header + main 上下内边距 + 余量 */
+  /* 76 = header 44 + main 上下内边距 16×2：窄栏单列时正好贴满视口，不再留 34px 空隙 */
+  --panel-max-h: calc(100vh - 76px);
   --font: -apple-system, "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
     "Microsoft YaHei", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   /* emoji 字体栈：保证 U+1F5C2 等符号型 emoji 在 Windows 上不走 Segoe UI Symbol（会渲染成方块） */

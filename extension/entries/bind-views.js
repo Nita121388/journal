@@ -17,7 +17,7 @@ import { renderCalendarView, updateHeaderDate } from '../views/calendar.js';
 import { applyView, saveCurrentView } from '../views/named-view.js';
 import { renderCardPool } from '../views/pool.js';
 import { addDays, markViewMode, renderRightView, requestFocusScroll } from '../views/rightview.js';
-import { skillsCache, loadSkillStatus } from '../views/skills.js';
+import { skillsCache, loadSkillStatus, openSkillsPopover } from '../views/skills.js';
 import { openTemplateMenu } from '../features/template-menu.js';
 
 /** 绑定视图级交互。 */
@@ -198,14 +198,10 @@ export function bindViews() {
   // ── 卡片池：模板 ──
   els.btnTemplate?.addEventListener('click', openTemplateMenu);
 
-  // ── AI Skill 状态 ──
-  els.skillsToggle.addEventListener('click', () => {
-    const isOpen = !els.skillsPanel.classList.contains('hidden');
-    els.skillsPanel.classList.toggle('hidden', isOpen);
-    els.skillsToggle.classList.toggle('open', !isOpen);
-    if (!isOpen && !skillsCache) loadSkillStatus();
-  });
-  els.skillsCopyAll.addEventListener('click', async () => {
+  // ── AI Skill 状态（右上角弹窗）──
+  els.skillsBtn?.addEventListener('click', () => { void openSkillsPopover(els.skillsBtn); });
+  els.skillsRefresh?.addEventListener('click', () => { void loadSkillStatus(); });
+  els.skillsCopyAll?.addEventListener('click', async () => {
     if (!skillsCache) return;
     const text = skillsCache.locations.map(l => l.path).join('\n');
     try {
